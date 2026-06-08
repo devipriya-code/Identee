@@ -27,7 +27,7 @@ app.use(
   cors({
     origin: [
       "https://new-vyavarclient-3f1f.vercel.app",
-      "http://localhost:3000",
+      "http://localhost:5174",
     ], // Adjust for your frontend's URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],

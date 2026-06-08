@@ -1,122 +1,131 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
 
-function App() {
-  const [count, setCount] = useState(0)
+// ── Placeholder pages (replace with your real components) ──────────────────
+const CustomerHome = () => (
+  <div className="min-h-screen flex items-center justify-center text-gray-700">
+    <p className="text-lg font-medium">
+      🛍️ Customer Home — wire your component here
+    </p>
+  </div>
+);
 
+const AdminDashboard = () => (
+  <div className="min-h-screen flex items-center justify-center text-gray-700">
+    <p className="text-lg font-medium">
+      🛠️ Admin Dashboard — wire your component here
+    </p>
+  </div>
+);
+
+const SellerDashboard = () => (
+  <div className="min-h-screen flex items-center justify-center text-gray-700">
+    <p className="text-lg font-medium">
+      📦 Seller Dashboard — wire your component here
+    </p>
+  </div>
+);
+
+const NotFound = () => (
+  <div className="min-h-screen flex items-center justify-center text-gray-500">
+    <p className="text-lg">404 — Page not found</p>
+  </div>
+);
+// ──────────────────────────────────────────────────────────────────────────
+
+// ── Auth helpers ──────────────────────────────────────────────────────────
+const getUserInfo = () => {
+  try {
+    return JSON.parse(localStorage.getItem("userInfo"));
+  } catch {
+    return null;
+  }
+};
+
+// Redirect to login if not authenticated
+const PrivateRoute = ({ children }) => {
+  const user = getUserInfo();
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+// Redirect non-admins away from admin routes
+const AdminRoute = ({ children }) => {
+  const user = getUserInfo();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!user.isAdmin) return <Navigate to="/" replace />;
+  return children;
+};
+
+// Redirect non-sellers away from seller routes
+const SellerRoute = ({ children }) => {
+  const user = getUserInfo();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!user.isSeller) return <Navigate to="/" replace />;
+  return children;
+};
+
+// Redirect already-logged-in users away from login page
+const GuestRoute = ({ children }) => {
+  const user = getUserInfo();
+  if (!user) return children;
+  if (user.isAdmin) return <Navigate to="/admin/dashboard" replace />;
+  if (user.isSeller) return <Navigate to="/seller/dashboard" replace />;
+  return <Navigate to="/" replace />;
+};
+// ──────────────────────────────────────────────────────────────────────────
+
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <Router>
+      <Routes>
+        {/* Public: login */}
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <LoginPage />
+            </GuestRoute>
+          }
+        />
 
-      <div className="ticks"></div>
+        {/* Customer routes */}
+        <Route
+          path="/"
+          element={
+            <PrivateRoute>
+              <CustomerHome />
+            </PrivateRoute>
+          }
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {/* Admin routes */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {/* Seller routes */}
+        <Route
+          path="/seller/dashboard"
+          element={
+            <SellerRoute>
+              <SellerDashboard />
+            </SellerRoute>
+          }
+        />
+
+        {/* Fallback */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Router>
+  );
 }
-
-export default App
