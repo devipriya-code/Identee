@@ -34,7 +34,7 @@ app.use(
     credentials: true,
   }),
 );
-// https://vyavar.vercel.app
+// https://ecom.vercel.app
 
 app.options("*", cors());
 app.use(express.json({ limit: "500mb" }));
