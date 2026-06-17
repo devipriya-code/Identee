@@ -25,16 +25,13 @@ connectDB();
 const app = express();
 app.use(
   cors({
-    origin: [
-      "https://new-vyavarclient-3f1f.vercel.app",
-      "http://localhost:3000",
-    ], // Adjust for your frontend's URL
+    origin: ["https://new-ecomclient-3f1f.vercel.app", "http://localhost:5173"], // Adjust for your frontend's URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),
 );
-// https://vyavar.vercel.app
+// https://ecom.vercel.app
 
 app.options("*", cors());
 app.use(express.json({ limit: "500mb" }));
