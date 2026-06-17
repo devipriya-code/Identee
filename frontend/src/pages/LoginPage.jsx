@@ -61,44 +61,46 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex font-sans bg-gray-50">
-      {/* ── Left Panel ── */}
-      <div
-        className="hidden md:flex w-5/12 flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(160deg, #0F172A 0%, #EADBC8 100%)" }}
-      >
+      {/* Left Panel */}
+      <div className="hidden md:flex w-5/12 bg-[#0B1D2E] flex-col justify-between p-12 relative overflow-hidden">
         {/* Decorative circles */}
         <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full border-[40px] border-white/5" />
         <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full border-[30px] border-white/5" />
 
-        {/* Logo */}
-        <div className="flex items-center z-10">
-          <img
-            src="/assets/logo.png"
-            alt="Ecom"
-            style={{ height: 36, width: "auto", objectFit: "contain" }}
-          />
+        {/* Brand */}
+        <div className="flex items-center gap-3 z-10">
+          <div className="w-9 h-9 bg-[#E8703A] rounded-lg flex items-center justify-center">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+          </div>
+          <span className="text-white text-xl font-semibold tracking-tight">
+            Ecom
+          </span>
         </div>
 
         {/* Tagline */}
         <div className="z-10">
-          <p
-            className="text-3xl leading-snug font-light italic"
-            style={{ color: "#FFFFFF" }}
-          >
+          <p className="text-white text-3xl leading-snug font-light italic opacity-90">
             Your marketplace,
             <br />
             your{" "}
-            <span
-              className="not-italic font-semibold"
-              style={{ color: "#7ED957" }}
-            >
+            <span className="text-[#E8703A] not-italic font-semibold">
               rules.
             </span>
           </p>
-          <p
-            className="text-sm mt-4 leading-relaxed"
-            style={{ color: "#F8FAFC", opacity: 0.65 }}
-          >
+          <p className="text-white/40 text-sm mt-4 leading-relaxed">
             Manage products, orders, and customers
             <br />
             all in one place.
@@ -114,10 +116,7 @@ export default function LoginPage() {
           ].map(([val, label]) => (
             <div key={label}>
               <p className="text-white text-xl font-semibold">{val}</p>
-              <p
-                className="text-xs uppercase tracking-wider mt-1"
-                style={{ color: "#F8FAFC", opacity: 0.45 }}
-              >
+              <p className="text-white/40 text-xs uppercase tracking-wider mt-1">
                 {label}
               </p>
             </div>
@@ -125,16 +124,30 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── Right Panel ── */}
+      {/* Right Panel */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
+          {/* Mobile brand */}
           <div className="flex items-center gap-2 mb-8 md:hidden">
-            <img
-              src="/assets/logo.png"
-              alt="Ecom"
-              style={{ height: 30, width: "auto", objectFit: "contain" }}
-            />
+            <div className="w-8 h-8 bg-[#E8703A] rounded-lg flex items-center justify-center">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+            </div>
+            <span className="text-gray-900 text-lg font-semibold tracking-tight">
+              Ecom
+            </span>
           </div>
 
           <h2 className="text-2xl font-semibold text-gray-900 mb-1">
@@ -157,12 +170,8 @@ export default function LoginPage() {
               placeholder="you@example.com"
               autoComplete="email"
               className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-white text-gray-900 outline-none transition-all
+                focus:border-[#E8703A] focus:ring-2 focus:ring-[#E8703A]/15
                 ${errors.email ? "border-red-400" : "border-gray-200"}`}
-              style={{ "--tw-ring-color": "#7ED957" }}
-              onFocus={(e) => (e.target.style.borderColor = "#7ED957")}
-              onBlur={(e) =>
-                (e.target.style.borderColor = errors.email ? "#f87171" : "#e5e7eb")
-              }
             />
             {errors.email && (
               <p className="text-xs text-red-500 mt-1">{errors.email}</p>
@@ -183,13 +192,8 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 className={`w-full px-3.5 py-2.5 pr-10 rounded-lg border text-sm bg-white text-gray-900 outline-none transition-all
+                  focus:border-[#E8703A] focus:ring-2 focus:ring-[#E8703A]/15
                   ${errors.password ? "border-red-400" : "border-gray-200"}`}
-                onFocus={(e) => (e.target.style.borderColor = "#7ED957")}
-                onBlur={(e) =>
-                  (e.target.style.borderColor = errors.password
-                    ? "#f87171"
-                    : "#e5e7eb")
-                }
               />
               <button
                 type="button"
@@ -235,8 +239,7 @@ export default function LoginPage() {
             <div className="flex justify-end mt-1.5">
               <Link
                 to="/forgot-password"
-                className="text-xs hover:underline"
-                style={{ color: "#7ED957" }}
+                className="text-xs text-[#E8703A] hover:underline"
               >
                 Forgot password?
               </Link>
@@ -247,8 +250,7 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="w-full py-2.5 active:scale-[0.98] text-sm font-semibold rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: "#7ED957", color: "#0F172A" }}
+            className="w-full py-2.5 bg-[#0B1D2E] hover:bg-[#162D44] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -288,8 +290,7 @@ export default function LoginPage() {
             Don't have an account?{" "}
             <Link
               to="/register"
-              className="font-medium hover:underline"
-              style={{ color: "#7ED957" }}
+              className="text-[#E8703A] font-medium hover:underline"
             >
               Create one
             </Link>
@@ -299,9 +300,8 @@ export default function LoginPage() {
 
       {/* Toast */}
       <div
-        className={`fixed top-5 right-5 text-white text-sm px-4 py-3 rounded-xl shadow-lg transition-all duration-300 z-50 max-w-xs
+        className={`fixed top-5 right-5 bg-[#0B1D2E] text-white text-sm px-4 py-3 rounded-xl shadow-lg transition-all duration-300 z-50 max-w-xs
           ${toast.show ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
-        style={{ background: "#0F172A" }}
       >
         {toast.msg}
       </div>

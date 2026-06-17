@@ -3,30 +3,31 @@ import {
   Routes,
   Route,
   Navigate,
-  Outlet,
 } from "react-router-dom";
-import { useState } from "react";
 import LoginPage from "./pages/LoginPage";
-import ProductUpload from "./pages/ProductUploadPage";
-import AdminSidebar from "./components/AdminSidebar";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-// ── Placeholder pages ─────────────────────────
+
+// ── Placeholder pages (replace with your real components) ──────────────────
 const CustomerHome = () => (
   <div className="min-h-screen flex items-center justify-center text-gray-700">
-    <p className="text-lg font-medium">🛍️ Customer Home</p>
+    <p className="text-lg font-medium">
+      🛍️ Customer Home — wire your component here
+    </p>
   </div>
 );
 
 const AdminDashboard = () => (
-  <div className="text-gray-700">
-    <p className="text-lg font-medium">🛠️ Admin Dashboard</p>
+  <div className="min-h-screen flex items-center justify-center text-gray-700">
+    <p className="text-lg font-medium">
+      🛠️ Admin Dashboard — wire your component here
+    </p>
   </div>
 );
 
 const SellerDashboard = () => (
   <div className="min-h-screen flex items-center justify-center text-gray-700">
-    <p className="text-lg font-medium">📦 Seller Dashboard</p>
+    <p className="text-lg font-medium">
+      📦 Seller Dashboard — wire your component here
+    </p>
   </div>
 );
 
@@ -35,8 +36,9 @@ const NotFound = () => (
     <p className="text-lg">404 — Page not found</p>
   </div>
 );
+// ──────────────────────────────────────────────────────────────────────────
 
-// ── Auth helpers ──────────────────────────────
+// ── Auth helpers ──────────────────────────────────────────────────────────
 const getUserInfo = () => {
   try {
     return JSON.parse(localStorage.getItem("userInfo"));
@@ -45,11 +47,13 @@ const getUserInfo = () => {
   }
 };
 
+// Redirect to login if not authenticated
 const PrivateRoute = ({ children }) => {
   const user = getUserInfo();
   return user ? children : <Navigate to="/login" replace />;
 };
 
+// Redirect non-admins away from admin routes
 const AdminRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return <Navigate to="/login" replace />;
@@ -57,6 +61,7 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// Redirect non-sellers away from seller routes
 const SellerRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return <Navigate to="/login" replace />;
@@ -64,49 +69,21 @@ const SellerRoute = ({ children }) => {
   return children;
 };
 
+// Redirect already-logged-in users away from login page
 const GuestRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return children;
-  if (user.isAdmin) return <Navigate to="/admin/upload-product" replace />;
+  if (user.isAdmin) return <Navigate to="/admin/dashboard" replace />;
   if (user.isSeller) return <Navigate to="/seller/dashboard" replace />;
   return <Navigate to="/" replace />;
 };
+// ──────────────────────────────────────────────────────────────────────────
 
-// ── Admin Layout with Sidebar ─────────────────
-const AdminLayout = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <AdminSidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((c) => !c)}
-      />
-      <main
-        style={{
-          marginLeft: collapsed ? 64 : 220,
-          transition: "margin-left 0.22s cubic-bezier(.4,0,.2,1)",
-          // No padding here — each page owns its own spacing
-          padding: 0,
-          flex: 1,
-          minHeight: "100vh",
-          background: "#080a12",
-          // Prevent content from overflowing into sidebar
-          minWidth: 0,
-        }}
-      >
-        <Outlet />
-      </main>
-    </div>
-  );
-};
-
-// ── App ───────────────────────────────────────
 export default function App() {
   return (
     <Router>
-      <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
-        {/* Login */}
+        {/* Public: login */}
         <Route
           path="/login"
           element={
@@ -116,7 +93,7 @@ export default function App() {
           }
         />
 
-        {/* Customer */}
+        {/* Customer routes */}
         <Route
           path="/"
           element={
@@ -126,24 +103,17 @@ export default function App() {
           }
         />
 
-        {/* Admin with Sidebar */}
+        {/* Admin routes */}
         <Route
-          path="/admin"
+          path="/admin/dashboard"
           element={
             <AdminRoute>
-              <AdminLayout />
+              <AdminDashboard />
             </AdminRoute>
           }
-        >
-          <Route path="upload-product" element={<ProductUpload />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route
-            index
-            element={<Navigate to="/admin/upload-product" replace />}
-          />
-        </Route>
+        />
 
-        {/* Seller */}
+        {/* Seller routes */}
         <Route
           path="/seller/dashboard"
           element={
@@ -153,11 +123,9 @@ export default function App() {
           }
         />
 
-        {/* 404 */}
+        {/* Fallback */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );
 }
-
-export default App
