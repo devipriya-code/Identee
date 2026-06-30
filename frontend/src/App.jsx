@@ -3,28 +3,109 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from "react-router-dom";
-import LoginPage from "./pages/LoginPage";
 
-// ── Placeholder pages (replace with your real components) ──────────────────
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import LandingPage from "./pages/LandingPage";
+import Navbar from "./components/Navbar";
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/AdminDashboard";
+import ProductUploadPage from "./pages/ProductUploadPage";
+
+// ── Placeholder pages (replace with your real components as you build them) ─
 const CustomerHome = () => (
-  <div className="min-h-screen flex items-center justify-center text-gray-700">
+  <div
+    className="min-h-screen flex items-center justify-center"
+    style={{ background: "#0B0B0C", color: "#8A877F" }}
+  >
     <p className="text-lg font-medium">
       🛍️ Customer Home — wire your component here
     </p>
   </div>
 );
 
-const AdminDashboard = () => (
-  <div className="min-h-screen flex items-center justify-center text-gray-700">
-    <p className="text-lg font-medium">
-      🛠️ Admin Dashboard — wire your component here
-    </p>
-  </div>
+const ProductListPage = () => (
+  <PlaceholderAdminPage
+    title="Product List"
+    desc="Connect getProducts() to render the catalogue table here."
+  />
 );
 
+const OrdersPage = () => (
+  <PlaceholderAdminPage
+    title="Orders"
+    desc="Wire your orders API + table here."
+  />
+);
+
+const TransactionsPage = () => (
+  <PlaceholderAdminPage
+    title="Transactions"
+    desc="Wire your transactions API + table here."
+  />
+);
+
+const UsersPage = () => (
+  <PlaceholderAdminPage
+    title="All Users"
+    desc="Wire your users API + table here."
+  />
+);
+
+const SellersPage = () => (
+  <PlaceholderAdminPage
+    title="Sellers"
+    desc="Wire your sellers API + table here."
+  />
+);
+
+function PlaceholderAdminPage({ title, desc }) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0B0B0C",
+        color: "#F3EFE6",
+        padding: "32px 40px",
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "#C9A24B",
+        }}
+      >
+        Admin
+      </p>
+      <h1
+        style={{
+          margin: "4px 0 0",
+          fontSize: 26,
+          fontWeight: 600,
+          fontFamily: "'Cormorant Garamond', serif",
+        }}
+      >
+        {title}
+      </h1>
+      <p style={{ margin: "10px 0 0", fontSize: 14, color: "#8A877F" }}>
+        {desc}
+      </p>
+    </div>
+  );
+}
+
 const SellerDashboard = () => (
-  <div className="min-h-screen flex items-center justify-center text-gray-700">
+  <div
+    className="min-h-screen flex items-center justify-center"
+    style={{ background: "#0B0B0C", color: "#8A877F" }}
+  >
     <p className="text-lg font-medium">
       📦 Seller Dashboard — wire your component here
     </p>
@@ -32,11 +113,22 @@ const SellerDashboard = () => (
 );
 
 const NotFound = () => (
-  <div className="min-h-screen flex items-center justify-center text-gray-500">
+  <div
+    className="min-h-screen flex items-center justify-center"
+    style={{ background: "#0B0B0C", color: "#8A877F" }}
+  >
     <p className="text-lg">404 — Page not found</p>
   </div>
 );
 // ──────────────────────────────────────────────────────────────────────────
+
+// ── Customer layout: Navbar + page content ──────────────────────────────────
+const CustomerLayout = () => (
+  <>
+    <Navbar />
+    <Outlet />
+  </>
+);
 
 // ── Auth helpers ──────────────────────────────────────────────────────────
 const getUserInfo = () => {
@@ -47,13 +139,11 @@ const getUserInfo = () => {
   }
 };
 
-// Redirect to login if not authenticated
 const PrivateRoute = ({ children }) => {
   const user = getUserInfo();
   return user ? children : <Navigate to="/login" replace />;
 };
 
-// Redirect non-admins away from admin routes
 const AdminRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return <Navigate to="/login" replace />;
@@ -61,7 +151,6 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
-// Redirect non-sellers away from seller routes
 const SellerRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return <Navigate to="/login" replace />;
@@ -69,13 +158,12 @@ const SellerRoute = ({ children }) => {
   return children;
 };
 
-// Redirect already-logged-in users away from login page
 const GuestRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return children;
   if (user.isAdmin) return <Navigate to="/admin/dashboard" replace />;
   if (user.isSeller) return <Navigate to="/seller/dashboard" replace />;
-  return <Navigate to="/" replace />;
+  return <Navigate to="/home" replace />;
 };
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -83,7 +171,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Public: login */}
+        {/* Public: auth */}
         <Route
           path="/login"
           element={
@@ -92,26 +180,48 @@ export default function App() {
             </GuestRoute>
           }
         />
-
-        {/* Customer routes */}
         <Route
-          path="/"
+          path="/register"
           element={
-            <PrivateRoute>
-              <CustomerHome />
-            </PrivateRoute>
+            <GuestRoute>
+              <RegisterPage />
+            </GuestRoute>
           }
         />
 
-        {/* Admin routes */}
+        {/* Customer routes — Navbar wraps everything under "/" */}
+        <Route element={<CustomerLayout />}>
+          {/* Public landing page — visible to everyone, logged in or not */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Authenticated customer home (shop) — only for logged-in customers */}
+          <Route
+            path="/home"
+            element={
+              <PrivateRoute>
+                <CustomerHome />
+              </PrivateRoute>
+            }
+          />
+        </Route>
+
+        {/* Admin routes — AdminSidebar layout wraps every /admin/* page */}
         <Route
-          path="/admin/dashboard"
+          path="/admin"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <AdminLayout />
             </AdminRoute>
           }
-        />
+        >
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="upload-product" element={<ProductUploadPage />} />
+          <Route path="products" element={<ProductListPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="transactions" element={<TransactionsPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="sellers" element={<SellersPage />} />
+        </Route>
 
         {/* Seller routes */}
         <Route

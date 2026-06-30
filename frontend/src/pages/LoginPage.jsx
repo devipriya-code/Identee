@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const gold = "#C9A24B";
+const goldBright = "#F0D585";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -60,54 +62,70 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans bg-gray-50">
+    <div
+      className="min-h-screen flex font-sans"
+      style={{ background: "#0B0B0C" }}
+    >
       {/* Left Panel */}
-      <div className="hidden md:flex w-5/12 bg-[#0B1D2E] flex-col justify-between p-12 relative overflow-hidden">
-        {/* Decorative circles */}
-        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full border-[40px] border-white/5" />
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full border-[30px] border-white/5" />
+      <div
+        className="hidden md:flex w-5/12 flex-col justify-between p-12 relative overflow-hidden"
+        style={{ background: "#101012" }}
+      >
+        <div
+          className="absolute -top-16 -right-16 w-56 h-56 rounded-full"
+          style={{ border: `40px solid ${gold}0d` }}
+        />
+        <div
+          className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full"
+          style={{ border: `30px solid ${gold}0d` }}
+        />
 
-        {/* Brand */}
         <div className="flex items-center gap-3 z-10">
-          <div className="w-9 h-9 bg-[#E8703A] rounded-lg flex items-center justify-center">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <path d="M16 10a4 4 0 0 1-8 0" />
-            </svg>
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center font-serif font-bold"
+            style={{
+              background: `linear-gradient(135deg, ${gold}, ${goldBright})`,
+              color: "#0B0B0C",
+            }}
+          >
+            ID
           </div>
-          <span className="text-white text-xl font-semibold tracking-tight">
-            Ecom
+          <span
+            className="text-xl font-semibold tracking-tight"
+            style={{ color: "#F3EFE6" }}
+          >
+            IDENTEE
           </span>
         </div>
 
-        {/* Tagline */}
         <div className="z-10">
-          <p className="text-white text-3xl leading-snug font-light italic opacity-90">
-            Your marketplace,
+          <p
+            className="text-3xl leading-snug font-light italic opacity-90"
+            style={{
+              color: "#F3EFE6",
+              fontFamily: "'Cormorant Garamond', serif",
+            }}
+          >
+            Your style, your story,
             <br />
             your{" "}
-            <span className="text-[#E8703A] not-italic font-semibold">
-              rules.
+            <span
+              className="not-italic font-semibold"
+              style={{ color: goldBright }}
+            >
+              identity.
             </span>
           </p>
-          <p className="text-white/40 text-sm mt-4 leading-relaxed">
-            Manage products, orders, and customers
+          <p
+            className="text-sm mt-4 leading-relaxed"
+            style={{ color: "#8A877F" }}
+          >
+            Sign in to manage orders, designs,
             <br />
-            all in one place.
+            and your custom collection.
           </p>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-10 z-10">
           {[
             ["24k+", "Orders"],
@@ -115,8 +133,13 @@ export default function LoginPage() {
             ["98%", "Uptime"],
           ].map(([val, label]) => (
             <div key={label}>
-              <p className="text-white text-xl font-semibold">{val}</p>
-              <p className="text-white/40 text-xs uppercase tracking-wider mt-1">
+              <p className="text-xl font-semibold" style={{ color: "#F3EFE6" }}>
+                {val}
+              </p>
+              <p
+                className="text-xs uppercase tracking-wider mt-1"
+                style={{ color: "#8A877F" }}
+              >
                 {label}
               </p>
             </div>
@@ -127,39 +150,43 @@ export default function LoginPage() {
       {/* Right Panel */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
-          {/* Mobile brand */}
           <div className="flex items-center gap-2 mb-8 md:hidden">
-            <div className="w-8 h-8 bg-[#E8703A] rounded-lg flex items-center justify-center">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+              style={{
+                background: `linear-gradient(135deg, ${gold}, ${goldBright})`,
+                color: "#0B0B0C",
+              }}
+            >
+              ID
             </div>
-            <span className="text-gray-900 text-lg font-semibold tracking-tight">
-              Ecom
+            <span
+              className="text-lg font-semibold tracking-tight"
+              style={{ color: "#F3EFE6" }}
+            >
+              IDENTEE
             </span>
           </div>
 
-          <h2 className="text-2xl font-semibold text-gray-900 mb-1">
+          <h2
+            className="text-2xl font-semibold mb-1"
+            style={{
+              color: "#F3EFE6",
+              fontFamily: "'Cormorant Garamond', serif",
+            }}
+          >
             Welcome back
           </h2>
-          <p className="text-sm text-gray-500 mb-8">
+          <p className="text-sm mb-8" style={{ color: "#8A877F" }}>
             Sign in to your account to continue
           </p>
 
           {/* Email */}
           <div className="mb-5">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+            <label
+              className="block text-xs font-medium uppercase tracking-wider mb-1.5"
+              style={{ color: "#8A877F" }}
+            >
               Email address
             </label>
             <input
@@ -169,18 +196,26 @@ export default function LoginPage() {
               onKeyDown={handleKeyDown}
               placeholder="you@example.com"
               autoComplete="email"
-              className={`w-full px-3.5 py-2.5 rounded-lg border text-sm bg-white text-gray-900 outline-none transition-all
-                focus:border-[#E8703A] focus:ring-2 focus:ring-[#E8703A]/15
-                ${errors.email ? "border-red-400" : "border-gray-200"}`}
+              className="w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none transition-all"
+              style={{
+                background: "#1F1F24",
+                color: "#F3EFE6",
+                borderColor: errors.email ? "#E2574C" : "#3A3A40",
+              }}
             />
             {errors.email && (
-              <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+              <p className="text-xs mt-1" style={{ color: "#E2574C" }}>
+                {errors.email}
+              </p>
             )}
           </div>
 
           {/* Password */}
           <div className="mb-6">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+            <label
+              className="block text-xs font-medium uppercase tracking-wider mb-1.5"
+              style={{ color: "#8A877F" }}
+            >
               Password
             </label>
             <div className="relative">
@@ -191,55 +226,33 @@ export default function LoginPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="••••••••"
                 autoComplete="current-password"
-                className={`w-full px-3.5 py-2.5 pr-10 rounded-lg border text-sm bg-white text-gray-900 outline-none transition-all
-                  focus:border-[#E8703A] focus:ring-2 focus:ring-[#E8703A]/15
-                  ${errors.password ? "border-red-400" : "border-gray-200"}`}
+                className="w-full px-3.5 py-2.5 pr-10 rounded-lg border text-sm outline-none transition-all"
+                style={{
+                  background: "#1F1F24",
+                  color: "#F3EFE6",
+                  borderColor: errors.password ? "#E2574C" : "#3A3A40",
+                }}
               />
               <button
                 type="button"
                 onClick={() => setShowPass(!showPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: "#8A877F" }}
                 aria-label="Toggle password"
               >
-                {showPass ? (
-                  <svg
-                    width="17"
-                    height="17"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="17"
-                    height="17"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
+                {showPass ? "🙈" : "👁"}
               </button>
             </div>
             {errors.password && (
-              <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+              <p className="text-xs mt-1" style={{ color: "#E2574C" }}>
+                {errors.password}
+              </p>
             )}
             <div className="flex justify-end mt-1.5">
               <Link
                 to="/forgot-password"
-                className="text-xs text-[#E8703A] hover:underline"
+                className="text-xs hover:underline"
+                style={{ color: goldBright }}
               >
                 Forgot password?
               </Link>
@@ -250,7 +263,11 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="w-full py-2.5 bg-[#0B1D2E] hover:bg-[#162D44] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-2.5 text-sm font-medium rounded-lg transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{
+              background: `linear-gradient(135deg, ${gold}, ${goldBright})`,
+              color: "#0B0B0C",
+            }}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -281,16 +298,19 @@ export default function LoginPage() {
           </button>
 
           <div className="flex items-center gap-3 my-6">
-            <hr className="flex-1 border-gray-200" />
-            <span className="text-xs text-gray-400">new here?</span>
-            <hr className="flex-1 border-gray-200" />
+            <hr style={{ flex: 1, borderColor: "#2B2B30" }} />
+            <span className="text-xs" style={{ color: "#5A5852" }}>
+              new here?
+            </span>
+            <hr style={{ flex: 1, borderColor: "#2B2B30" }} />
           </div>
 
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm" style={{ color: "#8A877F" }}>
             Don't have an account?{" "}
             <Link
               to="/register"
-              className="text-[#E8703A] font-medium hover:underline"
+              className="font-medium hover:underline"
+              style={{ color: goldBright }}
             >
               Create one
             </Link>
@@ -300,8 +320,13 @@ export default function LoginPage() {
 
       {/* Toast */}
       <div
-        className={`fixed top-5 right-5 bg-[#0B1D2E] text-white text-sm px-4 py-3 rounded-xl shadow-lg transition-all duration-300 z-50 max-w-xs
+        className={`fixed top-5 right-5 text-sm px-4 py-3 rounded-xl shadow-lg transition-all duration-300 z-50 max-w-xs
           ${toast.show ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
+        style={{
+          background: "#16161A",
+          border: `1px solid ${gold}44`,
+          color: "#F3EFE6",
+        }}
       >
         {toast.msg}
       </div>

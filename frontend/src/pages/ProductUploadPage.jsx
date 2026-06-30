@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { createProduct, reset } from "../redux/slices/productSlice";
 import { toast } from "react-toastify";
+import { THEME, SIZE_CHARTS, inputStyle, labelStyle } from "../theme/theme";
 import "react-toastify/dist/ReactToastify.css";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -19,11 +20,12 @@ const WASH_OPTIONS = [
 const GENDERS = ["Men", "Women", "Kids", "Unisex"];
 const AGE_RANGES = ["Adult", "Teen", "Kids", "Infant"];
 const PRODUCT_TYPES = ["Casual", "Formal", "Sports", "Ethnic", "Party"];
-const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
+const GARMENT_STYLES = Object.keys(SIZE_CHARTS);
 
 const emptyVariant = () => ({
   id: Date.now() + Math.random(),
   color: "",
+  garmentStyle: "Round Neck",
   sizes: [],
   stockBySize: {},
   price: "",
@@ -60,18 +62,17 @@ const emptyForm = () => ({
   variants: [emptyVariant()],
 });
 
-// ── Light theme tokens ──────────────────────────────────────────────────────
-const LIGHT = {
-  bg: "#ffffff",
-  text: "#1e293b",
-  muted: "#64748b",
-  border: "#e2e8f0",
-  accent: "#7ED957",
-  accentBg: "#f0fdf4",
-  accentBorder: "#bbf7d0",
-  inputBg: "#f8fafc",
-  inputBorder: "#cbd5e1",
-  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+// sectionHeading isn't in theme.js's exported set used elsewhere, define locally from THEME
+const sectionHeading = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: THEME.gold,
+  textTransform: "uppercase",
+  letterSpacing: "0.1em",
+  fontFamily: "'Inter', sans-serif",
+  margin: "28px 0 14px",
+  paddingBottom: 8,
+  borderBottom: `1px solid ${THEME.border}`,
 };
 
 // ─── sub-components ──────────────────────────────────────────────────────────
@@ -115,7 +116,7 @@ function ImageDropzone({ images, previews, onChange }) {
                 height: 72,
                 objectFit: "cover",
                 borderRadius: 8,
-                border: `1px solid ${LIGHT.border}`,
+                border: `1px solid ${THEME.border}`,
               }}
             />
             <button
@@ -128,7 +129,7 @@ function ImageDropzone({ images, previews, onChange }) {
                 width: 18,
                 height: 18,
                 borderRadius: "50%",
-                background: "#ef4444",
+                background: THEME.danger,
                 border: "none",
                 cursor: "pointer",
                 color: "#fff",
@@ -148,8 +149,8 @@ function ImageDropzone({ images, previews, onChange }) {
                   bottom: 2,
                   left: 2,
                   fontSize: 8,
-                  background: LIGHT.accent,
-                  color: "#0a1a05",
+                  background: THEME.gold,
+                  color: "#0B0B0C",
                   padding: "1px 4px",
                   borderRadius: 3,
                   fontWeight: 700,
@@ -177,18 +178,18 @@ function ImageDropzone({ images, previews, onChange }) {
             style={{
               width: 72,
               height: 72,
-              border: `2px dashed ${dragging ? LIGHT.accent : error ? "#ef4444" : LIGHT.border}`,
+              border: `2px dashed ${dragging ? THEME.gold : error ? THEME.danger : THEME.border}`,
               borderRadius: 8,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: dragging ? LIGHT.accent : LIGHT.muted,
+              color: dragging ? THEME.gold : THEME.textMuted,
               fontSize: 10,
               gap: 3,
               transition: "border-color 0.15s",
-              background: LIGHT.inputBg,
+              background: THEME.surface2,
             }}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" width={18} height={18}>
@@ -216,10 +217,10 @@ function ImageDropzone({ images, previews, onChange }) {
         style={{
           fontSize: 11,
           color: error
-            ? "#ef4444"
+            ? THEME.danger
             : images.length >= 3
-              ? LIGHT.accent
-              : LIGHT.muted,
+              ? THEME.gold
+              : THEME.textMuted,
           margin: 0,
           fontFamily: "'Inter', sans-serif",
         }}
@@ -235,6 +236,22 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
   const update = (field, value) =>
     onChange(index, { ...variant, [field]: value });
 
+  const sizeOptions = SIZE_CHARTS[variant.garmentStyle] || [];
+
+  const changeStyle = (style) => {
+    // garment style changed — drop sizes that no longer apply
+    const allowed = SIZE_CHARTS[style] || [];
+    const nextSizes = variant.sizes.filter((s) => allowed.includes(s));
+    const nextStock = {};
+    nextSizes.forEach((s) => (nextStock[s] = variant.stockBySize[s] ?? 0));
+    onChange(index, {
+      ...variant,
+      garmentStyle: style,
+      sizes: nextSizes,
+      stockBySize: nextStock,
+    });
+  };
+
   const toggleSize = (size) => {
     const next = variant.sizes.includes(size)
       ? variant.sizes.filter((s) => s !== size)
@@ -247,12 +264,12 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
   return (
     <div
       style={{
-        border: `1px solid ${LIGHT.border}`,
+        border: `1px solid ${THEME.border}`,
         borderRadius: 12,
         padding: 20,
-        background: LIGHT.bg,
+        background: THEME.surface,
         position: "relative",
-        boxShadow: LIGHT.shadow,
+        boxShadow: THEME.shadow,
       }}
     >
       <div
@@ -268,13 +285,13 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
             margin: 0,
             fontSize: 14,
             fontWeight: 600,
-            color: LIGHT.text,
+            color: THEME.text,
             fontFamily: "'Inter', sans-serif",
           }}
         >
           Variant {index + 1}
           {variant.color && (
-            <span style={{ color: LIGHT.accent, marginLeft: 6 }}>
+            <span style={{ color: THEME.goldBright, marginLeft: 6 }}>
               — {variant.color}
             </span>
           )}
@@ -284,10 +301,10 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
             type="button"
             onClick={() => onRemove(index)}
             style={{
-              background: "#fee2e2",
-              border: "1px solid #fca5a5",
+              background: THEME.dangerBg,
+              border: `1px solid ${THEME.dangerBorder}`,
               borderRadius: 6,
-              color: "#dc2626",
+              color: THEME.danger,
               cursor: "pointer",
               fontSize: 11,
               padding: "3px 10px",
@@ -311,7 +328,7 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
           <input
             value={variant.color}
             onChange={(e) => update("color", e.target.value)}
-            placeholder="e.g. Navy Blue"
+            placeholder="e.g. Onyx Black"
             style={inputStyle}
           />
         </Field>
@@ -356,21 +373,36 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
             readOnly
             style={{
               ...inputStyle,
-              background: "#f1f5f9",
-              color: LIGHT.accent,
+              background: "#1A1A14",
+              color: THEME.goldBright,
               fontWeight: 600,
             }}
           />
         </Field>
       </div>
 
-      {/* Sizes */}
+      {/* Garment style → drives the size chart */}
+      <div style={{ marginBottom: 16 }}>
+        <Field label="Garment Style *">
+          <select
+            value={variant.garmentStyle}
+            onChange={(e) => changeStyle(e.target.value)}
+            style={inputStyle}
+          >
+            {GARMENT_STYLES.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {/* Sizes — options change based on garment style */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Sizes *</label>
         <div
           style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}
         >
-          {SIZE_OPTIONS.map((s) => (
+          {sizeOptions.map((s) => (
             <button
               key={s}
               type="button"
@@ -378,11 +410,13 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
               style={{
                 padding: "4px 12px",
                 borderRadius: 6,
-                border: `1px solid ${variant.sizes.includes(s) ? LIGHT.accent : LIGHT.border}`,
+                border: `1px solid ${variant.sizes.includes(s) ? THEME.gold : THEME.border}`,
                 background: variant.sizes.includes(s)
-                  ? LIGHT.accentBg
-                  : LIGHT.bg,
-                color: variant.sizes.includes(s) ? LIGHT.accent : LIGHT.muted,
+                  ? THEME.goldBg
+                  : THEME.surface,
+                color: variant.sizes.includes(s)
+                  ? THEME.goldBright
+                  : THEME.textMuted,
                 cursor: "pointer",
                 fontSize: 12,
                 fontFamily: "'Inter', sans-serif",
@@ -410,7 +444,7 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
                 <span
                   style={{
                     fontSize: 12,
-                    color: LIGHT.text,
+                    color: THEME.text,
                     fontFamily: "'Inter',sans-serif",
                   }}
                 >
@@ -442,7 +476,7 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
       <div>
         <label style={{ ...labelStyle, marginBottom: 8, display: "block" }}>
           Product Images{" "}
-          <span style={{ color: LIGHT.muted, fontWeight: 400 }}>
+          <span style={{ color: THEME.textMuted, fontWeight: 400 }}>
             (min 3, max 5)
           </span>
         </label>
@@ -465,42 +499,6 @@ const Field = ({ label, children }) => (
   </div>
 );
 
-// ─── shared styles ──────────────────────────────────────────────────────────
-const inputStyle = {
-  width: "100%",
-  background: LIGHT.inputBg,
-  border: `1px solid ${LIGHT.inputBorder}`,
-  borderRadius: 7,
-  padding: "7px 11px",
-  color: LIGHT.text,
-  fontSize: 13,
-  fontFamily: "'Inter', sans-serif",
-  outline: "none",
-  boxSizing: "border-box",
-  transition: "border-color 0.15s, box-shadow 0.15s",
-};
-
-const labelStyle = {
-  fontSize: 11,
-  fontWeight: 600,
-  color: LIGHT.muted,
-  letterSpacing: "0.05em",
-  textTransform: "uppercase",
-  fontFamily: "'Inter', sans-serif",
-};
-
-const sectionHeading = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: LIGHT.muted,
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-  fontFamily: "'Inter', sans-serif",
-  margin: "28px 0 14px",
-  paddingBottom: 8,
-  borderBottom: `1px solid ${LIGHT.border}`,
-};
-
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function ProductUploadPage() {
   const dispatch = useDispatch();
@@ -510,17 +508,15 @@ export default function ProductUploadPage() {
   const [form, setForm] = useState(emptyForm());
   const [formErrors, setFormErrors] = useState({});
 
-  // ─── Reset & toast on success ──────────────────────────────────────────
   useEffect(() => {
     if (isSuccess) {
       setForm(emptyForm());
       setFormErrors({});
-      toast.success("✅ Product uploaded successfully!");
+      toast.success("Product uploaded successfully");
       dispatch(reset());
     }
   }, [isSuccess, dispatch]);
 
-  // ─── Cleanup on unmount ────────────────────────────────────────────────
   useEffect(() => {
     return () => {
       dispatch(reset());
@@ -621,6 +617,7 @@ export default function ProductUploadPage() {
         type: form.type,
         ageRange: form.ageRange,
         color: v.color,
+        garmentStyle: v.garmentStyle,
         fabric: form.fabric,
         sizes: v.sizes,
         stockBySize: v.sizes.map((s) => ({
@@ -642,7 +639,7 @@ export default function ProductUploadPage() {
     formErrors[key] ? (
       <p
         style={{
-          color: "#dc2626",
+          color: THEME.danger,
           fontSize: 11,
           margin: "3px 0 0",
           fontFamily: "'Inter',sans-serif",
@@ -656,44 +653,44 @@ export default function ProductUploadPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: LIGHT.bg,
-        color: LIGHT.text,
+        background: THEME.bg,
+        color: THEME.text,
         fontFamily: "'Inter', sans-serif",
         padding: "32px 40px",
       }}
     >
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <p style={{ ...labelStyle, margin: 0, color: LIGHT.accent }}>
+        <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>
           Admin · Catalogue
         </p>
         <h1
           style={{
             margin: "4px 0 0",
-            fontSize: 24,
-            fontWeight: 700,
-            color: LIGHT.text,
-            letterSpacing: "-0.02em",
+            fontSize: 26,
+            fontWeight: 600,
+            color: THEME.text,
+            letterSpacing: "0.01em",
+            fontFamily: "'Cormorant Garamond', serif",
           }}
         >
           Upload Product
         </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: LIGHT.muted }}>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: THEME.textMuted }}>
           Fill in product details and add colour variants with images.
         </p>
       </div>
 
-      {/* Fallback error alert (toast covers success) */}
       {isError && (
         <div
           style={{
-            background: "#fee2e2",
-            border: "1px solid #fca5a5",
+            background: THEME.dangerBg,
+            border: `1px solid ${THEME.dangerBorder}`,
             borderRadius: 8,
             padding: "10px 14px",
             marginBottom: 16,
             fontSize: 13,
-            color: "#dc2626",
+            color: THEME.danger,
           }}
         >
           {message}
@@ -716,7 +713,7 @@ export default function ProductUploadPage() {
             <input
               value={form.brandname}
               onChange={(e) => set("brandname", e.target.value)}
-              placeholder="e.g. ecom"
+              placeholder="e.g. IDENTEE"
               style={inputStyle}
             />
             {err("brandname")}
@@ -725,7 +722,7 @@ export default function ProductUploadPage() {
             <input
               value={form.SKU}
               onChange={(e) => set("SKU", e.target.value.toUpperCase())}
-              placeholder="e.g. VYV001"
+              placeholder="e.g. IDT001"
               style={inputStyle}
             />
             {err("SKU")}
@@ -789,7 +786,7 @@ export default function ProductUploadPage() {
             type="checkbox"
             checked={form.isFeatured}
             onChange={(e) => set("isFeatured", e.target.checked)}
-            style={{ accentColor: LIGHT.accent, width: 14, height: 14 }}
+            style={{ accentColor: THEME.gold, width: 14, height: 14 }}
           />
           <label
             htmlFor="featured"
@@ -797,7 +794,7 @@ export default function ProductUploadPage() {
               ...labelStyle,
               textTransform: "none",
               fontSize: 13,
-              color: LIGHT.text,
+              color: THEME.text,
             }}
           >
             Mark as Featured
@@ -893,11 +890,13 @@ export default function ProductUploadPage() {
                 style={{
                   padding: "4px 10px",
                   borderRadius: 6,
-                  border: `1px solid ${form.washCare.includes(w) ? LIGHT.accent : LIGHT.border}`,
+                  border: `1px solid ${form.washCare.includes(w) ? THEME.gold : THEME.border}`,
                   background: form.washCare.includes(w)
-                    ? LIGHT.accentBg
-                    : LIGHT.bg,
-                  color: form.washCare.includes(w) ? LIGHT.accent : LIGHT.muted,
+                    ? THEME.goldBg
+                    : THEME.surface,
+                  color: form.washCare.includes(w)
+                    ? THEME.goldBright
+                    : THEME.textMuted,
                   cursor: "pointer",
                   fontSize: 12,
                   fontFamily: "'Inter', sans-serif",
@@ -1026,9 +1025,9 @@ export default function ProductUploadPage() {
             alignItems: "center",
             gap: 6,
             background: "transparent",
-            border: `1px dashed ${LIGHT.accent}`,
+            border: `1px dashed ${THEME.gold}`,
             borderRadius: 8,
-            color: LIGHT.accent,
+            color: THEME.goldBright,
             cursor: "pointer",
             padding: "9px 16px",
             fontSize: 13,
@@ -1063,9 +1062,9 @@ export default function ProductUploadPage() {
             style={{
               padding: "9px 20px",
               borderRadius: 8,
-              border: `1px solid ${LIGHT.border}`,
-              background: LIGHT.bg,
-              color: LIGHT.muted,
+              border: `1px solid ${THEME.border}`,
+              background: THEME.surface,
+              color: THEME.textMuted,
               cursor: "pointer",
               fontSize: 13,
               fontFamily: "'Inter', sans-serif",
@@ -1080,8 +1079,10 @@ export default function ProductUploadPage() {
               padding: "9px 28px",
               borderRadius: 8,
               border: "none",
-              background: isLoading ? "#86efac" : LIGHT.accent,
-              color: isLoading ? "#166534" : "#0a1a05",
+              background: isLoading
+                ? "#8A6F2E"
+                : `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
+              color: "#0B0B0C",
               cursor: isLoading ? "not-allowed" : "pointer",
               fontSize: 13,
               fontWeight: 700,
@@ -1097,8 +1098,8 @@ export default function ProductUploadPage() {
                   style={{
                     width: 14,
                     height: 14,
-                    border: `2px solid ${LIGHT.accentBorder}`,
-                    borderTop: `2px solid ${LIGHT.accent}`,
+                    border: `2px solid #0B0B0C55`,
+                    borderTop: `2px solid #0B0B0C`,
                     borderRadius: "50%",
                     animation: "spin 0.7s linear infinite",
                     display: "inline-block",
@@ -1116,10 +1117,11 @@ export default function ProductUploadPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         input:focus, select:focus, textarea:focus {
-          border-color: ${LIGHT.accent} !important;
-          box-shadow: 0 0 0 3px ${LIGHT.accentBg};
+          border-color: ${THEME.gold} !important;
+          box-shadow: 0 0 0 3px ${THEME.goldBg};
         }
-        input[type=number]::-webkit-inner-spin-button { opacity: 0.3; }
+        input[type=number]::-webkit-inner-spin-button { opacity: 0.5; filter: invert(1); }
+        select option { background: ${THEME.surface2}; color: ${THEME.text}; }
       `}</style>
     </div>
   );
