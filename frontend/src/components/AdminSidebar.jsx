@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../redux/slices/authSlice";
 import logo from "../assets/logo.png";
+import { THEME } from "../theme/theme";
 
 const logoPath = logo;
 const NAV_GROUPS = [
@@ -208,17 +209,17 @@ const NAV_GROUPS = [
   },
 ];
 
-// ── Color tokens ─────────────────────────────────────────────────────────────
+// ── Color tokens — IDENTEE gold on black ────────────────────────────────────
 const C = {
-  bg: "#0F172A",
-  bgHover: "#1e293b",
-  border: "#1e293b",
-  activeBar: "#7ED957",
-  activeBg: "#7ED95715",
-  activeText: "#7ED957",
-  mutedText: "#64748b",
-  groupLabel: "#334155",
-  logoText: "#f1f5f9",
+  bg: "#0B0B0C",
+  bgHover: "#1F1F24",
+  border: "#2B2B30",
+  activeBar: "#C9A24B",
+  activeBg: "#C9A24B14",
+  activeText: "#F0D585",
+  mutedText: "#8A877F",
+  groupLabel: "#5A5852",
+  logoText: "#F3EFE6",
 };
 
 export default function AdminSidebar({ collapsed, onToggle }) {
@@ -262,8 +263,8 @@ export default function AdminSidebar({ collapsed, onToggle }) {
         {!collapsed && (
           <img
             src={logoPath}
-            alt="Ecoms"
-            style={{ height: 80, width: "auto", objectFit: "contain" }}
+            alt="IDENTEE"
+            style={{ height: 44, width: "auto", objectFit: "contain" }}
           />
         )}
         <button
@@ -378,15 +379,15 @@ export default function AdminSidebar({ collapsed, onToggle }) {
             width: 30,
             height: 30,
             borderRadius: "50%",
-            background: "#7ED95720",
-            border: "1px solid #7ED95744",
+            background: "#C9A24B20",
+            border: "1px solid #C9A24B55",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
             fontSize: 12,
             fontWeight: 700,
-            color: "#7ED957",
+            color: C.activeText,
             fontFamily: "'Inter', sans-serif",
           }}
         >
@@ -399,7 +400,7 @@ export default function AdminSidebar({ collapsed, onToggle }) {
                 margin: 0,
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#cbd5e1",
+                color: "#D9D5C9",
                 fontFamily: "'Inter', sans-serif",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -429,8 +430,8 @@ export default function AdminSidebar({ collapsed, onToggle }) {
       <style>{`
         .sidebar-nav::-webkit-scrollbar { width: 3px; }
         .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-nav::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
-        .sidebar-nav a:hover { background: #1e293b80 !important; color: #94a3b8 !important; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: #2B2B30; border-radius: 2px; }
+        .sidebar-nav a:hover { background: #1F1F2480 !important; color: #D9D5C9 !important; }
       `}</style>
     </aside>
   );
