@@ -28,6 +28,7 @@ app.use(
     origin: [
       "https://new-vyavarclient-3f1f.vercel.app",
       "http://localhost:5174",
+      "http://localhost:5173",
     ], // Adjust for your frontend's URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
