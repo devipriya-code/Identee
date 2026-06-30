@@ -63,7 +63,7 @@ export default function RegisterPage() {
     if (!validateStep1()) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/users/otp`, {
+      const res = await fetch(`${API}/api/users/sendOtp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -84,7 +84,7 @@ export default function RegisterPage() {
     if (resendCooldown > 0) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/users/otp`, {
+      const res = await fetch(`${API}/api/users/sendOtp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -104,6 +104,7 @@ export default function RegisterPage() {
     if (!validateStep2()) return;
     setLoading(true);
     try {
+      // registerUser already validates the OTP internally — no separate verify call needed
       const res = await fetch(`${API}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,13 +119,14 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Registration failed");
 
+      localStorage.removeItem("userInfo");
       localStorage.setItem("userInfo", JSON.stringify(data));
       showToast(`Welcome to IDENTEE, ${data.name}!`);
 
       setTimeout(() => {
         if (data.isAdmin) navigate("/admin/dashboard");
         else if (data.isSeller) navigate("/seller/dashboard");
-        else navigate("/home");
+        else navigate("/");
       }, 800);
     } catch (err) {
       showToast(err.message || "Something went wrong");
