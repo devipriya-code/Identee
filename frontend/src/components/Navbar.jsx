@@ -1,7 +1,7 @@
 // components/Navbar.jsx
 import { useState, useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
-import logo from "../assets/logo.png";
+import logo from "../assets/identee-logo.png";
 
 const NAV_LINKS = [
   { to: "/men", label: "Men" },
@@ -133,7 +133,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
           <img
             src={logo}
             alt="IDENTEE"
-            style={{ height: 38, width: "auto", objectFit: "contain" }}
+            style={{ height: 64, width: "auto", objectFit: "contain" }}
           />
         </Link>
 

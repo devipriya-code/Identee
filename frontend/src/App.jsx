@@ -171,6 +171,9 @@ export default function App() {
   return (
     <Router>
       <Routes>
+        {/* Public landing page — standalone, no navbar */}
+        <Route path="/" element={<LandingPage />} />
+
         {/* Public: auth */}
         <Route
           path="/login"
@@ -189,12 +192,8 @@ export default function App() {
           }
         />
 
-        {/* Customer routes — Navbar wraps everything under "/" */}
+        {/* Customer routes — Navbar wraps everything here, only after login */}
         <Route element={<CustomerLayout />}>
-          {/* Public landing page — visible to everyone, logged in or not */}
-          <Route path="/" element={<LandingPage />} />
-
-          {/* Authenticated customer home (shop) — only for logged-in customers */}
           <Route
             path="/home"
             element={

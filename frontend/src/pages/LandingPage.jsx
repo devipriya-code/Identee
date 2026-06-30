@@ -1,5 +1,8 @@
 // pages/LandingPage.jsx
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import identeeLogo from "../assets/identee-logo.png";
+import bannerVideo from "../assets/videos/banner-video.mp4";
 
 const T = {
   bg: "#0B0B0C",
@@ -12,11 +15,18 @@ const T = {
 };
 
 export default function LandingPage() {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
   return (
     <div
       style={{
-        minHeight: "calc(100vh - 70px)",
-        background: T.bg,
+        position: "relative",
+        height: "100vh",
         color: T.text,
         fontFamily: "'Inter', sans-serif",
         display: "flex",
@@ -24,48 +34,77 @@ export default function LandingPage() {
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-        padding: "60px 24px",
-        position: "relative",
+        padding: "30px 24px",
         overflow: "hidden",
       }}
     >
-      {/* ambient gold glow */}
+      {/* background video replaces the black bg */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          transform: "translate(-50%, -50%)",
+          zIndex: 0,
+        }}
+      >
+        <source src={bannerVideo} type="video/mp4" />
+      </video>
+
+      {/* dark overlay so text stays readable over the video */}
       <div
         style={{
           position: "absolute",
-          top: "-20%",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 600,
-          height: 600,
-          borderRadius: "50%",
-          background: `radial-gradient(circle, ${T.gold}14, transparent 70%)`,
-          pointerEvents: "none",
+          inset: 0,
+          background:
+            "linear-gradient(180deg, rgba(11,11,12,0.55) 0%, rgba(11,11,12,0.7) 100%)",
+          zIndex: 1,
         }}
       />
 
-      <p
+      {/* focused dark spotlight behind the text block */}
+      <div
         style={{
-          margin: 0,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.25em",
-          textTransform: "uppercase",
-          color: T.gold,
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "min(92%, 820px)",
+          height: "90%",
+          background:
+            "radial-gradient(ellipse at center, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%)",
           zIndex: 1,
         }}
-      >
-        IDENTEE
-      </p>
+      />
+
+      <img
+        src={identeeLogo}
+        alt="Identee"
+        style={{
+          width: 180,
+          height: "auto",
+          objectFit: "contain",
+          zIndex: 2,
+          position: "relative",
+        }}
+      />
 
       <h1
         style={{
-          margin: "16px 0 0",
-          fontSize: "clamp(36px, 6vw, 64px)",
+          margin: "12px 0 0",
+          fontSize: "clamp(28px, 5vw, 56px)",
           fontWeight: 600,
           lineHeight: 1.1,
           fontFamily: "'Cormorant Garamond', serif",
-          zIndex: 1,
+          zIndex: 2,
+          position: "relative",
         }}
       >
         Your style, your story,
@@ -79,12 +118,13 @@ export default function LandingPage() {
 
       <p
         style={{
-          margin: "20px 0 0",
-          fontSize: 16,
+          margin: "14px 0 0",
+          fontSize: 15,
           color: T.muted,
-          maxWidth: 480,
-          lineHeight: 1.6,
-          zIndex: 1,
+          maxWidth: 460,
+          lineHeight: 1.5,
+          zIndex: 2,
+          position: "relative",
         }}
       >
         Custom T-shirts, patches, and apparel made the way you imagine them.
@@ -96,8 +136,9 @@ export default function LandingPage() {
         style={{
           display: "flex",
           gap: 14,
-          marginTop: 34,
-          zIndex: 1,
+          marginTop: 24,
+          zIndex: 2,
+          position: "relative",
           flexWrap: "wrap",
           justifyContent: "center",
         }}
@@ -106,7 +147,7 @@ export default function LandingPage() {
           to="/login"
           style={{
             textDecoration: "none",
-            padding: "12px 30px",
+            padding: "11px 28px",
             borderRadius: 8,
             fontSize: 14,
             fontWeight: 600,
@@ -120,7 +161,7 @@ export default function LandingPage() {
           to="/register"
           style={{
             textDecoration: "none",
-            padding: "12px 30px",
+            padding: "11px 28px",
             borderRadius: 8,
             fontSize: 14,
             fontWeight: 600,
@@ -135,9 +176,10 @@ export default function LandingPage() {
       <div
         style={{
           display: "flex",
-          gap: 36,
-          marginTop: 56,
-          zIndex: 1,
+          gap: 32,
+          marginTop: 32,
+          zIndex: 2,
+          position: "relative",
           flexWrap: "wrap",
           justifyContent: "center",
         }}
@@ -151,7 +193,7 @@ export default function LandingPage() {
             <p
               style={{
                 margin: 0,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: 600,
                 color: T.text,
               }}
@@ -161,7 +203,7 @@ export default function LandingPage() {
             <p
               style={{
                 margin: "2px 0 0",
-                fontSize: 11,
+                fontSize: 10.5,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 color: T.muted,
