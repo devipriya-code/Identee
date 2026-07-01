@@ -111,7 +111,7 @@ export default function LandingPage() {
         <br />
         your{" "}
         <span style={{ color: T.goldBright, fontStyle: "italic" }}>
-          identity
+          identee
         </span>
         .
       </h1>
