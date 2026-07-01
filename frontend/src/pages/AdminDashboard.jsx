@@ -1,21 +1,9 @@
 // pages/admin/AdminDashboard.jsx
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getProducts } from "../redux/slices/productSlice";
-
-const T = {
-  bg: "#0B0B0C",
-  surface: "#16161A",
-  surface2: "#1F1F24",
-  border: "#2B2B30",
-  text: "#F3EFE6",
-  muted: "#8A877F",
-  gold: "#C9A24B",
-  goldBright: "#F0D585",
-  goldBg: "#C9A24B14",
-  goldBorder: "#C9A24B44",
-};
+import { THEME } from "../theme/theme";
 
 const QUICK_LINKS = [
   {
@@ -60,12 +48,13 @@ function StatCard({ label, value, sub }) {
   return (
     <div
       style={{
-        background: T.surface,
-        border: `1px solid ${T.border}`,
+        background: THEME.surface,
+        border: `1px solid ${THEME.border}`,
         borderRadius: 12,
         padding: "18px 20px",
         flex: 1,
         minWidth: 160,
+        boxShadow: THEME.shadow,
       }}
     >
       <p
@@ -75,8 +64,8 @@ function StatCard({ label, value, sub }) {
           fontWeight: 600,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: T.muted,
-          fontFamily: "'Inter', sans-serif",
+          color: THEME.textMuted,
+          fontFamily: THEME.fontBody,
         }}
       >
         {label}
@@ -86,8 +75,8 @@ function StatCard({ label, value, sub }) {
           margin: "8px 0 0",
           fontSize: 28,
           fontWeight: 600,
-          color: T.goldBright,
-          fontFamily: "'Cormorant Garamond', serif",
+          color: THEME.goldDeep,
+          fontFamily: THEME.fontDisplay,
         }}
       >
         {value}
@@ -97,8 +86,8 @@ function StatCard({ label, value, sub }) {
           style={{
             margin: "4px 0 0",
             fontSize: 11,
-            color: T.muted,
-            fontFamily: "'Inter', sans-serif",
+            color: THEME.textMuted,
+            fontFamily: THEME.fontBody,
           }}
         >
           {sub}
@@ -123,9 +112,9 @@ export default function AdminDashboard() {
     <div
       style={{
         minHeight: "100vh",
-        background: T.bg,
-        color: T.text,
-        fontFamily: "'Inter', sans-serif",
+        background: THEME.bg,
+        color: THEME.text,
+        fontFamily: THEME.fontBody,
         padding: "32px 40px",
       }}
     >
@@ -138,7 +127,7 @@ export default function AdminDashboard() {
             fontWeight: 600,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: T.gold,
+            color: THEME.gold,
           }}
         >
           Admin
@@ -148,13 +137,13 @@ export default function AdminDashboard() {
             margin: "4px 0 0",
             fontSize: 28,
             fontWeight: 600,
-            color: T.text,
-            fontFamily: "'Cormorant Garamond', serif",
+            color: THEME.text,
+            fontFamily: THEME.fontDisplay,
           }}
         >
           Welcome back{userInfo?.name ? `, ${userInfo.name}` : ""}
         </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: T.muted }}>
+        <p style={{ margin: "4px 0 0", fontSize: 14, color: THEME.textMuted }}>
           Here's what's happening across IDENTEE today.
         </p>
       </div>
@@ -186,12 +175,12 @@ export default function AdminDashboard() {
         style={{
           fontSize: 12,
           fontWeight: 700,
-          color: T.gold,
+          color: THEME.goldDeep,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
           margin: "0 0 14px",
           paddingBottom: 8,
-          borderBottom: `1px solid ${T.border}`,
+          borderBottom: `1px solid ${THEME.border}`,
         }}
       >
         Quick Actions
@@ -210,14 +199,16 @@ export default function AdminDashboard() {
             to={q.to}
             style={{
               textDecoration: "none",
-              background: T.surface,
-              border: `1px solid ${T.border}`,
+              background: THEME.surface,
+              border: `1px solid ${THEME.border}`,
               borderRadius: 12,
               padding: "20px",
               display: "flex",
               flexDirection: "column",
               gap: 10,
-              transition: "border-color 0.15s, transform 0.15s",
+              transition:
+                "border-color 0.15s, transform 0.15s, box-shadow 0.15s",
+              boxShadow: THEME.shadow,
             }}
             className="dash-card"
           >
@@ -226,12 +217,12 @@ export default function AdminDashboard() {
                 width: 36,
                 height: 36,
                 borderRadius: 8,
-                background: T.goldBg,
-                border: `1px solid ${T.goldBorder}`,
+                background: THEME.goldBg,
+                border: `1px solid ${THEME.goldBorder}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: T.goldBright,
+                color: THEME.goldDeep,
                 fontSize: 16,
                 fontWeight: 700,
               }}
@@ -244,7 +235,7 @@ export default function AdminDashboard() {
                   margin: 0,
                   fontSize: 14,
                   fontWeight: 600,
-                  color: T.text,
+                  color: THEME.text,
                 }}
               >
                 {q.title}
@@ -253,7 +244,7 @@ export default function AdminDashboard() {
                 style={{
                   margin: "3px 0 0",
                   fontSize: 12,
-                  color: T.muted,
+                  color: THEME.textMuted,
                   lineHeight: 1.4,
                 }}
               >
@@ -266,8 +257,9 @@ export default function AdminDashboard() {
 
       <style>{`
         .dash-card:hover {
-          border-color: ${T.gold} !important;
+          border-color: ${THEME.gold} !important;
           transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(201,162,75,0.18) !important;
         }
       `}</style>
     </div>

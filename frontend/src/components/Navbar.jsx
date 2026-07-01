@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import logo from "../assets/identee-logo.png"; // adjust path
+import { THEME } from "../theme/theme";
 
 const NAV_LINKS = [
   { to: "/men", label: "Men" },
@@ -9,16 +10,6 @@ const NAV_LINKS = [
   { to: "/patch-tees", label: "Patch Tees" },
   { to: "/customise", label: "Customise Your Tee" },
 ];
-
-const T = {
-  bg: "#0B0B0C",
-  bgScrolled: "#0B0B0Cf2",
-  border: "#2B2B30",
-  text: "#F3EFE6",
-  muted: "#8A877F",
-  gold: "#C9A24B",
-  goldBright: "#F0D585",
-};
 
 // ── helpers ──────────────────────────────────────────────────────
 const getUserInfo = () => {
@@ -49,7 +40,7 @@ const IconBtn = ({ children, label, badge }) => (
       background: "none",
       border: "none",
       cursor: "pointer",
-      color: T.text,
+      color: THEME.ink,
       padding: 6,
       display: "flex",
       alignItems: "center",
@@ -63,8 +54,8 @@ const IconBtn = ({ children, label, badge }) => (
           position: "absolute",
           top: -2,
           right: -2,
-          background: T.gold,
-          color: "#0B0B0C",
+          background: THEME.goldBright,
+          color: THEME.ink,
           fontSize: 9,
           fontWeight: 700,
           width: 15,
@@ -118,11 +109,11 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
         position: "sticky",
         top: 0,
         zIndex: 100,
-        background: scrolled ? T.bgScrolled : T.bg,
+        background: scrolled ? "#FFFFFFF2" : THEME.bg,
         backdropFilter: scrolled ? "blur(10px)" : "none",
-        borderBottom: `1px solid ${scrolled ? T.border : "transparent"}`,
+        borderBottom: `1px solid ${scrolled ? THEME.border : "transparent"}`,
         transition: "background 0.25s ease, border-color 0.25s ease",
-        fontFamily: "'Inter', sans-serif",
+        fontFamily: THEME.fontBody,
       }}
     >
       <div
@@ -144,7 +135,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
             display: "none",
             background: "none",
             border: "none",
-            color: T.text,
+            color: THEME.ink,
             cursor: "pointer",
           }}
           aria-label="Menu"
@@ -265,7 +256,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
                 style={{
                   background: "none",
                   border: "none",
-                  color: T.text,
+                  color: THEME.ink,
                   fontSize: 12,
                   fontWeight: 500,
                   padding: "4px 8px",
@@ -273,7 +264,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
                   transition: "background 0.2s",
                 }}
                 onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#2B2B30")
+                  (e.currentTarget.style.background = THEME.surface2)
                 }
                 onMouseLeave={(e) =>
                   (e.currentTarget.style.background = "transparent")
@@ -287,7 +278,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
               <Link
                 to="/login"
                 style={{
-                  color: T.text,
+                  color: THEME.ink,
                   fontSize: 13,
                   fontWeight: 500,
                   textDecoration: "none",
@@ -298,10 +289,13 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
               <Link
                 to="/register"
                 style={{
-                  color: T.goldBright,
-                  fontSize: 13,
-                  fontWeight: 600,
                   textDecoration: "none",
+                  background: THEME.ink,
+                  color: "#FFFFFF",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  padding: "8px 18px",
+                  borderRadius: 999,
                 }}
               >
                 Create Account
@@ -316,11 +310,12 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
         <div
           className="nav-mobile-menu"
           style={{
-            borderTop: `1px solid ${T.border}`,
+            borderTop: `1px solid ${THEME.border}`,
             padding: "8px 28px 18px",
             display: "flex",
             flexDirection: "column",
             gap: 4,
+            background: THEME.bg,
           }}
         >
           {NAV_LINKS.map((link) => (
@@ -334,7 +329,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
               style={{
                 display: "block",
                 padding: "10px 0",
-                borderBottom: `1px solid ${T.border}`,
+                borderBottom: `1px solid ${THEME.border}`,
               }}
             >
               {link.label}
@@ -347,11 +342,11 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
                 onClick={() => setMobileOpen(false)}
                 style={{
                   padding: "10px 0",
-                  color: T.text,
+                  color: THEME.ink,
                   fontSize: 13,
                   fontWeight: 500,
                   textDecoration: "none",
-                  borderBottom: `1px solid ${T.border}`,
+                  borderBottom: `1px solid ${THEME.border}`,
                 }}
               >
                 Sign In
@@ -361,11 +356,11 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
                 onClick={() => setMobileOpen(false)}
                 style={{
                   padding: "10px 0",
-                  color: T.goldBright,
+                  color: THEME.goldDeep,
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   textDecoration: "none",
-                  borderBottom: `1px solid ${T.border}`,
+                  borderBottom: `1px solid ${THEME.border}`,
                 }}
               >
                 Create Account
@@ -381,11 +376,11 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
               style={{
                 background: "none",
                 border: "none",
-                color: T.text,
+                color: THEME.ink,
                 padding: "10px 0",
                 textAlign: "left",
                 fontSize: 13,
-                borderBottom: `1px solid ${T.border}`,
+                borderBottom: `1px solid ${THEME.border}`,
               }}
             >
               Logout
@@ -399,10 +394,10 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
           position: relative;
           text-decoration: none;
           font-size: 12.5px;
-          font-weight: 500;
+          font-weight: 600;
           letter-spacing: 0.06em;
           text-transform: uppercase;
-          color: #F3EFE6;
+          color: ${THEME.ink};
           padding: 6px 0;
           white-space: nowrap;
           transition: color 0.2s;
@@ -413,13 +408,13 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
           left: 0;
           bottom: 0;
           width: 0%;
-          height: 1px;
-          background: #C9A24B;
+          height: 3px;
+          background: ${THEME.goldBright};
           transition: width 0.25s ease;
         }
         .nav-link:hover::after { width: 100%; }
-        .nav-link:hover { color: #F0D585 !important; }
-        .nav-link.active { color: #F0D585 !important; }
+        .nav-link:hover { color: ${THEME.goldDeep} !important; }
+        .nav-link.active { color: ${THEME.goldDeep} !important; }
         .nav-link.active::after { width: 100%; }
 
         .avatar-initial {
@@ -429,11 +424,11 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 600;
+          font-weight: 700;
           font-size: 14px;
           text-transform: uppercase;
-          background: linear-gradient(135deg, #C9A24B, #F0D585);
-          color: #0B0B0C;
+          background: linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright});
+          color: ${THEME.ink};
           flex-shrink: 0;
           user-select: none;
         }

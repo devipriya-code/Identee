@@ -1,15 +1,6 @@
 // pages/Home.jsx
 import { useState, useEffect } from "react";
-
-const T = {
-  bg: "#0B0B0C",
-  surface: "#16161A",
-  border: "#2B2B30",
-  text: "#F3EFE6",
-  muted: "#8A877F",
-  gold: "#C9A24B",
-  goldBright: "#F0D585",
-};
+import { THEME } from "../theme/theme";
 
 const BANNERS = [
   {
@@ -87,6 +78,9 @@ const TESTIMONIALS = [
   },
 ];
 
+// warm espresso tone for image overlays — replaces the old flat black (11,11,12)
+const OVERLAY = "20, 17, 16"; // ink-based overlay for photo legibility
+
 export default function Home() {
   const [activeBanner, setActiveBanner] = useState(0);
 
@@ -101,9 +95,9 @@ export default function Home() {
   return (
     <div
       style={{
-        background: T.bg,
-        color: T.text,
-        fontFamily: "'Inter', sans-serif",
+        background: THEME.bg,
+        color: THEME.text,
+        fontFamily: THEME.fontBody,
       }}
     >
       {/* ── Hero banner carousel ───────────────────────────── */}
@@ -135,8 +129,7 @@ export default function Home() {
               style={{
                 position: "absolute",
                 inset: 0,
-                background:
-                  "linear-gradient(180deg, rgba(11,11,12,0.2) 0%, rgba(11,11,12,0.75) 100%)",
+                background: `linear-gradient(180deg, rgba(${OVERLAY},0.15) 0%, rgba(${OVERLAY},0.78) 100%)`,
               }}
             />
             <div
@@ -151,8 +144,9 @@ export default function Home() {
                   margin: 0,
                   fontSize: 12,
                   letterSpacing: "0.2em",
-                  color: T.gold,
+                  color: THEME.goldBright,
                   textTransform: "uppercase",
+                  fontWeight: 600,
                 }}
               >
                 IDENTEE
@@ -161,7 +155,8 @@ export default function Home() {
                 style={{
                   margin: "8px 0 0",
                   fontSize: "clamp(26px, 4vw, 44px)",
-                  fontFamily: "'Cormorant Garamond', serif",
+                  fontFamily: THEME.fontDisplay,
+                  color: "#FFF8EC",
                 }}
               >
                 {b.title}
@@ -191,7 +186,9 @@ export default function Home() {
                 border: "none",
                 cursor: "pointer",
                 background:
-                  activeBanner === i ? T.gold : "rgba(255,255,255,0.3)",
+                  activeBanner === i
+                    ? THEME.goldBright
+                    : "rgba(255,255,255,0.4)",
               }}
             />
           ))}
@@ -206,7 +203,8 @@ export default function Home() {
           justifyContent: "center",
           gap: 40,
           padding: "36px 24px",
-          borderBottom: `1px solid ${T.border}`,
+          background: THEME.surface,
+          borderBottom: `1px solid ${THEME.border}`,
         }}
       >
         {FEATURES.map((f) => (
@@ -217,13 +215,19 @@ export default function Home() {
                 fontSize: 12,
                 fontWeight: 600,
                 letterSpacing: "0.1em",
-                color: T.gold,
+                color: THEME.goldDeep,
                 textTransform: "uppercase",
               }}
             >
               {f.title}
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: T.muted }}>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: 13,
+                color: THEME.textMuted,
+              }}
+            >
               {f.desc}
             </p>
           </div>
@@ -231,14 +235,21 @@ export default function Home() {
       </div>
 
       {/* ── Product categories ─────────────────────────────── */}
-      <div style={{ padding: "60px 24px", textAlign: "center" }}>
+      <div
+        style={{
+          padding: "60px 24px",
+          textAlign: "center",
+          background: THEME.bg,
+        }}
+      >
         <p
           style={{
             margin: 0,
             fontSize: 12,
             letterSpacing: "0.2em",
-            color: T.gold,
+            color: THEME.goldDeep,
             textTransform: "uppercase",
+            fontWeight: 600,
           }}
         >
           Browse
@@ -247,7 +258,8 @@ export default function Home() {
           style={{
             margin: "8px 0 40px",
             fontSize: "clamp(26px, 4vw, 40px)",
-            fontFamily: "'Cormorant Garamond', serif",
+            fontFamily: THEME.fontDisplay,
+            color: THEME.text,
           }}
         >
           Product Categories
@@ -271,6 +283,8 @@ export default function Home() {
                 overflow: "hidden",
                 height: 240,
                 cursor: "pointer",
+                border: `1px solid ${THEME.border}`,
+                boxShadow: THEME.shadow,
               }}
             >
               <img
@@ -282,8 +296,7 @@ export default function Home() {
                 style={{
                   position: "absolute",
                   inset: 0,
-                  background:
-                    "linear-gradient(180deg, rgba(11,11,12,0) 40%, rgba(11,11,12,0.85) 100%)",
+                  background: `linear-gradient(180deg, rgba(${OVERLAY},0) 40%, rgba(${OVERLAY},0.88) 100%)`,
                 }}
               />
               <div
@@ -294,13 +307,20 @@ export default function Home() {
                   textAlign: "left",
                 }}
               >
-                <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#FFF8EC",
+                  }}
+                >
                   {c.name}
                 </p>
                 <span
                   style={{
                     fontSize: 11,
-                    color: T.goldBright,
+                    color: THEME.goldBright,
                     letterSpacing: "0.08em",
                   }}
                 >
@@ -317,7 +337,7 @@ export default function Home() {
         style={{
           padding: "60px 24px",
           textAlign: "center",
-          background: T.surface,
+          background: THEME.surface2,
         }}
       >
         <p
@@ -325,8 +345,9 @@ export default function Home() {
             margin: 0,
             fontSize: 12,
             letterSpacing: "0.2em",
-            color: T.gold,
+            color: THEME.goldDeep,
             textTransform: "uppercase",
+            fontWeight: 600,
           }}
         >
           Here's what we do
@@ -335,7 +356,8 @@ export default function Home() {
           style={{
             margin: "8px 0 32px",
             fontSize: "clamp(24px, 3.5vw, 36px)",
-            fontFamily: "'Cormorant Garamond', serif",
+            fontFamily: THEME.fontDisplay,
+            color: THEME.text,
           }}
         >
           Explained under a minute
@@ -347,6 +369,8 @@ export default function Home() {
             aspectRatio: "16/9",
             borderRadius: 12,
             overflow: "hidden",
+            border: `1px solid ${THEME.border}`,
+            boxShadow: THEME.shadow,
           }}
         >
           <iframe
@@ -361,14 +385,21 @@ export default function Home() {
       </div>
 
       {/* ── Testimonials ───────────────────────────────────── */}
-      <div style={{ padding: "60px 24px", textAlign: "center" }}>
+      <div
+        style={{
+          padding: "60px 24px",
+          textAlign: "center",
+          background: THEME.bg,
+        }}
+      >
         <p
           style={{
             margin: 0,
             fontSize: 12,
             letterSpacing: "0.2em",
-            color: T.gold,
+            color: THEME.goldDeep,
             textTransform: "uppercase",
+            fontWeight: 600,
           }}
         >
           Happy customers
@@ -377,7 +408,8 @@ export default function Home() {
           style={{
             margin: "8px 0 40px",
             fontSize: "clamp(26px, 4vw, 40px)",
-            fontFamily: "'Cormorant Garamond', serif",
+            fontFamily: THEME.fontDisplay,
+            color: THEME.text,
           }}
         >
           Our Testimonials
@@ -396,27 +428,35 @@ export default function Home() {
             <div
               key={t.name}
               style={{
-                background: T.surface,
-                border: `1px solid ${T.border}`,
+                background: THEME.surface,
+                border: `1px solid ${THEME.border}`,
                 borderRadius: 12,
                 padding: 24,
                 textAlign: "left",
+                boxShadow: THEME.shadow,
               }}
             >
               <p
                 style={{
                   margin: 0,
                   fontSize: 14,
-                  color: T.muted,
+                  color: THEME.textMuted,
                   lineHeight: 1.6,
                 }}
               >
                 "{t.quote}"
               </p>
-              <p style={{ margin: "16px 0 0", fontSize: 14, fontWeight: 600 }}>
+              <p
+                style={{
+                  margin: "16px 0 0",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: THEME.text,
+                }}
+              >
                 {t.name}
               </p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: T.gold }}>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: THEME.gold }}>
                 {t.role}
               </p>
             </div>
@@ -429,8 +469,8 @@ export default function Home() {
         style={{
           padding: "50px 24px",
           textAlign: "center",
-          background: `linear-gradient(135deg, ${T.gold}22, transparent)`,
-          borderTop: `1px solid ${T.border}`,
+          background: `linear-gradient(135deg, ${THEME.gold}1A, ${THEME.bg})`,
+          borderTop: `1px solid ${THEME.border}`,
         }}
       >
         <p
@@ -438,8 +478,9 @@ export default function Home() {
             margin: 0,
             fontSize: 12,
             letterSpacing: "0.2em",
-            color: T.gold,
+            color: THEME.goldDeep,
             textTransform: "uppercase",
+            fontWeight: 600,
           }}
         >
           Need Help
@@ -448,7 +489,8 @@ export default function Home() {
           style={{
             margin: "8px 0 24px",
             fontSize: "clamp(22px, 3.5vw, 32px)",
-            fontFamily: "'Cormorant Garamond', serif",
+            fontFamily: THEME.fontDisplay,
+            color: THEME.text,
           }}
         >
           For Bulk Orders
@@ -471,10 +513,11 @@ export default function Home() {
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 600,
-              background: `linear-gradient(135deg, ${T.gold}, ${T.goldBright})`,
-              color: "#0B0B0C",
+              background: `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
+              color: THEME.ink,
               border: "none",
               cursor: "pointer",
+              boxShadow: "0 4px 16px rgba(201,162,75,0.35)",
             }}
           >
             Call Us
@@ -489,8 +532,8 @@ export default function Home() {
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 600,
-              border: `1px solid ${T.gold}`,
-              color: T.goldBright,
+              border: `1px solid ${THEME.gold}`,
+              color: THEME.goldDeep,
               background: "transparent",
               cursor: "pointer",
             }}
