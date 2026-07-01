@@ -1,7 +1,6 @@
-// components/Navbar.jsx
 import { useState, useEffect } from "react";
-import { Link, NavLink } from "react-router-dom";
-import logo from "../assets/identee-logo.png";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import logo from "../assets/identee-logo.png"; // adjust path
 
 const NAV_LINKS = [
   { to: "/men", label: "Men" },
@@ -21,6 +20,27 @@ const T = {
   goldBright: "#F0D585",
 };
 
+// ── helpers ──────────────────────────────────────────────────────
+const getUserInfo = () => {
+  try {
+    const raw = localStorage.getItem("userInfo");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed._id && parsed.email) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const getInitial = (user) => {
+  if (!user) return "?";
+  if (user.name) return user.name.charAt(0).toUpperCase();
+  if (user.email) return user.email.charAt(0).toUpperCase();
+  return "?";
+};
+
+// ── Icon button helper ────────────────────────────────────────────
 const IconBtn = ({ children, label, badge }) => (
   <button
     aria-label={label}
@@ -61,15 +81,36 @@ const IconBtn = ({ children, label, badge }) => (
   </button>
 );
 
+// ── Main Navbar ──────────────────────────────────────────────────
 export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState(getUserInfo());
+  const navigate = useNavigate();
 
+  // Update user when localStorage changes (login/logout in other tabs)
+  useEffect(() => {
+    const handleStorage = () => setUser(getUserInfo());
+    window.addEventListener("storage", handleStorage);
+    setUser(getUserInfo());
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Scroll effect
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("userInfo");
+    setUser(null);
+    navigate("/");
+    window.dispatchEvent(new Event("storage"));
+  };
+
+  const initial = getInitial(user);
 
   return (
     <header
@@ -98,6 +139,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
         {/* Mobile hamburger */}
         <button
           onClick={() => setMobileOpen((v) => !v)}
+          className="navbar-burger"
           style={{
             display: "none",
             background: "none",
@@ -105,7 +147,6 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
             color: T.text,
             cursor: "pointer",
           }}
-          className="navbar-burger"
           aria-label="Menu"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" width={22} height={22}>
@@ -139,7 +180,7 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
 
         {/* Desktop nav links */}
         <nav
-          className="navbar-links"
+          className="nav-desktop"
           style={{
             display: "flex",
             alignItems: "center",
@@ -152,25 +193,16 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
             <NavLink
               key={link.to}
               to={link.to}
-              style={({ isActive }) => ({
-                position: "relative",
-                textDecoration: "none",
-                fontSize: 12.5,
-                fontWeight: 500,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: isActive ? T.goldBright : T.text,
-                padding: "6px 0",
-                whiteSpace: "nowrap",
-              })}
-              className="navbar-link"
+              className={({ isActive }) =>
+                `nav-link ${isActive ? "active" : ""}`
+              }
             >
               {link.label}
             </NavLink>
           ))}
         </nav>
 
-        {/* Icons */}
+        {/* Right side: icons + auth */}
         <div
           style={{
             display: "flex",
@@ -221,29 +253,68 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
               <circle cx="15" cy="18.5" r="1.1" fill="currentColor" />
             </svg>
           </IconBtn>
-          <IconBtn label="Account">
-            <svg viewBox="0 0 20 20" fill="none" width={18} height={18}>
-              <circle
-                cx="10"
-                cy="6.5"
-                r="3.3"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              />
-              <path
-                d="M3 17c0-3.4 3.1-5.5 7-5.5s7 2.1 7 5.5"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-            </svg>
-          </IconBtn>
+
+          {/* ── Auth section ── */}
+          {user ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="avatar-initial" title={user.email}>
+                {initial}
+              </div>
+              <button
+                onClick={handleLogout}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: T.text,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#2B2B30")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <Link
+                to="/login"
+                style={{
+                  color: T.text,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  textDecoration: "none",
+                }}
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                style={{
+                  color: T.goldBright,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                }}
+              >
+                Create Account
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Mobile dropdown */}
       {mobileOpen && (
         <div
+          className="nav-mobile-menu"
           style={{
             borderTop: `1px solid ${T.border}`,
             padding: "8px 28px 18px",
@@ -251,49 +322,129 @@ export default function Navbar({ cartCount = 0, wishlistCount = 0 }) {
             flexDirection: "column",
             gap: 4,
           }}
-          className="navbar-mobile-menu"
         >
           {NAV_LINKS.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               onClick={() => setMobileOpen(false)}
-              style={({ isActive }) => ({
-                textDecoration: "none",
-                fontSize: 13,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                color: isActive ? T.goldBright : T.text,
+              className={({ isActive }) =>
+                `nav-link ${isActive ? "active" : ""}`
+              }
+              style={{
+                display: "block",
                 padding: "10px 0",
                 borderBottom: `1px solid ${T.border}`,
-              })}
+              }}
             >
               {link.label}
             </NavLink>
           ))}
+          {!user && (
+            <>
+              <Link
+                to="/login"
+                onClick={() => setMobileOpen(false)}
+                style={{
+                  padding: "10px 0",
+                  color: T.text,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  textDecoration: "none",
+                  borderBottom: `1px solid ${T.border}`,
+                }}
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                onClick={() => setMobileOpen(false)}
+                style={{
+                  padding: "10px 0",
+                  color: T.goldBright,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  borderBottom: `1px solid ${T.border}`,
+                }}
+              >
+                Create Account
+              </Link>
+            </>
+          )}
+          {user && (
+            <button
+              onClick={() => {
+                handleLogout();
+                setMobileOpen(false);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: T.text,
+                padding: "10px 0",
+                textAlign: "left",
+                fontSize: 13,
+                borderBottom: `1px solid ${T.border}`,
+              }}
+            >
+              Logout
+            </button>
+          )}
         </div>
       )}
 
       <style>{`
-        .navbar-link::after {
+        .nav-link {
+          position: relative;
+          text-decoration: none;
+          font-size: 12.5px;
+          font-weight: 500;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #F3EFE6;
+          padding: 6px 0;
+          white-space: nowrap;
+          transition: color 0.2s;
+        }
+        .nav-link::after {
           content: "";
           position: absolute;
           left: 0;
           bottom: 0;
           width: 0%;
           height: 1px;
-          background: ${T.gold};
+          background: #C9A24B;
           transition: width 0.25s ease;
         }
-        .navbar-link:hover::after { width: 100%; }
-        .navbar-link:hover { color: ${T.goldBright} !important; }
+        .nav-link:hover::after { width: 100%; }
+        .nav-link:hover { color: #F0D585 !important; }
+        .nav-link.active { color: #F0D585 !important; }
+        .nav-link.active::after { width: 100%; }
+
+        .avatar-initial {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          font-size: 14px;
+          text-transform: uppercase;
+          background: linear-gradient(135deg, #C9A24B, #F0D585);
+          color: #0B0B0C;
+          flex-shrink: 0;
+          user-select: none;
+        }
 
         @media (max-width: 860px) {
-          .navbar-links { display: none !important; }
+          .nav-desktop { display: none !important; }
           .navbar-burger { display: flex !important; }
         }
         @media (min-width: 861px) {
-          .navbar-mobile-menu { display: none !important; }
+          .nav-mobile-menu { display: none !important; }
+          .navbar-burger { display: none !important; }
         }
       `}</style>
     </header>
