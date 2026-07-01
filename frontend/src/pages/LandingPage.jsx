@@ -3,19 +3,11 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import identeeLogo from "../assets/identee-logo.png";
 import bannerVideo from "../assets/videos/banner-video.mp4";
-
-const T = {
-  bg: "#0B0B0C",
-  surface: "#16161A",
-  border: "#2B2B30",
-  text: "#F3EFE6",
-  muted: "#8A877F",
-  gold: "#C9A24B",
-  goldBright: "#F0D585",
-};
+import { THEME } from "../theme/theme";
 
 export default function LandingPage() {
   useEffect(() => {
+    // lock scrolling — this page is a single, self-contained viewport
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "auto";
@@ -25,195 +17,264 @@ export default function LandingPage() {
   return (
     <div
       style={{
-        position: "relative",
         height: "100vh",
-        color: T.text,
-        fontFamily: "'Inter', sans-serif",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        padding: "30px 24px",
+        background: THEME.bg,
+        fontFamily: THEME.fontBody,
+        color: THEME.text,
         overflow: "hidden",
       }}
     >
-      {/* background video replaces the black bg */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          transform: "translate(-50%, -50%)",
-          zIndex: 0,
-        }}
-      >
-        <source src={bannerVideo} type="video/mp4" />
-      </video>
-
-      {/* dark overlay so text stays readable over the video */}
+      {/* ── Top bar ─────────────────────────────────────────── */}
       <div
         style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(180deg, rgba(11,11,12,0.55) 0%, rgba(11,11,12,0.7) 100%)",
-          zIndex: 1,
-        }}
-      />
-
-      {/* focused dark spotlight behind the text block */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "min(92%, 820px)",
-          height: "90%",
-          background:
-            "radial-gradient(ellipse at center, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%)",
-          zIndex: 1,
-        }}
-      />
-
-      <img
-        src={identeeLogo}
-        alt="Identee"
-        style={{
-          width: 180,
-          height: "auto",
-          objectFit: "contain",
-          zIndex: 2,
-          position: "relative",
-        }}
-      />
-
-      <h1
-        style={{
-          margin: "12px 0 0",
-          fontSize: "clamp(28px, 5vw, 56px)",
-          fontWeight: 600,
-          lineHeight: 1.1,
-          fontFamily: "'Cormorant Garamond', serif",
-          zIndex: 2,
-          position: "relative",
-        }}
-      >
-        Your style, your story,
-        <br />
-        your{" "}
-        <span style={{ color: T.goldBright, fontStyle: "italic" }}>
-          identee
-        </span>
-        .
-      </h1>
-
-      <p
-        style={{
-          margin: "14px 0 0",
-          fontSize: 15,
-          color: T.muted,
-          maxWidth: 460,
-          lineHeight: 1.5,
-          zIndex: 2,
-          position: "relative",
-        }}
-      >
-        Custom T-shirts, patches, and apparel made the way you imagine them.
-        Sign in to pick up where you left off, or create an account to start
-        designing.
-      </p>
-
-      <div
-        style={{
+          flex: "0 0 auto",
           display: "flex",
-          gap: 14,
-          marginTop: 24,
-          zIndex: 2,
-          position: "relative",
-          flexWrap: "wrap",
-          justifyContent: "center",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "14px 40px",
+          borderBottom: `1px solid ${THEME.border}`,
         }}
       >
+        <img src={identeeLogo} alt="Identee" style={{ height: 58 }} />
+        <div
+          style={{
+            display: "flex",
+            gap: 28,
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+          }}
+          className="topbar-links"
+        >
+          <span style={{ color: THEME.textMuted }}>CATALOGUE</span>
+          <span style={{ color: THEME.textMuted }}>LIFESTYLE</span>
+        </div>
         <Link
           to="/login"
           style={{
             textDecoration: "none",
-            padding: "11px 28px",
-            borderRadius: 8,
-            fontSize: 14,
+            background: THEME.ink,
+            color: "#FFFFFF",
+            padding: "9px 22px",
+            borderRadius: 999,
+            fontSize: 13,
             fontWeight: 600,
-            background: `linear-gradient(135deg, ${T.gold}, ${T.goldBright})`,
-            color: "#0B0B0C",
+            flexShrink: 0,
           }}
         >
           Sign In
         </Link>
-        <Link
-          to="/register"
-          style={{
-            textDecoration: "none",
-            padding: "11px 28px",
-            borderRadius: 8,
-            fontSize: 14,
-            fontWeight: 600,
-            border: `1px solid ${T.gold}`,
-            color: T.goldBright,
-          }}
-        >
-          Create Account
-        </Link>
       </div>
 
+      {/* ── Hero: bold split layout, fills remaining space ───── */}
       <div
         style={{
-          display: "flex",
-          gap: 32,
-          marginTop: 32,
-          zIndex: 2,
-          position: "relative",
-          flexWrap: "wrap",
-          justifyContent: "center",
+          flex: "1 1 auto",
+          minHeight: 0,
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          alignItems: "center",
+          gap: "clamp(20px, 3vw, 40px)",
+          padding: "clamp(16px, 3vh, 32px) 40px",
+          maxWidth: 1280,
+          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+        className="hero-grid"
+      >
+        {/* Left: bold headline */}
+        <div style={{ minWidth: 0 }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(26px, 4.2vw, 54px)",
+              fontWeight: 800,
+              lineHeight: 1.05,
+              letterSpacing: "-0.02em",
+              textTransform: "uppercase",
+              fontFamily: THEME.fontBody,
+            }}
+          >
+            Your Style,
+            <br />
+            Your Story,
+            <br />
+            <span
+              style={{
+                background: THEME.goldBlock,
+                padding: "2px 10px",
+                display: "inline-block",
+              }}
+            >
+              Your Identee
+            </span>
+          </h1>
+
+          <p
+            style={{
+              margin: "clamp(10px, 2vh, 22px) 0 0",
+              fontSize: 14,
+              color: THEME.textMuted,
+              maxWidth: 420,
+              lineHeight: 1.5,
+            }}
+          >
+            Custom T-shirts, patches, and apparel made the way you imagine them.
+            Sign in to pick up where you left off, or create an account to start
+            designing.
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 14,
+              marginTop: "clamp(12px, 2.4vh, 30px)",
+            }}
+          >
+            <Link
+              to="/login"
+              style={{
+                textDecoration: "none",
+                padding: "12px 28px",
+                borderRadius: 999,
+                fontSize: 14,
+                fontWeight: 700,
+                background: THEME.ink,
+                color: "#FFFFFF",
+              }}
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/register"
+              style={{
+                textDecoration: "none",
+                padding: "12px 28px",
+                borderRadius: 999,
+                fontSize: 14,
+                fontWeight: 700,
+                border: `2px solid ${THEME.ink}`,
+                color: THEME.ink,
+              }}
+            >
+              Create Account
+            </Link>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 36,
+              marginTop: "clamp(14px, 3vh, 44px)",
+            }}
+          >
+            {[
+              ["4-6 → XXL", "All sizes"],
+              ["100%", "Cotton fabric"],
+              ["Pan India", "Shipping"],
+            ].map(([val, label]) => (
+              <div key={label}>
+                <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+                  {val}
+                </p>
+                <p
+                  style={{
+                    margin: "2px 0 0",
+                    fontSize: 10.5,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: THEME.textMuted,
+                  }}
+                >
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: video panel with a gold block peeking out behind it,
+            sized to fill the available height exactly — no aspect-ratio
+            overflow, so it never pushes the page taller than the viewport */}
+        <div style={{ position: "relative", height: "100%", minHeight: 0 }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              right: -16,
+              width: "100%",
+              height: "100%",
+              background: THEME.goldBlock,
+              borderRadius: 20,
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              borderRadius: 20,
+              overflow: "hidden",
+              height: "100%",
+              boxShadow: THEME.shadow,
+            }}
+          >
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            >
+              <source src={bannerVideo} type="video/mp4" />
+            </video>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Gold block strip ──────────────────────────────────── */}
+      <div
+        style={{
+          flex: "0 0 auto",
+          background: THEME.goldBlock,
+          padding: "12px 40px",
+          textAlign: "center",
+          fontSize: 11.5,
+          fontWeight: 700,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: THEME.ink,
         }}
       >
-        {[
-          ["4-6 → XXL", "All sizes"],
-          ["100%", "Cotton fabric"],
-          ["Pan India", "Shipping"],
-        ].map(([val, label]) => (
-          <div key={label}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 18,
-                fontWeight: 600,
-                color: T.text,
-              }}
-            >
-              {val}
-            </p>
-            <p
-              style={{
-                margin: "2px 0 0",
-                fontSize: 10.5,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: T.muted,
-              }}
-            >
-              {label}
-            </p>
-          </div>
-        ))}
+        Rush Delivery · Single Piece Orders · 360° Customisation · Zero Plastic
+        Packaging
       </div>
+
+      <style>{`
+        /* Below ~900px there isn't room to keep everything on one screen
+           without the text/CTAs getting crushed — so on smaller screens we
+           stack the hero and allow the page to scroll instead of clipping
+           content off-screen. */
+        @media (max-width: 900px) {
+          body { overflow: auto !important; }
+        }
+        @media (max-width: 900px) {
+          .hero-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .topbar-links { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }

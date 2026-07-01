@@ -1,30 +1,44 @@
-// theme.js — IDENTEE design tokens (gold on black)
+// theme.js — IDENTEE design tokens (bold editorial: white + gold blocks + ink)
 
 export const THEME = {
-  bg: "#0B0B0C",
-  surface: "#16161A",
-  surface2: "#1F1F24",
-  border: "#2B2B30",
-  borderLight: "#3A3A40",
+  // ── Backgrounds ──────────────────────────────────────────────
+  bg: "#FFFFFF", // clean white page background
+  surface: "#FFFFFF",
+  surface2: "#F7F4EC", // soft warm-neutral for inputs/recessed panels
+  border: "#EAE3CF",
+  borderLight: "#DED2AC",
 
+  // ── Gold — the hero color, used as bold full-bleed blocks ───
   gold: "#C9A24B",
-  goldBright: "#F0D585",
-  goldDim: "#8A6F2E",
-  goldBg: "#C9A24B14",
-  goldBorder: "#C9A24B44",
+  goldBright: "#E8B94D",
+  goldBlock: "#F0C24C", // vivid golden-yellow for large color-block sections
+  goldDeep: "#9C7A2E",
+  goldBg: "#C9A24B18",
+  goldBorder: "#C9A24B4D",
 
-  text: "#F3EFE6",
-  textMuted: "#8A877F",
-  textFaint: "#5A5852",
+  // ── Ink — near-black, used for text and bold CTA buttons ────
+  ink: "#141110",
+  inkSoft: "#241B14",
 
-  danger: "#E2574C",
-  dangerBg: "#E2574C18",
-  dangerBorder: "#E2574C55",
+  // ── Small accent for tags/badges (sale flash, etc.) ─────────
+  accent: "#C0392B",
+  accentBg: "#C0392B14",
+  accentBorder: "#C0392B44",
+
+  // ── Text ─────────────────────────────────────────────────────
+  text: "#141110",
+  textMuted: "#6B6559",
+  textFaint: "#A39C8C",
+
+  // ── Status ───────────────────────────────────────────────────
+  danger: "#C0392B",
+  dangerBg: "#C0392B14",
+  dangerBorder: "#C0392B44",
 
   fontDisplay: "'Cormorant Garamond', serif",
   fontBody: "'Inter', sans-serif",
 
-  shadow: "0 4px 20px rgba(0,0,0,0.45)",
+  shadow: "0 4px 20px rgba(20,17,16,0.08)",
 };
 
 export const labelStyle = {
@@ -53,7 +67,7 @@ export const inputStyle = {
 export const sectionHeading = {
   fontSize: 13,
   fontWeight: 600,
-  color: THEME.gold,
+  color: THEME.goldDeep,
   textTransform: "uppercase",
   letterSpacing: "0.12em",
   fontFamily: THEME.fontBody,
