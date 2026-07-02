@@ -18,7 +18,7 @@ import { useState, useEffect, useRef } from "react";
 import homeBannerVideo from "../assets/videos/homebanner-video.mp4";
 // Reused for the "Design Your Own" band until a dedicated customizer
 // preview clip is recorded — same footage the old Bulk Order band used.
-import customizeVideo from "../assets/videos/banner-video.mp4";
+import customizeVideo from "../assets/videos/sub-video2.mp4";
 
 // Sub-videos used for Young's Favourite and Testimonials
 import subVideo1 from "../assets/videos/sub-video1.mp4";
