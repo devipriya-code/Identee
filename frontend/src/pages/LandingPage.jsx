@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import identeeLogo from "../assets/identee-logo.png";
-import bannerVideo from "../assets/videos/banner-video.mp4";
+import bannerVideo from "../assets/videos/sub-video2.mp4";
 import { THEME } from "../theme/theme";
 
 export default function LandingPage() {
