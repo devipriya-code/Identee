@@ -1,7 +1,13 @@
 // pages/Home.jsx
-// Redesigned to match the "F.Fashion" style reference:
-// white/cream base, mustard-yellow accent bands, black text & buttons,
-// pastel-colour blocks behind product photography.
+// Redesigned flow (per new structure):
+// Navbar (unchanged, lives outside this file)
+// -> Hero banner (unchanged)
+// -> Running marquee strip (unchanged)
+// -> Auto-scrolling categories slider (new)
+// -> Per-category banner + product grid, repeated for every category (new)
+// -> "Design Your Own" customization CTA (replaces old Bulk Order band)
+// -> Young's Favourite
+// -> Footer contact strip
 import { useState, useEffect, useRef } from "react";
 // One pre-made clip per swatch color — same shot, shirt actually recolored
 // in editing ahead of time. Swapping the <source> is how the color-change
@@ -10,18 +16,18 @@ import { useState, useEffect, useRef } from "react";
 // "swap a different clip per color" idea is on hold until you have
 // actual color-graded variants to swap between.
 import homeBannerVideo from "../assets/videos/homebanner-video.mp4";
+// Reused for the "Design Your Own" band until a dedicated customizer
+// preview clip is recorded — same footage the old Bulk Order band used.
+import customizeVideo from "../assets/videos/banner-video.mp4";
 
-// Sub-videos used for New Arrivals (1-3), Young's Favourite (4-6),
-// and Testimonials (7-9, cycled if there are more than 3 testimonials)
+// Sub-videos used for Young's Favourite and Testimonials
 import subVideo1 from "../assets/videos/sub-video1.mp4";
-import subVideo2 from "../assets/videos/sub-video2.mp4";
-import subVideo3 from "../assets/videos/sub-video3.mp4";
-import subVideo4 from "../assets/videos/sub-video4.mp4";
-import subVideo5 from "../assets/videos/sub-video5.mp4";
-import subVideo6 from "../assets/videos/sub-video6.mp4";
 import subVideo7 from "../assets/videos/sub-video7.mp4";
 import subVideo8 from "../assets/videos/sub-video8.mp4";
 import subVideo9 from "../assets/videos/suv-video9.mp4";
+// Dedicated clips reused inside the Hoodies / Polos product grids
+import hoodieVideo from "../assets/videos/hoodie.mp4";
+import polosVideo from "../assets/videos/polos.mp4";
 
 /* ------------------------------------------------------------------ */
 /*  PALETTE — white base, yellow accent, black ink (NO dark bg)       */
@@ -57,11 +63,6 @@ const HERO_COLOR_THEMES = [
   { name: "Mystic Mauve", dot: "#8C6FE8", from: "#C3B2F8", to: "#6A54C8" },
   { name: "Fresh Moss", dot: "#6FA35A", from: "#BEDBA0", to: "#598F62" },
 ];
-
-// Video clip per theme, same index order as HERO_COLOR_THEMES above —
-// left in place for when you have actual color-graded variants; for now
-// the hero just plays the single homeBannerVideo below.
-// const HERO_VIDEOS = [heroVideoAmber, heroVideoMauve, heroVideoMoss];
 
 const HERO_PRODUCTS = ["Tees", "Hoodie", "Pants"];
 
@@ -230,128 +231,201 @@ const MARQUEE_WORDS = [
   "ZERO PLASTIC PACKAGING",
 ];
 
-const FEATURES = [
-  { title: "RUSH DELIVERY", desc: "Pan India, in 4 working days" },
-  { title: "SINGLE PIECE ORDERS", desc: "No minimum order amount" },
-  { title: "CUSTOMISATION TOOL", desc: "With 360° preview" },
-  { title: "ZERO PLASTIC", desc: "Eco friendly packaging" },
-];
-
-const NEW_ARRIVALS = [
-  {
-    name: "Oversized Hoodie",
-    tag: "Explore Now",
-    video: subVideo1,
-  },
-  {
-    name: "Denim Jacket",
-    tag: "Explore Now",
-    video: subVideo2,
-  },
-  {
-    name: "Graphic Tee",
-    tag: "Explore Now",
-    video: subVideo3,
-  },
-];
-
 const FAVOURITES = [
-  {
-    name: "Trending",
-    tag: "Explore Now",
-    video: subVideo7,
-  },
-  {
-    name: "Trending",
-    tag: "Explore Now",
-    video: subVideo8,
-  },
-  {
-    name: "Trending",
-    tag: "Explore Now",
-    video: subVideo9,
-  },
+  { name: "Trending", tag: "Explore Now", video: subVideo9 },
+  { name: "Trending", tag: "Explore Now", video: subVideo8 },
+  { name: "Trending", tag: "Explore Now", video: subVideo1 },
 ];
 
+/* ------------------------------------------------------------------ */
+/*  CATEGORIES — slider items + full banner/product sections          */
+/*  Each entry drives: the auto-scroll slider card, the category      */
+/*  banner, and the product grid beneath that banner.                 */
+/* ------------------------------------------------------------------ */
 const CATEGORIES = [
   {
-    name: "Apparel",
-    img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
+    slug: "t-shirt",
+    name: "T-Shirt",
+    thumb:
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
+    bannerImg:
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=1400&q=80",
+    tagline: "Everyday staples, cut for comfort",
+    products: [
+      {
+        name: "Classic Crew Tee",
+        price: "₹799",
+        img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
+      },
+      {
+        name: "Heavyweight Tee",
+        price: "₹899",
+        img: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80",
+      },
+      {
+        name: "Graphic Print Tee",
+        price: "₹849",
+        img: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&q=80",
+      },
+      {
+        name: "Essential Plain Tee",
+        price: "₹749",
+        img: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80",
+      },
+    ],
   },
   {
-    name: "Jackets & Pullovers",
-    img: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&q=80",
+    slug: "round-neck",
+    name: "Round Neck",
+    thumb:
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
+    bannerImg:
+      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1400&q=80",
+    tagline: "Clean necklines, all-day fit",
+    products: [
+      {
+        name: "Signature Round Neck",
+        price: "₹749",
+        img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&q=80",
+      },
+      {
+        name: "Ribbed Round Neck",
+        price: "₹799",
+        img: "https://images.unsplash.com/photo-1519741497674-611481863552?w=500&q=80",
+      },
+      {
+        name: "Two-Tone Round Neck",
+        price: "₹849",
+        img: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80",
+      },
+      {
+        name: "Basic Round Neck",
+        price: "₹699",
+        img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
+      },
+    ],
   },
   {
-    name: "Accessories",
-    img: "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
+    slug: "oversized",
+    name: "Oversized",
+    thumb:
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&q=80",
+    bannerImg:
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=1400&q=80",
+    tagline: "Relaxed drop-shoulder silhouettes",
+    products: [
+      {
+        name: "Drop-Shoulder Oversized",
+        price: "₹999",
+        img: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&q=80",
+      },
+      {
+        name: "Boxy Fit Oversized",
+        price: "₹1049",
+        img: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80",
+      },
+      {
+        name: "Oversized Graphic Tee",
+        price: "₹1099",
+        img: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&q=80",
+      },
+      {
+        name: "Washed Oversized Tee",
+        price: "₹999",
+        img: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80",
+      },
+    ],
   },
   {
-    name: "Stationery",
-    img: "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=80",
+    slug: "hoodies",
+    name: "Hoodies",
+    thumb:
+      "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
+    bannerImg:
+      "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=1400&q=80",
+    tagline: "Heavy fleece, built for layering",
+    products: [
+      { name: "Signature Hoodie", price: "₹1499", video: hoodieVideo },
+      {
+        name: "Zip-Up Hoodie",
+        price: "₹1599",
+        img: "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
+      },
+      {
+        name: "Fleece-Lined Hoodie",
+        price: "₹1649",
+        img: "https://images.unsplash.com/photo-1571945153237-4929e783be03?w=500&q=80",
+      },
+      {
+        name: "Pullover Hoodie",
+        price: "₹1449",
+        img: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80",
+      },
+    ],
   },
   {
-    name: "Miscellaneous",
-    img: "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=500&q=80",
+    slug: "sweatshirt",
+    name: "Sweatshirt",
+    thumb:
+      "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=500&q=80",
+    bannerImg:
+      "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=1400&q=80",
+    tagline: "Soft fleece for cooler days",
+    products: [
+      {
+        name: "Crewneck Sweatshirt",
+        price: "₹1299",
+        img: "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=500&q=80",
+      },
+      {
+        name: "Colour-Block Sweatshirt",
+        price: "₹1349",
+        img: "https://images.unsplash.com/photo-1571945153237-4929e783be03?w=500&q=80",
+      },
+      {
+        name: "Washed Sweatshirt",
+        price: "₹1299",
+        img: "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
+      },
+      {
+        name: "Graphic Sweatshirt",
+        price: "₹1399",
+        img: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&q=80",
+      },
+    ],
   },
   {
-    name: "Branded Merch",
-    img: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=500&q=80",
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    name: "Reo Raymond",
-    role: "Radio Indigo 91.9FM",
-    video: subVideo7,
-    quote:
-      "Total value for money — right from material and customising to the pricing. Very honest with the business.",
-  },
-  {
-    name: "Vineeth Vincent",
-    role: "Beat-boxer / MC",
-    video: subVideo8,
-    quote:
-      "I've been ordering from this brand for years and haven't been dissatisfied a single time.",
-  },
-  {
-    name: "Arushi Parashar",
-    role: "Amazon India",
-    video: subVideo9,
-    quote:
-      "They are the kind of people I love working with — solution finders, not problem highlighters.",
-  },
-  {
-    name: "Jayanth Joseph",
-    role: "Ernst & Young",
-    video: subVideo7,
-    quote:
-      "Great quality merchandise and amazing design suggestions. Recommended for corporate gifting.",
+    slug: "polos",
+    name: "Polos",
+    thumb:
+      "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=500&q=80",
+    bannerImg:
+      "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=1400&q=80",
+    tagline: "Smart-casual, on your terms",
+    products: [
+      { name: "Signature Polo", price: "₹999", video: polosVideo },
+      {
+        name: "Pique Polo",
+        price: "₹1049",
+        img: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=500&q=80",
+      },
+      {
+        name: "Striped Collar Polo",
+        price: "₹1099",
+        img: "https://images.unsplash.com/photo-1519741497674-611481863552?w=500&q=80",
+      },
+      {
+        name: "Zip-Neck Polo",
+        price: "₹1099",
+        img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&q=80",
+      },
+    ],
   },
 ];
 
 /* ------------------------------------------------------------------ */
 /*  SMALL HELPERS                                                      */
 /* ------------------------------------------------------------------ */
-function useCountUp(target, start) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!start) return;
-    const numeric = parseInt(String(target).replace(/[^\d]/g, ""), 10) || 0;
-    if (!numeric) return;
-    let frame = 0;
-    const totalFrames = 40;
-    const timer = setInterval(() => {
-      frame++;
-      setVal(Math.round((numeric / totalFrames) * frame));
-      if (frame >= totalFrames) clearInterval(timer);
-    }, 25);
-    return () => clearInterval(timer);
-  }, [start, target]);
-  return val;
-}
-
 function PastelCard({ item, bg, big }) {
   return (
     <div
@@ -411,29 +485,260 @@ function PastelCard({ item, bg, big }) {
   );
 }
 
+// Product card for the per-category grids — image/video, name, price.
+function ProductCard({ product, bg }) {
+  return (
+    <div
+      className="identee-pastel-card"
+      style={{
+        background: bg,
+        borderRadius: 16,
+        overflow: "hidden",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div style={{ aspectRatio: "4/5", overflow: "hidden" }}>
+        {product.video ? (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          >
+            <source src={product.video} type="video/mp4" />
+          </video>
+        ) : (
+          <img
+            src={product.img}
+            alt={product.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        )}
+      </div>
+      <div style={{ padding: "12px 14px 16px" }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: C.ink,
+          }}
+        >
+          {product.name}
+        </p>
+        <p
+          style={{
+            margin: "4px 0 0",
+            fontSize: 13,
+            fontWeight: 700,
+            color: C.gold,
+          }}
+        >
+          {product.price}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  AUTO-SCROLL CATEGORY SLIDER                                        */
+/*  Continuous, self-scrolling strip of category cards. Clicking a     */
+/*  card smooth-scrolls the page down to that category's own section.  */
+/* ------------------------------------------------------------------ */
+function CategorySlider({ categories, onSelect }) {
+  const track = [...categories, ...categories]; // duplicated for seamless loop
+  return (
+    <div className="identee-cat-slider">
+      <div className="identee-cat-track">
+        {track.map((c, i) => (
+          <button
+            key={c.slug + i}
+            onClick={() => onSelect(c.slug)}
+            className="identee-cat-slide"
+          >
+            <span className="identee-cat-slide-img">
+              <img src={c.thumb} alt={c.name} />
+            </span>
+            <span className="identee-cat-slide-name">{c.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  CATEGORY SECTION — banner + product grid, repeated per category    */
+/* ------------------------------------------------------------------ */
+function CategorySection({ category, index }) {
+  const reversed = index % 2 === 1;
+  const pastel = PASTELS[index % PASTELS.length];
+
+  return (
+    <section
+      id={`cat-${category.slug}`}
+      style={{
+        padding: "64px 24px",
+        maxWidth: 1280,
+        margin: "0 auto",
+        scrollMarginTop: 90,
+      }}
+    >
+      {/* ---- category banner ---- */}
+      <div
+        style={{
+          position: "relative",
+          borderRadius: 24,
+          overflow: "hidden",
+          minHeight: 280,
+          display: "flex",
+          flexDirection: reversed ? "row-reverse" : "row",
+          alignItems: "stretch",
+          background: pastel,
+        }}
+      >
+        <div style={{ flex: "1 1 55%", minHeight: 280 }}>
+          <img
+            src={category.bannerImg}
+            alt={category.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
+        <div
+          style={{
+            flex: "1 1 45%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: "36px 44px",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 12,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              fontWeight: 700,
+              color: C.muted,
+            }}
+          >
+            Shop the Category
+          </p>
+          <h2
+            style={{
+              margin: "10px 0 0",
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 800,
+              fontSize: "clamp(28px, 3.6vw, 42px)",
+              color: C.ink,
+              lineHeight: 1.08,
+            }}
+          >
+            {category.name}
+          </h2>
+          <p
+            style={{
+              margin: "12px 0 0",
+              fontSize: 14.5,
+              color: C.text,
+              lineHeight: 1.6,
+              maxWidth: 320,
+            }}
+          >
+            {category.tagline}
+          </p>
+          <button
+            className="identee-cta-btn"
+            onClick={() => {
+              window.location.href = "/category/" + category.slug;
+            }}
+            style={{
+              marginTop: 24,
+              alignSelf: "flex-start",
+              padding: "13px 28px",
+              borderRadius: 10,
+              border: "none",
+              background: C.ink,
+              color: C.bg,
+              fontSize: 13.5,
+              fontWeight: 700,
+              letterSpacing: "0.03em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+            }}
+          >
+            Shop {category.name}
+          </button>
+        </div>
+      </div>
+
+      {/* ---- product grid for this category ---- */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 20,
+          marginTop: 28,
+        }}
+      >
+        {category.products.map((p, i) => (
+          <ProductCard
+            key={category.slug + p.name + i}
+            product={p}
+            bg={PASTELS[(index + i + 1) % PASTELS.length]}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const TESTIMONIALS = [
+  {
+    name: "Reo Raymond",
+    role: "Radio Indigo 91.9FM",
+    video: subVideo7,
+    quote:
+      "Total value for money — right from material and customising to the pricing. Very honest with the business.",
+  },
+  {
+    name: "Vineeth Vincent",
+    role: "Beat-boxer / MC",
+    video: subVideo8,
+    quote:
+      "I've been ordering from this brand for years and haven't been dissatisfied a single time.",
+  },
+  {
+    name: "Arushi Parashar",
+    role: "Amazon India",
+    video: subVideo9,
+    quote:
+      "They are the kind of people I love working with — solution finders, not problem highlighters.",
+  },
+  {
+    name: "Jayanth Joseph",
+    role: "Ernst & Young",
+    video: subVideo7,
+    quote:
+      "Great quality merchandise and amazing design suggestions. Recommended for corporate gifting.",
+  },
+];
+
 /* ------------------------------------------------------------------ */
 /*  MAIN COMPONENT                                                     */
 /* ------------------------------------------------------------------ */
 export default function Home() {
-  const [statsVisible, setStatsVisible] = useState(false);
   const [heroColorIdx, setHeroColorIdx] = useState(0);
-  const statsRef = useRef(null);
 
-  useEffect(() => {
-    const el = statsRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setStatsVisible(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.4 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+  const scrollToCategory = (slug) => {
+    const el = document.getElementById(`cat-${slug}`);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div
@@ -449,20 +754,59 @@ export default function Home() {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
+        @keyframes identee-cat-scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
         .identee-pastel-card { transition: transform 0.4s cubic-bezier(.2,.8,.2,1), box-shadow 0.4s ease; }
         .identee-pastel-card:hover { transform: translateY(-6px); box-shadow: 0 20px 34px -18px rgba(21,19,15,0.22); }
         .identee-pastel-card img { transition: transform 0.6s ease; }
         .identee-pastel-card:hover img { transform: scale(1.06); }
         .identee-cta-btn { transition: transform 0.25s ease, box-shadow 0.25s ease; }
         .identee-cta-btn:hover { transform: translateY(-2px); }
-        .identee-cat-pill { transition: background 0.25s ease, color 0.25s ease; }
-        .identee-cat-pill:hover { background: ${C.ink} !important; color: ${C.bg} !important; }
+        .identee-testimonial-avatar { position: relative; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; margin-bottom: 14px; border: 1px solid ${C.border}; background: ${C.bg}; }
+        .identee-testimonial-avatar video { position: absolute; top: 50%; left: 50%; width: 100%; height: 100%; min-width: 100%; min-height: 100%; transform: translate(-50%, -50%); object-fit: cover; object-position: center; }
+
+        /* ---- auto-scrolling category slider ---- */
+        .identee-cat-slider { overflow: hidden; padding: 8px 0 4px; }
+        .identee-cat-track {
+          display: inline-flex;
+          gap: 22px;
+          animation: identee-cat-scroll 28s linear infinite;
+          width: max-content;
+        }
+        .identee-cat-slider:hover .identee-cat-track { animation-play-state: paused; }
+        .identee-cat-slide {
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          width: 150px;
+          flex: 0 0 auto;
+          padding: 0;
+        }
+        .identee-cat-slide-img {
+          display: block;
+          width: 150px;
+          height: 190px;
+          border-radius: 18px;
+          overflow: hidden;
+          box-shadow: ${C.shadow};
+          transition: transform 0.35s ease, box-shadow 0.35s ease;
+        }
+        .identee-cat-slide-img img { width: 100%; height: 100%; object-fit: cover; }
+        .identee-cat-slide:hover .identee-cat-slide-img { transform: translateY(-6px); box-shadow: 0 24px 40px -18px rgba(21,19,15,0.3); }
+        .identee-cat-slide-name { font-size: 13.5px; font-weight: 700; color: ${C.ink}; }
+
         @media (max-width: 720px) {
           .hero-color-widget { display: none !important; }
         }
       `}</style>
 
-      {/* ================= HERO — full-bleed video background ================= */}
+      {/* ================= HERO — full-bleed video background (unchanged) ================= */}
       <section
         style={{
           position: "relative",
@@ -472,7 +816,6 @@ export default function Home() {
           overflow: "hidden",
         }}
       >
-        {/* Video fills the entire hero — single clip for now. */}
         <video
           autoPlay
           muted
@@ -490,7 +833,6 @@ export default function Home() {
           <source src={homeBannerVideo} type="video/mp4" />
         </video>
 
-        {/* Dark warm overlay so the headline stays readable over the footage */}
         <div
           style={{
             position: "absolute",
@@ -501,7 +843,6 @@ export default function Home() {
           }}
         />
 
-        {/* Content, sitting on top of the video */}
         <div
           style={{
             position: "relative",
@@ -587,8 +928,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Floating interactive color-swatch card — click a dot to change
-            the garment color live, layered on top of the video */}
         <div
           style={{
             position: "absolute",
@@ -603,11 +942,14 @@ export default function Home() {
           }}
           className="hero-color-widget"
         >
-          <HeroColorWidget activeIdx={heroColorIdx} setActiveIdx={setHeroColorIdx} />
+          <HeroColorWidget
+            activeIdx={heroColorIdx}
+            setActiveIdx={setHeroColorIdx}
+          />
         </div>
       </section>
 
-      {/* ================= MARQUEE STRIP ================= */}
+      {/* ================= MARQUEE STRIP (unchanged) ================= */}
       <div
         style={{
           background: C.yellow,
@@ -646,46 +988,13 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ================= FEATURES ================= */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: 48,
-          padding: "40px 24px",
-          background: C.bgAlt,
-          borderBottom: `1px solid ${C.border}`,
-        }}
-      >
-        {FEATURES.map((f) => (
-          <div key={f.title} style={{ textAlign: "center", minWidth: 170 }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: "0.1em",
-                color: C.ink,
-                textTransform: "uppercase",
-              }}
-            >
-              {f.title}
-            </p>
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: C.muted }}>
-              {f.desc}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* ================= NEW ARRIVALS ================= */}
+      {/* ================= AUTO-SCROLLING CATEGORY SLIDER ================= */}
       <section
-        style={{ padding: "80px 24px 60px", maxWidth: 1280, margin: "0 auto" }}
+        style={{ padding: "56px 24px 12px", maxWidth: 1280, margin: "0 auto" }}
       >
         <p
           style={{
-            margin: 0,
+            margin: "0 0 18px",
             fontSize: 12,
             letterSpacing: "0.2em",
             color: C.muted,
@@ -693,30 +1002,20 @@ export default function Home() {
             fontWeight: 700,
           }}
         >
-          New Arrivals
+          Shop by Category
         </p>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: 22,
-            marginTop: 22,
-          }}
-        >
-          {NEW_ARRIVALS.map((p, i) => (
-            <PastelCard
-              key={p.name + i}
-              item={p}
-              bg={PASTELS[i % PASTELS.length]}
-            />
-          ))}
-        </div>
+        <CategorySlider categories={CATEGORIES} onSelect={scrollToCategory} />
       </section>
 
-      {/* ================= SALE BAND ================= */}
+      {/* ================= PER-CATEGORY BANNER + PRODUCTS ================= */}
+      {CATEGORIES.map((category, i) => (
+        <CategorySection key={category.slug} category={category} index={i} />
+      ))}
+
+      {/* ================= DESIGN YOUR OWN — replaces Bulk Order band ================= */}
       <section
         style={{
-          margin: "48px 24px",
+          margin: "24px 24px 48px",
           maxWidth: 1280,
           marginLeft: "auto",
           marginRight: "auto",
@@ -726,72 +1025,119 @@ export default function Home() {
           display: "grid",
           gridTemplateColumns: "0.9fr 1.1fr",
           gap: 40,
-          alignItems: "center",
-          overflow: "hidden",
+          alignItems: "stretch",
+          overflow: "visible",
           boxShadow: "0 30px 60px -30px rgba(21,19,15,0.28)",
         }}
       >
+        <div style={{ position: "relative", aspectRatio: "1/1" }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 14,
+              right: -14,
+              width: "100%",
+              height: "100%",
+              background: C.ink,
+              borderRadius: 20,
+              zIndex: 0,
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              borderRadius: 20,
+              overflow: "hidden",
+              height: "100%",
+              boxShadow: "0 18px 36px -16px rgba(21,19,15,0.35)",
+            }}
+          >
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            >
+              <source src={customizeVideo} type="video/mp4" />
+            </video>
+          </div>
+        </div>
         <div
           style={{
-            borderRadius: 20,
-            overflow: "hidden",
-            aspectRatio: "1/1",
-            boxShadow: "0 18px 36px -16px rgba(21,19,15,0.35)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            textAlign: "center",
           }}
         >
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          >
-            <source src={subVideo6} type="video/mp4" />
-          </video>
-        </div>
-        <div>
-          <h2
+          <h3
             style={{
               margin: 0,
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 800,
+              fontSize: "clamp(20px, 2.6vw, 28px)",
+              color: C.ink,
+              lineHeight: 1.2,
+              letterSpacing: "-0.01em",
+              textTransform: "uppercase",
+            }}
+          >
+            Your Style,
+            <br />
+            Your Story,
+            <br />
+            <span
+              style={{
+                background: C.ink,
+                color: C.yellow,
+                padding: "2px 10px",
+                display: "inline-block",
+              }}
+            >
+              Your Identee
+            </span>
+          </h3>
+          <h2
+            style={{
+              margin: "22px 0 0",
               fontFamily: FONT_DISPLAY,
               fontWeight: 800,
               fontSize: "clamp(30px, 4.4vw, 48px)",
               color: C.ink,
               lineHeight: 1.08,
-              letterSpacing: "-0.01em",
             }}
           >
-            BULK ORDER
+            DESIGN YOUR
             <br />
-            SPECIAL NOW
+            OWN
           </h2>
           <p
             style={{
               margin: "18px 0 0",
               fontSize: 14.5,
               color: C.ink,
-              maxWidth: 360,
+              maxWidth: 400,
               lineHeight: 1.65,
               opacity: 0.85,
             }}
           >
-            Order 20+ pieces and get 15% off, with free 360° customisation
-            preview and priority pan-India delivery.
-          </p>
-          <p
-            style={{
-              margin: "12px 0 0",
-              fontSize: 12,
-              color: C.ink,
-              opacity: 0.65,
-            }}
-          >
-            1 – 30 July 2026 &nbsp;•&nbsp; *Terms &amp; conditions apply
+            Drop your own artwork, pick placement and preview it live on the
+            garment — our 360° customiser lets you build a piece that's entirely
+            yours before you order.
           </p>
           <button
             className="identee-cta-btn"
             onClick={() => {
-              window.location.href = "/bulk-orders";
+              window.location.href = "/customize";
             }}
             style={{
               marginTop: 26,
@@ -806,11 +1152,49 @@ export default function Home() {
               textTransform: "uppercase",
               cursor: "pointer",
               boxShadow: "0 12px 24px -8px rgba(21,19,15,0.4)",
-
             }}
           >
-            Get Started
+            Start Customising
           </button>
+          <div
+            style={{
+              display: "flex",
+              gap: 36,
+              marginTop: 34,
+              justifyContent: "center",
+            }}
+          >
+            {[
+              ["Drag & Drop", "Your artwork"],
+              ["Live Preview", "360° view"],
+              ["Pan India", "Shipping"],
+            ].map(([val, label]) => (
+              <div key={label}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: C.ink,
+                  }}
+                >
+                  {val}
+                </p>
+                <p
+                  style={{
+                    margin: "2px 0 0",
+                    fontSize: 10.5,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: C.ink,
+                    opacity: 0.65,
+                  }}
+                >
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -846,162 +1230,6 @@ export default function Home() {
               big
             />
           ))}
-        </div>
-      </section>
-
-      {/* ================= CATEGORIES ================= */}
-      <section
-        style={{ padding: "20px 24px 80px", maxWidth: 1280, margin: "0 auto" }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            letterSpacing: "0.2em",
-            color: C.muted,
-            textTransform: "uppercase",
-            fontWeight: 700,
-          }}
-        >
-          Shop by Category
-        </p>
-        <div
-          style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20 }}
-        >
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.name}
-              className="identee-cat-pill"
-              onClick={() => {
-                window.location.href =
-                  "/category/" + c.name.toLowerCase().replace(/\s+/g, "-");
-              }}
-              style={{
-                border: `1px solid ${C.border}`,
-                background: C.bgAlt,
-                color: C.ink,
-                fontSize: 13,
-                fontWeight: 600,
-                padding: "10px 20px",
-                borderRadius: 999,
-                cursor: "pointer",
-              }}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 20,
-            marginTop: 28,
-          }}
-        >
-          {CATEGORIES.map((c, i) => (
-            <div
-              key={c.name}
-              className="identee-pastel-card"
-              style={{
-                position: "relative",
-                borderRadius: 16,
-                overflow: "hidden",
-                height: 220,
-                background: PASTELS[i % PASTELS.length],
-                cursor: "pointer",
-              }}
-            >
-              <img
-                src={c.img}
-                alt={c.name}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(180deg, rgba(21,19,15,0) 45%, rgba(21,19,15,0.72) 100%)",
-                }}
-              />
-              <div style={{ position: "absolute", bottom: 14, left: 14 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#FFF8EC",
-                  }}
-                >
-                  {c.name}
-                </p>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: C.yellow,
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  SHOP NOW →
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ================= WHAT WE DO / VIDEO ================= */}
-      <section
-        style={{
-          padding: "20px 24px 80px",
-          textAlign: "center",
-          background: C.bgAlt,
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            letterSpacing: "0.2em",
-            color: C.muted,
-            textTransform: "uppercase",
-            fontWeight: 700,
-          }}
-        >
-          Here&apos;s what we do
-        </p>
-        <h2
-          style={{
-            margin: "10px 0 32px",
-            fontFamily: FONT_DISPLAY,
-            fontWeight: 800,
-            fontSize: "clamp(26px, 3.4vw, 38px)",
-            color: C.ink,
-          }}
-        >
-          Explained under a minute
-        </h2>
-        <div
-          style={{
-            maxWidth: 800,
-            margin: "0 auto",
-            aspectRatio: "16/9",
-            borderRadius: 18,
-            overflow: "hidden",
-            border: `1px solid ${C.border}`,
-            boxShadow: C.shadow,
-          }}
-        >
-          <iframe
-            width="100%"
-            height="100%"
-            src="https://www.youtube.com/embed/FX4AKvfSFvs"
-            title="What we do"
-            style={{ border: "none" }}
-            allowFullScreen
-          />
         </div>
       </section>
 
@@ -1053,22 +1281,11 @@ export default function Home() {
               }}
             >
               {t.video && (
-                <video
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    marginBottom: 14,
-                    border: `1px solid ${C.border}`,
-                  }}
-                >
-                  <source src={t.video} type="video/mp4" />
-                </video>
+                <div className="identee-testimonial-avatar">
+                  <video autoPlay muted loop playsInline>
+                    <source src={t.video} type="video/mp4" />
+                  </video>
+                </div>
               )}
               <p
                 style={{
@@ -1098,7 +1315,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= BULK ORDER / NEWSLETTER FOOTER STRIP ================= */}
+      {/* ================= FOOTER CONTACT STRIP ================= */}
       <section
         style={{
           background: C.yellow,
