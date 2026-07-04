@@ -115,6 +115,41 @@ const NAV_GROUPS = [
     label: "Content",
     items: [
       {
+        to: "/admin/offer-banner",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path
+              fillRule="evenodd"
+              d="M3 5a2 2 0 012-2h10a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm0 8a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2z"
+              clipRule="evenodd"
+            />
+          </svg>
+        ),
+        label: "Offer Banner",
+      },
+      {
+        to: "/admin/video-banner",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l3 1.5A1 1 0 0019 13.5v-7a1 1 0 00-1.447-.894l-3 1.5z" />
+          </svg>
+        ),
+        label: "Video Banner",
+      },
+      {
+        to: "/admin/category-banner",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path
+              fillRule="evenodd"
+              d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 1v2h2V5H5zM3 12a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm2 1v2h2v-2H5zM11 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm2 1v2h2V5h-2zM11 12a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4zm2 1v2h2v-2h-2z"
+              clipRule="evenodd"
+            />
+          </svg>
+        ),
+        label: "Category Banner",
+      },
+      {
         to: "/admin/reviews",
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -225,18 +260,32 @@ const C = {
 export default function AdminSidebar({ collapsed, onToggle }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { userInfo } = useSelector((state) => state.auth);
+  // NOTE: authSlice's initialState key is `user`, not `userInfo`.
+  const { user } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
+    // 1. Clear localStorage synchronously FIRST — App.jsx's route guards
+    //    (GuestRoute/AdminRoute) read directly from localStorage, so if we
+    //    navigate before this is cleared, GuestRoute sees a stale
+    //    "userInfo" and immediately bounces back into /admin/dashboard,
+    //    which looks exactly like "logout doesn't work".
+    localStorage.removeItem("userInfo");
+
+    // 2. Update redux state too (also runs authService.logout() internally).
     dispatch(logout());
-    navigate("/login");
+
+    // 3. Let other tabs / the Navbar know auth state changed.
+    window.dispatchEvent(new Event("storage"));
+
+    // 4. Now it's safe to navigate.
+    navigate("/login", { replace: true });
   };
 
   return (
     <aside
       style={{
         width: collapsed ? "64px" : "220px",
-        minHeight: "100vh",
+        height: "100vh",
         background: C.bg,
         borderRight: `1px solid ${C.border}`,
         display: "flex",
@@ -391,9 +440,9 @@ export default function AdminSidebar({ collapsed, onToggle }) {
             fontFamily: "'Inter', sans-serif",
           }}
         >
-          {userInfo?.name?.[0]?.toUpperCase() || "A"}
+          {user?.name?.[0]?.toUpperCase() || "A"}
         </div>
-        {!collapsed && (
+        {!collapsed ? (
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
@@ -407,10 +456,11 @@ export default function AdminSidebar({ collapsed, onToggle }) {
                 whiteSpace: "nowrap",
               }}
             >
-              {userInfo?.name || "Admin"}
+              {user?.name || "Admin"}
             </p>
             <button
               onClick={handleLogout}
+              type="button"
               style={{
                 background: "none",
                 border: "none",
@@ -424,13 +474,39 @@ export default function AdminSidebar({ collapsed, onToggle }) {
               Sign out
             </button>
           </div>
+        ) : (
+          <button
+            onClick={handleLogout}
+            type="button"
+            title="Sign out"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: C.mutedText,
+              padding: 4,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width={16} height={16}>
+              <path
+                fillRule="evenodd"
+                d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h6a1 1 0 100-2H4V5h5a1 1 0 100-2H3zm10.293 4.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L14.586 11H8a1 1 0 110-2h6.586l-1.293-1.293a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
         )}
       </div>
 
       <style>{`
-        .sidebar-nav::-webkit-scrollbar { width: 3px; }
-        .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-nav::-webkit-scrollbar-thumb { background: #2B2B30; border-radius: 2px; }
+        .sidebar-nav {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .sidebar-nav::-webkit-scrollbar { display: none; }
         .sidebar-nav a:hover { background: #1F1F2480 !important; color: #D9D5C9 !important; }
       `}</style>
     </aside>

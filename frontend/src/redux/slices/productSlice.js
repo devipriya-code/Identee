@@ -5,6 +5,8 @@ import productService from "../../services/productService";
 const initialState = {
   products: [],
   product: null,
+  categoryProducts: [],
+  isCategoryLoading: false,
   isLoading: false,
   isSuccess: false,
   isError: false,
@@ -17,6 +19,19 @@ export const getProducts = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       return await productService.getProducts();
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      return thunkAPI.rejectWithValue(message);
+    }
+  },
+);
+
+// GET PRODUCTS BY GARMENT STYLE (category listing page)
+export const getProductsByGarmentStyle = createAsyncThunk(
+  "products/getByGarmentStyle",
+  async (garmentStyle, thunkAPI) => {
+    try {
+      return await productService.getProductsByGarmentStyle(garmentStyle);
     } catch (error) {
       const message = error.response?.data?.message || error.message;
       return thunkAPI.rejectWithValue(message);
@@ -103,6 +118,20 @@ const productSlice = createSlice({
       })
       .addCase(getProducts.rejected, (state, action) => {
         state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // ─── GET PRODUCTS BY GARMENT STYLE ──────────────────
+      .addCase(getProductsByGarmentStyle.pending, (state) => {  
+        state.isCategoryLoading = true;
+      })
+      .addCase(getProductsByGarmentStyle.fulfilled, (state, action) => {
+        state.isCategoryLoading = false;
+        state.categoryProducts = action.payload;
+      })
+      .addCase(getProductsByGarmentStyle.rejected, (state, action) => {
+        state.isCategoryLoading = false;
         state.isError = true;
         state.message = action.payload;
       })

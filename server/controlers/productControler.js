@@ -22,6 +22,7 @@ const getProducts = asyncHandler(async (req, res) => {
     offerfilter,
     category,
     subcategory,
+    garmentStyle,
     type,
     color,
     fabric,
@@ -52,6 +53,8 @@ const getProducts = asyncHandler(async (req, res) => {
   if (gender) filterCriteria["productdetails.gender"] = gender;
   if (category) filterCriteria["productdetails.category"] = category;
   if (subcategory) filterCriteria["productdetails.subcategory"] = subcategory;
+  if (garmentStyle)
+    filterCriteria["productdetails.garmentStyle"] = garmentStyle;
   if (type) filterCriteria["productdetails.type"] = type;
   if (color) filterCriteria["productdetails.color"] = color;
   if (fabric) filterCriteria["productdetails.fabric"] = fabric;
@@ -598,7 +601,8 @@ const createProduct = asyncHandler(async (req, res) => {
     // ✅ Parse products safely
     let parsedProducts;
     try {
-      parsedProducts = typeof products === "string" ? JSON.parse(products) : products;
+      parsedProducts =
+        typeof products === "string" ? JSON.parse(products) : products;
     } catch (parseError) {
       console.error("❌ Error parsing products:", parseError);
       return res.status(400).json({ message: "Invalid product data format" });
@@ -618,7 +622,7 @@ const createProduct = asyncHandler(async (req, res) => {
       typeof shippingDetails === "string"
         ? JSON.parse(shippingDetails)
         : shippingDetails;
-    
+
     if (parsedShippingDetails?.originAddress?.street2 !== undefined) {
       delete parsedShippingDetails.originAddress.street2;
     }
@@ -650,7 +654,7 @@ const createProduct = asyncHandler(async (req, res) => {
         .map((file) => file.path);
 
       imageIndex += imageCount;
-      
+
       if (productType === "combo") {
         variant.productdetails.subcategory = "Combo";
       }
@@ -1496,7 +1500,7 @@ const getProductGroup = asyncHandler(async (req, res) => {
     common: {
       brandname: base.brandname,
       description: base.description,
-      hsnCode: base.hsnCode, 
+      hsnCode: base.hsnCode,
       shippingDetails: base.shippingDetails,
       isFeatured: base.isFeatured,
       sizeChart: base.sizeChart,

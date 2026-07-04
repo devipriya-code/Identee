@@ -1,0 +1,53 @@
+// controllers/customizationController.js
+
+import Customization from "../models/customizationModel.js";
+
+// POST /api/customizations/upload-design  (multipart, field name "design")
+export const uploadDesignImage = (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  // req.file.path is already the correct relative path
+  // (e.g. "uploads/designs/design-169...-123.png"), set by the
+  // rewritePaths middleware in uploadMiddleware.js.
+  res.status(201).json({ path: req.file.path });
+};
+
+// POST /api/customizations
+export const createCustomization = async (req, res) => {
+  try {
+    const { productId, elements } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ message: "productId is required" });
+    }
+    if (!Array.isArray(elements) || elements.length === 0) {
+      return res.status(400).json({ message: "Add at least one design element before saving" });
+    }
+
+    const customization = await Customization.create({
+      product: productId,
+      user: req.user?._id, // only present if auth middleware runs before this route
+      elements,
+    });
+
+    res.status(201).json(customization);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Could not save customization" });
+  }
+};
+
+// GET /api/customizations/:id
+export const getCustomizationById = async (req, res) => {
+  try {
+    const customization = await Customization.findById(req.params.id).populate(
+      "product",
+      "brandname price images",
+    );
+    if (!customization) {
+      return res.status(404).json({ message: "Customization not found" });
+    }
+    res.json(customization);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Could not fetch customization" });
+  }
+};

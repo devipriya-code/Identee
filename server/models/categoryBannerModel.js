@@ -5,12 +5,12 @@ const categoryBannerSchema = mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["T-Shirts", "Hoodies", "Polo", "Sweatshirt", "Oversized"],
-      unique: true, // one banner per category — re-upload replaces it
+      trim: true,
+      unique: true, // one banner per garmentStyle — re-upload replaces it
     },
     image: { type: String, required: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const CategoryBanner = mongoose.model("CategoryBanner", categoryBannerSchema);
