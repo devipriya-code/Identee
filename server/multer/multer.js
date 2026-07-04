@@ -34,9 +34,13 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === "sizeChart") {
       // ✅ sizeChart always goes to pdfs folder (handles both PDF and image size charts)
       relDir = "uploads/pdfs";
+    } else if (file.fieldname === "design") {
+      // ✅ customization designs (uploaded logos/artwork) → uploads/designs
+      relDir = "uploads/designs";
     } else if (
       file.fieldname === "image" &&
-      req.originalUrl.includes("/api/banners")
+      (req.originalUrl.includes("/api/banners") ||
+        req.originalUrl.includes("/api/categorybanner"))
     ) {
       relDir = "uploads/banners/images";
     } else if (file.mimetype.startsWith("video/")) {
@@ -75,6 +79,9 @@ const fileFilter = (req, file, cb) => {
     "image/jfif",
     "video/mp4",
     "video/avi",
+    "video/quicktime",
+    "video/webm",
+    "video/x-matroska",
     "application/pdf",
     "application/octet-stream",
   ];
@@ -139,3 +146,5 @@ export const uploadProductFiles = [
   ]),
   rewritePaths,
 ];
+
+export const uploadDesignFile = [upload.single("design"), rewritePaths];

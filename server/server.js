@@ -11,11 +11,13 @@ import dashboardRoutes from "./routes/dashboardRoutes.js";
 import deliveryRoutes from "./routes/deliveryRoutes.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 import bannerRoutes from "./routes/bannerRoutes.js";
+import categoryBannerRoutes from "./routes/categoryBannerRoutes.js";
 import subscriptionsRoutes from "./routes/subscriptionRoutes.js";
 import offerRoutes from "./routes/offerRoutes.js";
 import shippingRoutes from "./routes/shippingRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import enquiryRoutes from "./routes/Enquiryroutes.js";
+import customizationRoutes from "./routes/customizationRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 import cors from "cors";
 import "./utils/subscriptionCron.js";
@@ -52,7 +54,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/banners", bannerRoutes);
+app.use("/api", bannerRoutes);
+app.use("/api/categorybanner", categoryBannerRoutes);
 app.use("/api/delivery", deliveryRoutes);
 app.use("/api/subscriptions", subscriptionsRoutes);
 // app.use("/api/users", subscriptionPaymentRoutes);
@@ -62,6 +65,7 @@ app.use("/api/offers", offerRoutes);
 app.use("/api/enquiry", enquiryRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/customizations", customizationRoutes);
 
 app.get("/api/config/paypal", (req, res) =>
   res.send(process.env.PAYPAL_CLIENT_ID),

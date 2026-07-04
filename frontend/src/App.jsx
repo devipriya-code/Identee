@@ -1,3 +1,4 @@
+// App.jsx
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,19 +11,18 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import LandingPage from "./pages/LandingPage";
 import Navbar from "./components/Navbar";
 import AdminLayout from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/AdminDashboard";
-import ProductUploadPage from "./pages/ProductUploadPage";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import ProductUploadPage from "./pages/admin/ProductUploadPage";
+import ProductListPage from "./pages/admin/ProductListPage";
+import OfferBannerPage from "./pages/admin/OfferBannerPage";
+import VideoBannerPage from "./pages/admin/VideoBannerPage";
+import CategoryBannerPage from "./pages/admin/CategoryBannerPage";
 import Home from "./pages/Home";
-
-const ProductListPage = () => (
-  <PlaceholderAdminPage
-    title="Product List"
-    desc="Connect getProducts() to render the catalogue table here."
-  />
-);
+import CategoryProductsPage from "./pages/CategoryProductsPage";
+import SingleProductPage from "./pages/SingleProductPage";
+import CustomizePage from "./pages/CustomizePage";
 
 const OrdersPage = () => (
   <PlaceholderAdminPage
@@ -113,7 +113,7 @@ const NotFound = () => (
 );
 // ──────────────────────────────────────────────────────────────────────────
 
-// ── Customer layout: Navbar + page content ──────────────────────────────────
+// ── Customer layout: Navbar + page content ──────────────────────────────
 const CustomerLayout = () => (
   <>
     <Navbar />
@@ -134,11 +134,6 @@ const getUserInfo = () => {
   }
 };
 
-const PrivateRoute = ({ children }) => {
-  const user = getUserInfo();
-  return user ? children : <Navigate to="/login" replace />;
-};
-
 const AdminRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return <Navigate to="/login" replace />;
@@ -153,12 +148,13 @@ const SellerRoute = ({ children }) => {
   return children;
 };
 
+// Guests only — already-logged-in users get bounced to their dashboard
 const GuestRoute = ({ children }) => {
   const user = getUserInfo();
   if (!user) return children;
   if (user.isAdmin) return <Navigate to="/admin/dashboard" replace />;
   if (user.isSeller) return <Navigate to="/seller/dashboard" replace />;
-  return <Navigate to="/home" replace />;
+  return <Navigate to="/" replace />;
 };
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -166,10 +162,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* Public landing page — standalone, no navbar */}
-        <Route path="/" element={<LandingPage />} />
-
-        {/* Public: auth */}
+        {/* Public: auth pages (only for guests) */}
         <Route
           path="/login"
           element={
@@ -189,16 +182,15 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Customer routes — Navbar wraps everything here, only after login */}
+        {/* Everything with the Navbar — Home is PUBLIC (no login required) */}
         <Route element={<CustomerLayout />}>
+          <Route path="/" element={<Home />} />
           <Route
-            path="/home"
-            element={
-              <PrivateRoute>
-                <Home />
-              </PrivateRoute>
-            }
+            path="/category/:categoryName"
+            element={<CategoryProductsPage />}
           />
+          <Route path="/product/:id" element={<SingleProductPage />} />
+           <Route path="/customize/:id" element={<CustomizePage />} />
         </Route>
 
         {/* Admin routes — AdminSidebar layout wraps every /admin/* page */}
@@ -213,6 +205,9 @@ export default function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="upload-product" element={<ProductUploadPage />} />
           <Route path="products" element={<ProductListPage />} />
+          <Route path="offer-banner" element={<OfferBannerPage />} />
+          <Route path="video-banner" element={<VideoBannerPage />} />
+          <Route path="category-banner" element={<CategoryBannerPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="users" element={<UsersPage />} />

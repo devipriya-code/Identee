@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000"; 
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const API_URL = `${BACKEND_URL}/api/products`;
 
@@ -10,6 +10,13 @@ const getProducts = async () => {
   return response.data;
 };
 
+// GET PRODUCTS BY GARMENT STYLE (category page)
+const getProductsByGarmentStyle = async (garmentStyle) => {
+  const response = await axios.get(
+    `${API_URL}?garmentStyle=${encodeURIComponent(garmentStyle)}`,
+  );
+  return response.data;
+};
 // GET PRODUCT BY ID
 const getProductById = async (id) => {
   const response = await axios.get(`${API_URL}/${id}`);
@@ -58,6 +65,7 @@ const deleteProduct = async (id, token) => {
 
 const productService = {
   getProducts,
+  getProductsByGarmentStyle,
   getProductById,
   createProduct,
   updateProduct,

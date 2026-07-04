@@ -3,12 +3,19 @@
 // Navbar (unchanged, lives outside this file)
 // -> Hero banner (unchanged)
 // -> Running marquee strip (unchanged)
-// -> Auto-scrolling categories slider (new)
-// -> Per-category banner + product grid, repeated for every category (new)
-// -> "Design Your Own" customization CTA (replaces old Bulk Order band)
+// -> Product Category banner grid (new — split navy/gold banners)
+// -> Style Outlook — video editorial section (new)
+// -> "Design Your Own" customization CTA
 // -> Young's Favourite
-// -> Footer contact strip
-import { useState, useEffect, useRef } from "react";
+// -> Testimonials
+// -> "Need Help / Bulk Orders" band
+// -> Footer (contact band + link columns + map)
+// -> Floating WhatsApp + Instagram icons (fixed, left edge)
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { getShowcase } from "../redux/slices/categoryBannerSlice";
+import { getVideoBanner } from "../redux/slices/bannerSlice";
 // One pre-made clip per swatch color — same shot, shirt actually recolored
 // in editing ahead of time. Swapping the <source> is how the color-change
 // effect gets built without live-recoloring real footage in the browser.
@@ -20,12 +27,12 @@ import homeBannerVideo from "../assets/videos/homebanner-video.mp4";
 // preview clip is recorded — same footage the old Bulk Order band used.
 import customizeVideo from "../assets/videos/sub-video2.mp4";
 
-// Sub-videos used for Young's Favourite and Testimonials
+// Sub-videos used for Young's Favourite, Testimonials, and Style Outlook
 import subVideo1 from "../assets/videos/sub-video1.mp4";
 import subVideo7 from "../assets/videos/sub-video7.mp4";
 import subVideo8 from "../assets/videos/sub-video8.mp4";
 import subVideo9 from "../assets/videos/suv-video9.mp4";
-// Dedicated clips reused inside the Hoodies / Polos product grids
+// Dedicated clips reused inside the Style Outlook side panels
 import hoodieVideo from "../assets/videos/hoodie.mp4";
 import polosVideo from "../assets/videos/polos.mp4";
 
@@ -45,6 +52,7 @@ const C = {
   border: "#ECE4D2",
   card: "#FFFFFF",
   shadow: "0 18px 36px -18px rgba(21,19,15,0.18)",
+  navy: "#1B2340", // deep navy used in category banner split backgrounds
 };
 
 // soft pastel backgrounds cycled behind product / category imagery
@@ -91,7 +99,7 @@ function GarmentIcon({ type, color }) {
   );
 }
 
-function HeroColorWidget({ activeIdx, setActiveIdx }) {
+function HeroColorWidget({ activeIdx, setActiveIdx, navigate }) {
   const active = HERO_COLOR_THEMES[activeIdx];
   return (
     <>
@@ -112,9 +120,7 @@ function HeroColorWidget({ activeIdx, setActiveIdx }) {
       {/* Buy Now pill */}
       <button
         className="identee-cta-btn"
-        onClick={() => {
-          window.location.href = "/shop";
-        }}
+        onClick={() => navigate("/shop")}
         style={{
           position: "absolute",
           top: 18,
@@ -238,192 +244,6 @@ const FAVOURITES = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  CATEGORIES — slider items + full banner/product sections          */
-/*  Each entry drives: the auto-scroll slider card, the category      */
-/*  banner, and the product grid beneath that banner.                 */
-/* ------------------------------------------------------------------ */
-const CATEGORIES = [
-  {
-    slug: "t-shirt",
-    name: "T-Shirt",
-    thumb:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
-    bannerImg:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=1400&q=80",
-    tagline: "Everyday staples, cut for comfort",
-    products: [
-      {
-        name: "Classic Crew Tee",
-        price: "₹799",
-        img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
-      },
-      {
-        name: "Heavyweight Tee",
-        price: "₹899",
-        img: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80",
-      },
-      {
-        name: "Graphic Print Tee",
-        price: "₹849",
-        img: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&q=80",
-      },
-      {
-        name: "Essential Plain Tee",
-        price: "₹749",
-        img: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80",
-      },
-    ],
-  },
-  {
-    slug: "round-neck",
-    name: "Round Neck",
-    thumb:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
-    bannerImg:
-      "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=1400&q=80",
-    tagline: "Clean necklines, all-day fit",
-    products: [
-      {
-        name: "Signature Round Neck",
-        price: "₹749",
-        img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&q=80",
-      },
-      {
-        name: "Ribbed Round Neck",
-        price: "₹799",
-        img: "https://images.unsplash.com/photo-1519741497674-611481863552?w=500&q=80",
-      },
-      {
-        name: "Two-Tone Round Neck",
-        price: "₹849",
-        img: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80",
-      },
-      {
-        name: "Basic Round Neck",
-        price: "₹699",
-        img: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80",
-      },
-    ],
-  },
-  {
-    slug: "oversized",
-    name: "Oversized",
-    thumb:
-      "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&q=80",
-    bannerImg:
-      "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=1400&q=80",
-    tagline: "Relaxed drop-shoulder silhouettes",
-    products: [
-      {
-        name: "Drop-Shoulder Oversized",
-        price: "₹999",
-        img: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&q=80",
-      },
-      {
-        name: "Boxy Fit Oversized",
-        price: "₹1049",
-        img: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80",
-      },
-      {
-        name: "Oversized Graphic Tee",
-        price: "₹1099",
-        img: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&q=80",
-      },
-      {
-        name: "Washed Oversized Tee",
-        price: "₹999",
-        img: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80",
-      },
-    ],
-  },
-  {
-    slug: "hoodies",
-    name: "Hoodies",
-    thumb:
-      "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
-    bannerImg:
-      "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=1400&q=80",
-    tagline: "Heavy fleece, built for layering",
-    products: [
-      { name: "Signature Hoodie", price: "₹1499", video: hoodieVideo },
-      {
-        name: "Zip-Up Hoodie",
-        price: "₹1599",
-        img: "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
-      },
-      {
-        name: "Fleece-Lined Hoodie",
-        price: "₹1649",
-        img: "https://images.unsplash.com/photo-1571945153237-4929e783be03?w=500&q=80",
-      },
-      {
-        name: "Pullover Hoodie",
-        price: "₹1449",
-        img: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80",
-      },
-    ],
-  },
-  {
-    slug: "sweatshirt",
-    name: "Sweatshirt",
-    thumb:
-      "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=500&q=80",
-    bannerImg:
-      "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=1400&q=80",
-    tagline: "Soft fleece for cooler days",
-    products: [
-      {
-        name: "Crewneck Sweatshirt",
-        price: "₹1299",
-        img: "https://images.unsplash.com/photo-1593030103066-0093718efeb9?w=500&q=80",
-      },
-      {
-        name: "Colour-Block Sweatshirt",
-        price: "₹1349",
-        img: "https://images.unsplash.com/photo-1571945153237-4929e783be03?w=500&q=80",
-      },
-      {
-        name: "Washed Sweatshirt",
-        price: "₹1299",
-        img: "https://images.unsplash.com/photo-1556306535-0f09a537f0a3?w=500&q=80",
-      },
-      {
-        name: "Graphic Sweatshirt",
-        price: "₹1399",
-        img: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=500&q=80",
-      },
-    ],
-  },
-  {
-    slug: "polos",
-    name: "Polos",
-    thumb:
-      "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=500&q=80",
-    bannerImg:
-      "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=1400&q=80",
-    tagline: "Smart-casual, on your terms",
-    products: [
-      { name: "Signature Polo", price: "₹999", video: polosVideo },
-      {
-        name: "Pique Polo",
-        price: "₹1049",
-        img: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=500&q=80",
-      },
-      {
-        name: "Striped Collar Polo",
-        price: "₹1099",
-        img: "https://images.unsplash.com/photo-1519741497674-611481863552?w=500&q=80",
-      },
-      {
-        name: "Zip-Neck Polo",
-        price: "₹1099",
-        img: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&q=80",
-      },
-    ],
-  },
-];
-
-/* ------------------------------------------------------------------ */
 /*  SMALL HELPERS                                                      */
 /* ------------------------------------------------------------------ */
 function PastelCard({ item, bg, big }) {
@@ -485,214 +305,172 @@ function PastelCard({ item, bg, big }) {
   );
 }
 
-// Product card for the per-category grids — image/video, name, price.
-function ProductCard({ product, bg }) {
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+function CategoryBanner({ item, variant, navigate }) {
+  const isDark = variant === "dark";
+  const imgSrc = item.image ? `${BACKEND_URL}${item.image}` : null;
+
   return (
     <div
-      className="identee-pastel-card"
+      className="identee-cat-banner"
+      onClick={() => navigate("/category/" + encodeURIComponent(item.category))}
       style={{
-        background: bg,
-        borderRadius: 16,
+        position: "relative",
+        borderRadius: 20,
         overflow: "hidden",
-        cursor: "pointer",
+        height: "100%",
+        minHeight: 130,
         display: "flex",
-        flexDirection: "column",
+        cursor: "pointer",
+        background: isDark
+          ? `linear-gradient(90deg, ${C.navy} 0%, ${C.navy} 58%, ${C.yellow} 58%, ${C.yellow} 100%)`
+          : C.bgAlt,
       }}
     >
-      <div style={{ aspectRatio: "4/5", overflow: "hidden" }}>
-        {product.video ? (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          >
-            <source src={product.video} type="video/mp4" />
-          </video>
-        ) : (
+      <div
+        style={{
+          flex: "1 1 55%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: "24px 28px",
+          zIndex: 2,
+        }}
+      >
+        <h3
+          style={{
+            margin: 0,
+            fontFamily: FONT_DISPLAY,
+            fontWeight: 800,
+            fontSize: "clamp(18px, 2.2vw, 30px)",
+            color: isDark ? "#FFF8EC" : C.ink,
+            lineHeight: 1.15,
+          }}
+        >
+          {item.category}
+        </h3>
+        <p
+          style={{
+            margin: "10px 0 0",
+            fontSize: 13.5,
+            color: isDark ? "#D8D2C4" : C.muted,
+            maxWidth: 220,
+            lineHeight: 1.6,
+          }}
+        >
+          {item.productCount > 0
+            ? `${item.productCount} product${item.productCount > 1 ? "s" : ""} available`
+            : "Explore the collection"}
+        </p>
+      </div>
+      <div
+        style={{
+          flex: "1 1 45%",
+          position: "relative",
+          overflow: "hidden",
+          background: C.bgAlt,
+        }}
+      >
+        {imgSrc && (
           <img
-            src={product.img}
-            alt={product.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            className="identee-cat-banner-img"
+            src={imgSrc}
+            alt={item.category}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
           />
         )}
       </div>
-      <div style={{ padding: "12px 14px 16px" }}>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: C.ink,
-          }}
-        >
-          {product.name}
-        </p>
-        <p
-          style={{
-            margin: "4px 0 0",
-            fontSize: 13,
-            fontWeight: 700,
-            color: C.gold,
-          }}
-        >
-          {product.price}
-        </p>
-      </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  AUTO-SCROLL CATEGORY SLIDER                                        */
-/*  Continuous, self-scrolling strip of category cards. Clicking a     */
-/*  card smooth-scrolls the page down to that category's own section.  */
-/* ------------------------------------------------------------------ */
-function CategorySlider({ categories, onSelect }) {
-  const track = [...categories, ...categories]; // duplicated for seamless loop
+// Renders EVERY category banner returned by the API — no slicing.
+// The uneven "bento" look is done purely in CSS via nth-child(6n+…)
+// selectors below, so the pattern repeats every 6 items and keeps
+// working no matter how many categories you upload (1, 7, 20, …).
+function CategoryBannerGrid({ items, navigate }) {
+  if (!items || items.length === 0) return null;
   return (
-    <div className="identee-cat-slider">
-      <div className="identee-cat-track">
-        {track.map((c, i) => (
-          <button
-            key={c.slug + i}
-            onClick={() => onSelect(c.slug)}
-            className="identee-cat-slide"
-          >
-            <span className="identee-cat-slide-img">
-              <img src={c.thumb} alt={c.name} />
-            </span>
-            <span className="identee-cat-slide-name">{c.name}</span>
-          </button>
-        ))}
-      </div>
+    <div className="identee-cat-banner-grid">
+      {items.map((item, i) => (
+        <CategoryBanner
+          key={item.category}
+          item={item}
+          variant={i % 2 === 0 ? "dark" : "light"}
+          navigate={navigate}
+        />
+      ))}
     </div>
   );
 }
-
 /* ------------------------------------------------------------------ */
-/*  CATEGORY SECTION — banner + product grid, repeated per category    */
+/*  STYLE OUTLOOK — big video + two side videos, editorial layout      */
 /* ------------------------------------------------------------------ */
-function CategorySection({ category, index }) {
-  const reversed = index % 2 === 1;
-  const pastel = PASTELS[index % PASTELS.length];
-
+function StyleOutlookSection() {
   return (
-    <section
-      id={`cat-${category.slug}`}
-      style={{
-        padding: "64px 24px",
-        maxWidth: 1280,
-        margin: "0 auto",
-        scrollMarginTop: 90,
-      }}
-    >
-      {/* ---- category banner ---- */}
-      <div
-        style={{
-          position: "relative",
-          borderRadius: 24,
-          overflow: "hidden",
-          minHeight: 280,
-          display: "flex",
-          flexDirection: reversed ? "row-reverse" : "row",
-          alignItems: "stretch",
-          background: pastel,
-        }}
-      >
-        <div style={{ flex: "1 1 55%", minHeight: 280 }}>
-          <img
-            src={category.bannerImg}
-            alt={category.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        </div>
+    <section style={{ background: C.ink, padding: "48px 24px" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto" }}>
         <div
           style={{
-            flex: "1 1 45%",
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            padding: "36px 44px",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+            gap: 16,
+            marginBottom: 28,
           }}
         >
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              fontWeight: 700,
-              color: C.muted,
-            }}
-          >
-            Shop the Category
-          </p>
           <h2
             style={{
-              margin: "10px 0 0",
+              margin: 0,
               fontFamily: FONT_DISPLAY,
               fontWeight: 800,
-              fontSize: "clamp(28px, 3.6vw, 42px)",
-              color: C.ink,
-              lineHeight: 1.08,
+              fontSize: "clamp(28px, 4vw, 44px)",
+              color: "#FFF8EC",
             }}
           >
-            {category.name}
+            Style Outlook
           </h2>
           <p
             style={{
-              margin: "12px 0 0",
-              fontSize: 14.5,
-              color: C.text,
-              lineHeight: 1.6,
+              margin: 0,
               maxWidth: 320,
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: "#C9C2B2",
+              textAlign: "right",
             }}
           >
-            {category.tagline}
+            Make simplicity your boldest statement, experience crafted
+            essentials with an excellent purpose.
           </p>
-          <button
-            className="identee-cta-btn"
-            onClick={() => {
-              window.location.href = "/category/" + category.slug;
-            }}
-            style={{
-              marginTop: 24,
-              alignSelf: "flex-start",
-              padding: "13px 28px",
-              borderRadius: 10,
-              border: "none",
-              background: C.ink,
-              color: C.bg,
-              fontSize: 13.5,
-              fontWeight: 700,
-              letterSpacing: "0.03em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
-          >
-            Shop {category.name}
-          </button>
         </div>
-      </div>
-
-      {/* ---- product grid for this category ---- */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 20,
-          marginTop: 28,
-        }}
-      >
-        {category.products.map((p, i) => (
-          <ProductCard
-            key={category.slug + p.name + i}
-            product={p}
-            bg={PASTELS[(index + i + 1) % PASTELS.length]}
-          />
-        ))}
+        <div className="identee-style-outlook-grid">
+          <div className="identee-style-outlook-main">
+            <video autoPlay muted loop playsInline>
+              <source src={subVideo1} type="video/mp4" />
+            </video>
+          </div>
+          <div className="identee-style-outlook-side">
+            <div className="identee-style-outlook-side-item">
+              <video autoPlay muted loop playsInline>
+                <source src={hoodieVideo} type="video/mp4" />
+              </video>
+            </div>
+            <div className="identee-style-outlook-side-item">
+              <video autoPlay muted loop playsInline>
+                <source src={polosVideo} type="video/mp4" />
+              </video>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -730,15 +508,287 @@ const TESTIMONIALS = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  FOOTER — contact band, link columns, map, matching reference       */
+/* ------------------------------------------------------------------ */
+const FOOTER_LINKS = {
+  "Customise Products": [
+    "Women's Polo",
+    "Acid Wash Oversize T-Shirt",
+    "Pure Cotton V Neck T-Shirt",
+    "Optic Wash Oversize T-Shirt",
+    "Pure Cotton Oversized Roundneck T-shirt",
+    "Pure Cotton Long Sleeve T-Shirt",
+    "Dense Oversize T-Shirt",
+    "Pure Cotton Round Neck T-Shirt",
+  ],
+  "About Us": [
+    "Our Story",
+    "Team",
+    "Contact us",
+    "Privacy policy",
+    "Payment",
+    "Return and Refunds",
+    "Shipping Policy",
+    "Terms and conditions",
+  ],
+  "Work With Us": [
+    "Bulk & Custom Orders",
+    "Become A Partner",
+    "The Seller Academy",
+  ],
+};
+
+function MailIcon({ size = 18, color = C.ink }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke={color}
+      strokeWidth="1.4"
+    >
+      <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+      <path d="M3 5.5l7 5.5 7-5.5" />
+    </svg>
+  );
+}
+function PhoneIcon({ size = 18, color = C.ink }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={color}>
+      <path d="M6.6 2.6 4 3.9c-1 .5-1.4 1.7-.9 2.7C5 11 9 15 13.4 16.9c1 .4 2.2 0 2.7-.9l1.3-2.6a1.2 1.2 0 0 0-.5-1.6l-2.8-1.4a1.2 1.2 0 0 0-1.4.2l-1 1a10 10 0 0 1-4.3-4.3l1-1c.4-.4.5-1 .2-1.4L7.2 2.1a1.2 1.2 0 0 0-1.6.5Z" />
+    </svg>
+  );
+}
+function WhatsAppIcon({ size = 18, color = "#25D366" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M17.5 14.4c-.3-.1-1.7-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5C10.3 9 9.8 7.8 9.6 7.3c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 5 4.3.7.3 1.2.5 1.7.6.7.2 1.3.2 1.8.1.5-.1 1.7-.7 2-1.4.2-.7.2-1.2.1-1.4-.1-.1-.3-.2-.6-.3Z" />
+      <path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.2-1.4A10 10 0 1 0 12 2Zm0 18.2c-1.6 0-3.2-.4-4.5-1.3l-.3-.2-3.1.8.8-3-.2-.3A8.2 8.2 0 1 1 12 20.2Z" />
+    </svg>
+  );
+}
+function InstagramIcon({ size = 18, color = "#fff" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="1.6"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="1" fill={color} stroke="none" />
+    </svg>
+  );
+}
+
+function Footer() {
+  return (
+    <footer style={{ background: C.bg }}>
+      {/* ---- contact band ---- */}
+      <div style={{ background: "#F3F1EC", padding: "48px 24px" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: FONT_DISPLAY,
+              fontWeight: 800,
+              fontSize: "clamp(26px, 3.4vw, 36px)",
+              color: C.ink,
+            }}
+          >
+            Contact Us
+          </h2>
+          <div
+            style={{
+              display: "flex",
+              gap: 36,
+              flexWrap: "wrap",
+              marginTop: 22,
+            }}
+          >
+            <a
+              href="mailto:work@yourdesignstore.in"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                color: C.ink,
+                textDecoration: "none",
+                fontSize: 15,
+              }}
+            >
+              <MailIcon /> work@yourdesignstore.in
+            </a>
+            <a
+              href="tel:+916366526449"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                color: C.ink,
+                textDecoration: "none",
+                fontSize: 15,
+              }}
+            >
+              <PhoneIcon /> +91 636 652 6449
+            </a>
+            <a
+              href="https://wa.me/919945900292"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                color: C.ink,
+                textDecoration: "none",
+                fontSize: 15,
+              }}
+            >
+              <WhatsAppIcon color={C.ink} /> +91 994 590 0292
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* ---- link columns + map ---- */}
+      <div
+        style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 24px 60px" }}
+      >
+        <div className="identee-footer-grid">
+          {Object.entries(FOOTER_LINKS).map(([heading, links]) => (
+            <div key={heading}>
+              <p
+                style={{
+                  margin: "0 0 16px",
+                  fontSize: 12,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  fontWeight: 800,
+                  color: C.ink,
+                }}
+              >
+                {heading}
+              </p>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                {links.map((link) => (
+                  <li key={link} style={{ marginBottom: 10 }}>
+                    <a
+                      href="#"
+                      style={{
+                        fontSize: 13.5,
+                        color: C.muted,
+                        textDecoration: "none",
+                      }}
+                    >
+                      {link}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <div>
+            <p
+              style={{
+                margin: "0 0 16px",
+                fontSize: 12,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                fontWeight: 800,
+                color: C.ink,
+              }}
+            >
+              Location
+            </p>
+            <div
+              style={{
+                borderRadius: 14,
+                overflow: "hidden",
+                border: `1px solid ${C.border}`,
+                height: 200,
+              }}
+            >
+              <iframe
+                title="Store location"
+                src="https://www.google.com/maps?q=Coimbatore,Tamil+Nadu&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0, display: "block" }}
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          borderTop: `1px solid ${C.border}`,
+          padding: "18px 24px",
+          textAlign: "center",
+          fontSize: 12,
+          color: C.muted,
+        }}
+      >
+        © {new Date().getFullYear()} Identee. All rights reserved.
+      </div>
+    </footer>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  FLOATING SOCIAL — WhatsApp + Instagram, fixed on the left edge     */
+/* ------------------------------------------------------------------ */
+function FloatingSocial() {
+  return (
+    <div className="identee-floating-social">
+      <a
+        href="https://wa.me/919945900292"
+        target="_blank"
+        rel="noreferrer"
+        className="identee-floating-btn identee-floating-whatsapp"
+        aria-label="Chat on WhatsApp"
+      >
+        <WhatsAppIcon color="#fff" size={22} />
+      </a>
+      <a
+        href="https://instagram.com"
+        target="_blank"
+        rel="noreferrer"
+        className="identee-floating-btn identee-floating-instagram"
+        aria-label="Follow on Instagram"
+      >
+        <InstagramIcon size={20} />
+      </a>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  MAIN COMPONENT                                                     */
 /* ------------------------------------------------------------------ */
 export default function Home() {
   const [heroColorIdx, setHeroColorIdx] = useState(0);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { showcase } = useSelector((s) => s.categoryBanner);
+  const { videoBanner } = useSelector((s) => s.banner);
 
-  const scrollToCategory = (slug) => {
-    const el = document.getElementById(`cat-${slug}`);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
+  // Use the admin-uploaded hero video if one exists, otherwise fall back
+  // to the bundled local clip so the hero never breaks with no video set.
+  const heroVideoSrc = videoBanner?.videoUrl
+    ? `${BACKEND_URL}${videoBanner.videoUrl}`
+    : homeBannerVideo;
+
+  useEffect(() => {
+    dispatch(getShowcase());
+    dispatch(getVideoBanner());
+  }, [dispatch]);
 
   return (
     <div
@@ -754,10 +804,6 @@ export default function Home() {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
-        @keyframes identee-cat-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
         .identee-pastel-card { transition: transform 0.4s cubic-bezier(.2,.8,.2,1), box-shadow 0.4s ease; }
         .identee-pastel-card:hover { transform: translateY(-6px); box-shadow: 0 20px 34px -18px rgba(21,19,15,0.22); }
         .identee-pastel-card img { transition: transform 0.6s ease; }
@@ -767,44 +813,108 @@ export default function Home() {
         .identee-testimonial-avatar { position: relative; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; margin-bottom: 14px; border: 1px solid ${C.border}; background: ${C.bg}; }
         .identee-testimonial-avatar video { position: absolute; top: 50%; left: 50%; width: 100%; height: 100%; min-width: 100%; min-height: 100%; transform: translate(-50%, -50%); object-fit: cover; object-position: center; }
 
-        /* ---- auto-scrolling category slider ---- */
-        .identee-cat-slider { overflow: hidden; padding: 8px 0 4px; }
-        .identee-cat-track {
-          display: inline-flex;
-          gap: 22px;
-          animation: identee-cat-scroll 28s linear infinite;
-          width: max-content;
+        /* ---- category banner grid — uneven bento layout that REPEATS every    ---- */
+        /* ---- 6 items via nth-child(6n+…), so it scales to any banner count ---- */
+        .identee-cat-banner-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          grid-auto-rows: 150px;
+          grid-auto-flow: dense;
+          gap: 16px;
         }
-        .identee-cat-slider:hover .identee-cat-track { animation-play-state: paused; }
-        .identee-cat-slide {
-          border: none;
-          background: transparent;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 10px;
-          width: 150px;
-          flex: 0 0 auto;
-          padding: 0;
+        .identee-cat-banner-grid > *:nth-child(6n+1) { grid-column: span 2; grid-row: span 2; }
+        .identee-cat-banner-grid > *:nth-child(6n+2) { grid-column: span 1; grid-row: span 1; }
+        .identee-cat-banner-grid > *:nth-child(6n+3) { grid-column: span 1; grid-row: span 1; }
+        .identee-cat-banner-grid > *:nth-child(6n+4) { grid-column: span 2; grid-row: span 1; }
+        .identee-cat-banner-grid > *:nth-child(6n+5) { grid-column: span 1; grid-row: span 2; }
+        .identee-cat-banner-grid > *:nth-child(6n)   { grid-column: span 2; grid-row: span 1; }
+        .identee-cat-banner { transition: transform 0.35s ease, box-shadow 0.35s ease; }
+        .identee-cat-banner:hover { transform: translateY(-4px); box-shadow: ${C.shadow}; }
+        .identee-cat-banner-img { transition: transform 0.6s ease; }
+        .identee-cat-banner:hover .identee-cat-banner-img { transform: scale(1.06); }
+
+       /* ---- style outlook editorial grid ---- */
+        .identee-style-outlook-grid {
+          display: grid;
+          grid-template-columns: 1.6fr 1fr;
+          grid-template-rows: 560px;
+          gap: 18px;
         }
-        .identee-cat-slide-img {
-          display: block;
-          width: 150px;
-          height: 190px;
+        .identee-style-outlook-main, .identee-style-outlook-side-item {
           border-radius: 18px;
           overflow: hidden;
-          box-shadow: ${C.shadow};
-          transition: transform 0.35s ease, box-shadow 0.35s ease;
+          height: 100%;
         }
-        .identee-cat-slide-img img { width: 100%; height: 100%; object-fit: cover; }
-        .identee-cat-slide:hover .identee-cat-slide-img { transform: translateY(-6px); box-shadow: 0 24px 40px -18px rgba(21,19,15,0.3); }
-        .identee-cat-slide-name { font-size: 13.5px; font-weight: 700; color: ${C.ink}; }
+        .identee-style-outlook-side { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+        .identee-style-outlook-side-item { min-height: 0; }
+        .identee-style-outlook-side-item:nth-child(1) { flex: 1.6; }
+        .identee-style-outlook-side-item:nth-child(2) { flex: 1; }
+        .identee-style-outlook-main video, .identee-style-outlook-side-item video {
+          width: 100%; height: 100%; object-fit: cover; display: block;
+        }
 
+        /* ---- footer link grid ---- */
+        .identee-footer-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 32px;
+        }
+
+        /* ---- floating social icons (fixed, left edge) ---- */
+        .identee-floating-social {
+          position: fixed;
+          left: 20px;
+          bottom: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          z-index: 60;
+        }
+        .identee-floating-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 10px 22px -8px rgba(21,19,15,0.35);
+          transition: transform 0.2s ease;
+        }
+        .identee-floating-btn:hover { transform: scale(1.08); }
+        .identee-floating-whatsapp { background: #25D366; }
+        .identee-floating-instagram {
+          background: radial-gradient(circle at 30% 110%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%);
+        }
+
+        @media (max-width: 900px) {
+          .identee-footer-grid { grid-template-columns: repeat(2, 1fr); }
+        }
         @media (max-width: 720px) {
           .hero-color-widget { display: none !important; }
+          .identee-floating-social { left: 10px; gap: 10px; }
+          .identee-floating-btn { width: 38px; height: 38px; }
+
+          /* single column, uniform cards on mobile — bento pattern off */
+          .identee-cat-banner-grid {
+            grid-template-columns: 1fr;
+            grid-auto-rows: 220px;
+          }
+          .identee-cat-banner-grid > * {
+            grid-column: span 1 !important;
+            grid-row: span 1 !important;
+          }
+
+         .identee-style-outlook-grid {
+            grid-template-columns: 1fr;
+            grid-template-rows: 420px 220px;
+          }
+          .identee-style-outlook-side { flex-direction: row; }
+          .identee-style-outlook-side-item:nth-child(1),
+          .identee-style-outlook-side-item:nth-child(2) { flex: 1; }
         }
       `}</style>
+
+      <FloatingSocial />
 
       {/* ================= HERO — full-bleed video background (unchanged) ================= */}
       <section
@@ -830,7 +940,7 @@ export default function Home() {
             zIndex: 0,
           }}
         >
-          <source src={homeBannerVideo} type="video/mp4" />
+          <source src={heroVideoSrc} type="video/mp4" />
         </video>
 
         <div
@@ -906,9 +1016,7 @@ export default function Home() {
             </p>
             <button
               className="identee-cta-btn"
-              onClick={() => {
-                window.location.href = "/shop";
-              }}
+              onClick={() => navigate("/shop")}
               style={{
                 marginTop: 32,
                 padding: "15px 34px",
@@ -945,6 +1053,7 @@ export default function Home() {
           <HeroColorWidget
             activeIdx={heroColorIdx}
             setActiveIdx={setHeroColorIdx}
+            navigate={navigate}
           />
         </div>
       </section>
@@ -988,9 +1097,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ================= AUTO-SCROLLING CATEGORY SLIDER ================= */}
+      {/* ================= PRODUCT CATEGORY BANNERS ================= */}
       <section
-        style={{ padding: "56px 24px 12px", maxWidth: 1280, margin: "0 auto" }}
+        style={{ padding: "56px 24px", maxWidth: 1280, margin: "0 auto" }}
       >
         <p
           style={{
@@ -1004,13 +1113,11 @@ export default function Home() {
         >
           Shop by Category
         </p>
-        <CategorySlider categories={CATEGORIES} onSelect={scrollToCategory} />
+        <CategoryBannerGrid items={showcase} navigate={navigate} />
       </section>
 
-      {/* ================= PER-CATEGORY BANNER + PRODUCTS ================= */}
-      {CATEGORIES.map((category, i) => (
-        <CategorySection key={category.slug} category={category} index={i} />
-      ))}
+      {/* ================= STYLE OUTLOOK — VIDEO EDITORIAL ================= */}
+      <StyleOutlookSection />
 
       {/* ================= DESIGN YOUR OWN — replaces Bulk Order band ================= */}
       <section
@@ -1125,7 +1232,7 @@ export default function Home() {
               margin: "18px 0 0",
               fontSize: 14.5,
               color: C.ink,
-              maxWidth: 400,
+              maxWidth: 400, 
               lineHeight: 1.65,
               opacity: 0.85,
             }}
@@ -1136,9 +1243,7 @@ export default function Home() {
           </p>
           <button
             className="identee-cta-btn"
-            onClick={() => {
-              window.location.href = "/customize";
-            }}
+            onClick={() => navigate("/customize")}
             style={{
               marginTop: 26,
               padding: "15px 32px",
@@ -1198,199 +1303,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= YOUNG'S FAVOURITE ================= */}
-      <section
-        style={{ padding: "40px 24px 80px", maxWidth: 1280, margin: "0 auto" }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            letterSpacing: "0.2em",
-            color: C.muted,
-            textTransform: "uppercase",
-            fontWeight: 700,
-          }}
-        >
-          Young&apos;s Favourite
-        </p>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: 22,
-            marginTop: 22,
-          }}
-        >
-          {FAVOURITES.map((p, i) => (
-            <PastelCard
-              key={p.name + i}
-              item={p}
-              bg={PASTELS[(i + 3) % PASTELS.length]}
-              big
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ================= TESTIMONIALS ================= */}
-      <section style={{ padding: "80px 24px", background: C.bg }}>
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12,
-              letterSpacing: "0.2em",
-              color: C.muted,
-              textTransform: "uppercase",
-              fontWeight: 700,
-            }}
-          >
-            Happy Customers
-          </p>
-          <h2
-            style={{
-              margin: "10px 0 0",
-              fontFamily: FONT_DISPLAY,
-              fontWeight: 800,
-              fontSize: "clamp(26px, 3.4vw, 38px)",
-              color: C.ink,
-            }}
-          >
-            Our Testimonials
-          </h2>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 20,
-            maxWidth: 1200,
-            margin: "0 auto",
-          }}
-        >
-          {TESTIMONIALS.map((t, i) => (
-            <div
-              key={t.name}
-              style={{
-                background: PASTELS[i % PASTELS.length],
-                border: `1px solid ${C.border}`,
-                borderRadius: 16,
-                padding: 24,
-                textAlign: "left",
-              }}
-            >
-              {t.video && (
-                <div className="identee-testimonial-avatar">
-                  <video autoPlay muted loop playsInline>
-                    <source src={t.video} type="video/mp4" />
-                  </video>
-                </div>
-              )}
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 14,
-                  color: C.text,
-                  lineHeight: 1.6,
-                }}
-              >
-                &quot;{t.quote}&quot;
-              </p>
-              <p
-                style={{
-                  margin: "16px 0 0",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: C.ink,
-                }}
-              >
-                {t.name}
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: 12, color: C.muted }}>
-                {t.role}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ================= FOOTER CONTACT STRIP ================= */}
-      <section
-        style={{
-          background: C.yellow,
-          padding: "50px 24px",
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 12,
-            letterSpacing: "0.2em",
-            color: C.ink,
-            textTransform: "uppercase",
-            fontWeight: 800,
-          }}
-        >
-          Need Help
-        </p>
-        <h2
-          style={{
-            margin: "10px 0 24px",
-            fontFamily: FONT_DISPLAY,
-            fontWeight: 800,
-            fontSize: "clamp(24px, 3.4vw, 34px)",
-            color: C.ink,
-          }}
-        >
-          For Bulk Orders
-        </h2>
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            justifyContent: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            className="identee-cta-btn"
-            onClick={() => {
-              window.location.href = "tel:+910000000000";
-            }}
-            style={{
-              padding: "13px 28px",
-              borderRadius: 10,
-              border: "none",
-              background: C.ink,
-              color: C.bg,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Call Us
-          </button>
-          <button
-            onClick={() => {
-              window.location.href = "mailto:hello@identee.com";
-            }}
-            style={{
-              padding: "13px 28px",
-              borderRadius: 10,
-              border: `1px solid ${C.ink}`,
-              color: C.ink,
-              background: "transparent",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Email Us
-          </button>
-        </div>
-      </section>
+      {/* ================= FOOTER ================= */}
+      <Footer />
     </div>
   );
 }

@@ -134,6 +134,10 @@ const productSchema = mongoose.Schema(
         type: String,
         required: true,
       },
+      garmentStyle: {
+        type: String,
+        required: true,
+      },
       fabric: {
         type: String,
         required: true,

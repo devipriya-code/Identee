@@ -2,8 +2,8 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import categoryBannerService from "../../services/categoryBannerService";
 
 const initialState = {
-  showcase: [],      // public — Home page uses this
-  banners: [],        // admin — raw list of uploaded banners
+  showcase: [],
+  banners: [],
   isLoading: false,
   isError: false,
   isSuccess: false,
