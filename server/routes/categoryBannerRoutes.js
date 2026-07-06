@@ -4,7 +4,7 @@ import {
   getCategoryBanners,
   deleteCategoryBanner,
   getCategoryShowcase,
-} from "../controlers/categoryBannerController.js";
+} from "../controllers/categoryBannerController.js";
 import { uploadSingleImage } from "../multer/multer.js";
 import { protect, adminOrSeller } from "../middleware/authMiddleware.js";
 

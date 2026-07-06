@@ -10,6 +10,12 @@ const getProducts = async () => {
   return response.data;
 };
 
+// GET FULL PRODUCT (used by CustomizePage — product + variants + group)
+const getProductFull = async (id) => {
+  const response = await axios.get(`${API_URL}/${id}/full`);
+  return response.data;
+};
+
 // GET PRODUCTS BY GARMENT STYLE (category page)
 const getProductsByGarmentStyle = async (garmentStyle) => {
   const response = await axios.get(
@@ -65,6 +71,7 @@ const deleteProduct = async (id, token) => {
 
 const productService = {
   getProducts,
+  getProductFull,
   getProductsByGarmentStyle,
   getProductById,
   createProduct,

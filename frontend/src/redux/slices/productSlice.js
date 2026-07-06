@@ -7,6 +7,8 @@ const initialState = {
   product: null,
   categoryProducts: [],
   isCategoryLoading: false,
+  fullProduct: null,
+  isFullLoading: false,
   isLoading: false,
   isSuccess: false,
   isError: false,
@@ -19,6 +21,19 @@ export const getProducts = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       return await productService.getProducts();
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      return thunkAPI.rejectWithValue(message);
+    }
+  },
+);
+
+// GET FULL PRODUCT (product + variants + group) — used by CustomizePage
+export const getProductFull = createAsyncThunk(
+  "products/getFull",
+  async (id, thunkAPI) => {
+    try {
+      return await productService.getProductFull(id);
     } catch (error) {
       const message = error.response?.data?.message || error.message;
       return thunkAPI.rejectWithValue(message);
@@ -122,8 +137,35 @@ const productSlice = createSlice({
         state.message = action.payload;
       })
 
+      // ─── GET FULL PRODUCT ────────────────────────────────
+      // FIX: isError/message used to be shared across every product thunk
+      // in this slice (list/create/update/delete/full-fetch all wrote to
+      // the same flags). That meant one unrelated failure anywhere else in
+      // the app (e.g. an admin list fetch) would leave isError = true
+      // forever — CustomizePage would then show "Couldn't load this
+      // product" even when getProductFull itself succeeded, because
+      // nothing ever reset isError back to false. Now pending/fulfilled
+      // both clear it explicitly, and fullProduct resets on pending so a
+      // stale previous product's data can't flash while a new :id loads.
+      .addCase(getProductFull.pending, (state) => {
+        state.isFullLoading = true;
+        state.isError = false;
+        state.message = "";
+        state.fullProduct = null;
+      })
+      .addCase(getProductFull.fulfilled, (state, action) => {
+        state.isFullLoading = false;
+        state.isError = false;
+        state.fullProduct = action.payload;
+      })
+      .addCase(getProductFull.rejected, (state, action) => {
+        state.isFullLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
       // ─── GET PRODUCTS BY GARMENT STYLE ──────────────────
-      .addCase(getProductsByGarmentStyle.pending, (state) => {  
+      .addCase(getProductsByGarmentStyle.pending, (state) => {
         state.isCategoryLoading = true;
       })
       .addCase(getProductsByGarmentStyle.fulfilled, (state, action) => {

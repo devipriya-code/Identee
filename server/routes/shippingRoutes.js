@@ -7,7 +7,7 @@ import {
   updateFreeShipping,
   deleteStateShipping,
   getShippingCostByState,
-} from "../controlers/shippingControler.js";
+} from "../controllers/shippingControler.js";
 import { protect, adminOnly} from "../middleware/authMiddleware.js";
 
 const router = express.Router();

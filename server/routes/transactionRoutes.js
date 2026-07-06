@@ -9,7 +9,7 @@ import {
   confirmDeposit,
   getPendingWithdrawals,
   approveWithdrawal,
-} from "../controlers/transactionController.js";
+} from "../controllers/transactionController.js";
 import { protect, adminOrSeller, isDelivery } from "../middleware/authMiddleware.js";
 // Delivery Person Routes
 router.route("/delivery/deposit").post(protect, isDelivery, requestDeposit);

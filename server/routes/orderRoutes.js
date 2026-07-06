@@ -25,7 +25,7 @@ import {
   createRazorpayOrder,
   verifyRazorpayPayment,
   getIncomeByPincode,
-} from "../controlers/orderControler.js";
+} from "../controllers/orderControler.js";
 import {
   protect,
   adminOrSeller,

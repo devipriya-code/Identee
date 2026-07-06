@@ -29,7 +29,7 @@ import {
   createProductReview,
   unapproveReview,
   getAllReviews,
-} from "../controlers/productControler.js";
+} from "../controllers/productControler.js";
 
 import {
   uploadProductFiles,

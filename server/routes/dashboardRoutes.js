@@ -5,7 +5,7 @@ import {
   getLatestOrders,
   getTotalOrders,
   getTopCustomers,
-} from "../controlers/dashboardController.js";
+} from "../controllers/dashboardController.js";
 import { protect, adminOrSeller } from "../middleware/authMiddleware.js";
 
 const router = express.Router();

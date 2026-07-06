@@ -12,7 +12,7 @@ import { body } from "express-validator";
 import {
   bulkEnquiry,
   internationalEnquiry,
-} from "../controlers/Enquirycontroller.js";
+} from "../controllers/Enquirycontroller.js";
 
 const router = express.Router();
 

@@ -189,8 +189,8 @@ export default function App() {
             path="/category/:categoryName"
             element={<CategoryProductsPage />}
           />
+          <Route path="/customize/:id" element={<CustomizePage />} />
           <Route path="/product/:id" element={<SingleProductPage />} />
-           <Route path="/customize/:id" element={<CustomizePage />} />
         </Route>
 
         {/* Admin routes — AdminSidebar layout wraps every /admin/* page */}
