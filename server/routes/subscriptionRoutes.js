@@ -6,11 +6,11 @@ import {
   toggleSubscriptionStatus,
   getActiveSubscription,
   deleteSubscription,
-} from "../controlers/subscriptionController.js";
+} from "../controllers/subscriptionController.js";
 import {
   createSubscriptionOrder,
   confirmSubscriptionPayment,
-} from "../controlers/subscriptionPaymentController.js";
+} from "../controllers/subscriptionPaymentController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();

@@ -3,12 +3,22 @@
 // One "elements" array = everything the user placed on the garment
 // (uploaded design images and/or text), stored as percentage-based
 // position/size so it renders correctly at any screen width on replay.
+//
+// UPDATED: each element now carries a `side` tag (front/back/right/left)
+// so a logo placed on the front doesn't also show up on the back —
+// they're independent designs per garment side, filtered client-side by
+// the CustomizePage's active view.
 
 import mongoose from "mongoose";
 
 const elementSchema = new mongoose.Schema(
   {
     type: { type: String, enum: ["image", "text"], required: true },
+    side: {
+      type: String,
+      enum: ["front", "back", "right", "left"],
+      default: "front",
+    },
 
     // image elements
     src: { type: String }, // e.g. "uploads/designs/design-169...-123.png"
@@ -32,7 +42,11 @@ const elementSchema = new mongoose.Schema(
 
 const customizationSchema = new mongoose.Schema(
   {
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // optional — guest customizations allowed
     elements: {
       type: [elementSchema],

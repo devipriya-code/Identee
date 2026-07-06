@@ -16,7 +16,7 @@ import {
   PasswordResetOtp,
   resetPasswordWithOtp,
    deleteProfilePicture,
-} from "../controlers/userControler.js";
+} from "../controllers/userControler.js";
 import { uploadProfileImage } from "../multer/multer.js";
 import { adminOrSeller,adminOnly, protect } from "../middleware/authMiddleware.js";
 

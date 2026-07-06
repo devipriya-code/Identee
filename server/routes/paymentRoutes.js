@@ -2,7 +2,7 @@ import express from "express";
 import {
   createSubscriptionPayment,
   confirmSubscriptionPayment,
-} from "../controlers/subscribepaymentController.js";
+} from "../controllers/subscribepaymentController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();

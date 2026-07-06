@@ -3,6 +3,7 @@ import authReducer from "./slices/authSlice";
 import productReducer from "./slices/productSlice";
 import bannerReducer from "./slices/bannerSlice";
 import categoryBannerReducer from "./slices/categoryBannerSlice";
+import customizationReducer from "./slices/customizationSlice";
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     product: productReducer,
     banner: bannerReducer,
     categoryBanner: categoryBannerReducer,
+    customization: customizationReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

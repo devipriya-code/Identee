@@ -13,7 +13,7 @@ import {
   updateOfferBanner,
   deleteOfferBanner,
   activateOfferBanner,
-} from "../controlers/bannerController.js";
+} from "../controllers/bannerController.js";
 import { uploadSingleImage, uploadSingleVideo } from "../multer/multer.js";
 import { protect, adminOrSeller } from "../middleware/authMiddleware.js";
 

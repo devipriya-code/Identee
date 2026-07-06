@@ -1,5 +1,5 @@
 import express from "express";
-import { getOfferByCouponCode,createOffer, updateOffer,getAllOffers,deleteOffer } from "../controlers/offerController.js";
+import { getOfferByCouponCode,createOffer, updateOffer,getAllOffers,deleteOffer } from "../controllers/offerController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
