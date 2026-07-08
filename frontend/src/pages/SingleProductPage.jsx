@@ -5,25 +5,14 @@
 //
 // Data source: GET /api/products/:id/full  → { product, variants, group }
 // (this is your existing getProductFullById controller — no backend changes needed)
-//
-// ASSUMPTIONS (change if wrong):
-//  1. "Customize" button just navigates to `/customize/:id` — swap the path if you
-//     already have a real customize route.
-//  2. Add to Cart calls POST /api/products/:id/addtocart (your existing addToCart
-//     controller) with { qty: 1, size }, and reads the auth token from
-//     state.auth.user.token. If your token lives somewhere else in the user object,
-//     update the `authToken` line below.
-//  3. Colour swatches show every product in the same productGroupId (the `variants`
-//     array your backend already returns) — including the one currently open.
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCart } from "../redux/slices/cartWishlistSlice";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-// Small self-contained fetch hook — no extra dependency needed.
-// Refetches whenever `id` changes (i.e. when the user opens a different product).
 function useSWRProduct(id) {
   const [state, setState] = useState({
     data: null,
@@ -56,7 +45,6 @@ function useSWRProduct(id) {
   return state;
 }
 
-// Same palette CategoryProductsPage.jsx already uses — keeping it consistent.
 const C = {
   bg: "#FFFFFF",
   ink: "#15130F",
@@ -72,22 +60,22 @@ const SIZE_ORDER = ["S", "M", "L", "XL", "XXL"];
 export default function SingleProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useSelector((s) => s.auth);
+  const { user } = useSelector((s) => s.auth); 
 
   const { data, isLoading, error } = useSWRProduct(id);
 
-  // Which variant (colour) is currently shown. Starts as the one we navigated to.
   const [activeVariantId, setActiveVariantId] = useState(id);
   const [selectedSize, setSelectedSize] = useState("");
   const [mainImageIdx, setMainImageIdx] = useState(0);
-  const [cartMsg, setCartMsg] = useState(null); // { type: 'ok'|'error', text }
+  const [cartMsg, setCartMsg] = useState(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [isZooming, setIsZooming] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [lensPos, setLensPos] = useState({ x: 0, y: 0 });
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
-  // Re-sync if the user lands here fresh with a different :id (e.g. clicked
-  // through from a category grid rather than switching colour on this page).
+  // Re-sync if the user lands here fresh with a different :id
   useEffect(() => {
     setActiveVariantId(id);
     setSelectedSize("");
@@ -99,6 +87,23 @@ export default function SingleProductPage() {
     () => variants.find((v) => v._id === activeVariantId) || data?.product,
     [variants, activeVariantId, data],
   );
+
+  // Favorite status check — must run before any early return (Rules of Hooks)
+  useEffect(() => {
+    if (!user || !activeVariant?._id) return;
+    const authToken = user?.token;
+    fetch(`${BACKEND_URL}/api/users/getfavorites`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+      .then((res) => res.json())
+      .then((favs) => {
+        const found = Array.isArray(favs)
+          ? favs.some((f) => f._id === activeVariant._id)
+          : false;
+        setIsFavorite(found);
+      })
+      .catch(() => {});
+  }, [user, activeVariant?._id]);
 
   if (isLoading) {
     return (
@@ -129,18 +134,16 @@ export default function SingleProductPage() {
     setMainImageIdx(0);
     setSelectedSize("");
     setCartMsg(null);
-    // keep the URL in sync without a full reload / refetch
     navigate(`/product/${variantId}`, { replace: true });
   };
 
-  const LENS_SIZE = 160; // px, matches lens box width/height below
+  const LENS_SIZE = 160;
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Keep the lens fully inside the image bounds
     const lensX = Math.min(
       Math.max(x - LENS_SIZE / 2, 0),
       rect.width - LENS_SIZE,
@@ -151,10 +154,52 @@ export default function SingleProductPage() {
     );
     setLensPos({ x: lensX, y: lensY });
 
-    // % position used as background-position for the zoomed panel
     const percentX = (x / rect.width) * 100;
     const percentY = (y / rect.height) * 100;
     setZoomPos({ x: percentX, y: percentY });
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      setCartMsg({ type: "error", text: "Please log in to use favorites." });
+      return;
+    }
+    setFavLoading(true);
+    try {
+      const authToken = user?.token;
+      const res = await fetch(
+        `${BACKEND_URL}/api/users/favorites/${activeVariant._id}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        },
+      );
+      const json = await res.json();
+      if (!res.ok)
+        throw new Error(json.message || "Failed to update favorites");
+      setIsFavorite((prev) => !prev);
+    } catch (err) {
+      setCartMsg({
+        type: "error",
+        text: err.message || "Something went wrong.",
+      });
+    } finally {
+      setFavLoading(false);
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (!selectedSize) {
+      setCartMsg({ type: "error", text: "Please select a size first." });
+      return;
+    }
+    if (!user) {
+      setCartMsg({ type: "error", text: "Please log in to buy this item." });
+      return;
+    }
+    navigate(`/buy-now/${activeVariant._id}`, {
+      state: { product: activeVariant, size: selectedSize, qty: 1 },
+    });
   };
 
   const handleAddToCart = async () => {
@@ -173,7 +218,7 @@ export default function SingleProductPage() {
     setAddingToCart(true);
     setCartMsg(null);
     try {
-      const authToken = user?.token; // ← adjust if your token is stored elsewhere
+      const authToken = user?.token;
       const res = await fetch(
         `${BACKEND_URL}/api/products/${activeVariant._id}/addtocart`,
         {
@@ -233,7 +278,6 @@ export default function SingleProductPage() {
               />
             )}
 
-            {/* Lens — garment-tag inspired: dashed "stitch" border + a punched eyelet */}
             {isZooming && images[mainImageIdx] && (
               <div
                 style={{
@@ -265,7 +309,6 @@ export default function SingleProductPage() {
             )}
           </div>
 
-          {/* Zoomed panel — styled like a garment hang-tag viewed through a loupe */}
           {isZooming && images[mainImageIdx] && (
             <div
               className="spp-zoom-panel"
@@ -273,13 +316,13 @@ export default function SingleProductPage() {
                 position: "absolute",
                 top: 0,
                 left: "calc(100% + 20px)",
-                width: "60%", // 100% → 45% (size konjam reduce)
+                width: "60%",
                 aspectRatio: "1/1",
                 borderRadius: 14,
                 border: `1px solid ${C.ink}`,
                 boxShadow: "0 12px 32px rgba(21,19,15,0.18)",
                 backgroundImage: `url(${BACKEND_URL}/${images[mainImageIdx]})`,
-                backgroundSize: "220%", // zoom level konjam adjust
+                backgroundSize: "220%",
                 backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
                 backgroundRepeat: "no-repeat",
                 zIndex: 20,
@@ -553,7 +596,26 @@ export default function SingleProductPage() {
             </p>
           )}
 
-          <div style={{ display: "flex", gap: 14 }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <button
+              onClick={handleToggleFavorite}
+              disabled={favLoading}
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: "50%",
+                border: `2px solid ${isFavorite ? C.danger : C.border}`,
+                background: isFavorite ? `${C.danger}14` : "#fff",
+                color: isFavorite ? C.danger : C.muted,
+                fontSize: 20,
+                cursor: favLoading ? "wait" : "pointer",
+                flexShrink: 0,
+              }}
+            >
+              {isFavorite ? "♥" : "♡"}
+            </button>
+
             <button
               onClick={() => navigate(`/customize/${activeVariant._id}`)}
               style={{
@@ -591,6 +653,25 @@ export default function SingleProductPage() {
               {addingToCart ? "ADDING…" : "ADD TO CART"}
             </button>
           </div>
+
+          <button
+            onClick={handleBuyNow}
+            style={{
+              width: "100%",
+              marginTop: 14,
+              padding: "14px 0",
+              borderRadius: 999,
+              background: C.gold,
+              color: C.ink,
+              border: "none",
+              fontSize: 14,
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              cursor: "pointer",
+            }}
+          >
+            BUY NOW
+          </button>
 
           <p style={{ marginTop: 24 }}>
             <Link

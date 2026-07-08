@@ -38,19 +38,36 @@ const authUser = asyncHandler(async (req, res) => {
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, otp } = req.body;
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select("+otp +expiresAt");
 
-  if (!user || user.otp !== otp || user.expiresAt < new Date()) {
+  if (!user) {
     res.status(400);
-    throw new Error("Invalid or expired OTP");
+    throw new Error("User not found. Please send OTP first.");
   }
 
-  const userExists = await User.findOne({
+  if (!user.isEmailVerified) {
+    res.status(400);
+    throw new Error("Email not verified. Please verify OTP first.");
+  }
+
+  // Defensive re-check: same otp that was verified, and not expired since.
+  if (user.otp !== otp) {
+    res.status(400);
+    throw new Error("Invalid OTP");
+  }
+
+  const isExpired = user.expiresAt && user.expiresAt < new Date();
+  if (isExpired) {
+    res.status(400);
+    throw new Error("OTP expired. Please request a new one.");
+  }
+
+  const tempUserCheck = await User.findOne({
     email,
-    name: { $ne: "temp" }, // don't count the temp user
+    name: { $ne: "temp" },
   });
 
-  if (userExists) {
+  if (tempUserCheck) {
     res.status(400);
     throw new Error("User already exists");
   }
@@ -59,6 +76,7 @@ const registerUser = asyncHandler(async (req, res) => {
   user.password = password;
   user.otp = undefined;
   user.expiresAt = undefined;
+  user.isEmailVerified = true; // keep true; this IS the verified account now
 
   await user.save();
 
@@ -91,51 +109,32 @@ const sendOtpToEmail = asyncHandler(async (req, res) => {
   let user = await User.findOne({ email });
 
   if (user) {
+    // Update existing user with new OTP
     user.otp = otp;
     user.expiresAt = expiresAt;
-    // if (user) {
-    //   user.otp = otp;
-    //   user.expiresAt = expiresAt;
-    //   await user.save({ validateBeforeSave: false });
-    // } else {
-    //   user = new User({
-    //     name: "temp",
-    //     email,
-    //     password: "temp1234",
-    //     otp,
-    //     expiresAt,
-    //     addresses: [], // ✅ KEEP EMPTY ARRAY
-    //   });
-    //   await user.save({ validateBeforeSave: false });
-    // }
-
+    user.isEmailVerified = false; // Reset verification status when new OTP is sent
     await user.save({ validateBeforeSave: false });
   } else {
+    // Create new temp user
     user = new User({
       name: "temp",
       email,
       password: "temp1234",
       otp,
-      addresses: [],
       expiresAt,
-      // address: {
-      //   phoneNumber: phone, // ✅ STORE PHONE
-      // },
+      isEmailVerified: false,
+      addresses: [],
     });
     await user.save({ validateBeforeSave: false });
   }
 
-  // try {
+  // Send email
   await RegisterEmailOtp({
     email,
     status: "OTP Verification",
     orderId: `OTP-${otp}`,
     html: `<p>Your OTP for verification is <strong>${otp}</strong>. It will expire in 10 minutes.</p>`,
   });
-  // } catch (error) {
-  //   console.error("Email OTP failed:", error.message);
-  //   return res.status(500).json({ message: "Failed to send OTP email" });
-  // }
 
   res.status(200).json({ message: "OTP sent successfully" });
 });
@@ -145,16 +144,12 @@ const sendOtpToEmail = asyncHandler(async (req, res) => {
 // @access Public
 const verifyOtp = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
-  console.log("Incoming verify request:", req.body);
 
   const user = await User.findOne({ email }).select("+otp +expiresAt");
-  console.log("Found user:", user);
 
   if (!user) {
     return res.status(400).json({ message: "User not found" });
   }
-
-  console.log("Stored OTP:", user.otp, "Received OTP:", otp);
 
   if (!user.otp) {
     return res
@@ -170,16 +165,13 @@ const verifyOtp = asyncHandler(async (req, res) => {
   }
 
   if (user.otp !== otp) {
-    console.log("OTP mismatch:", { stored: user.otp, received: otp });
     return res.status(400).json({ message: "Invalid OTP" });
   }
 
-  // ✅ OTP verified successfully
-  user.otp = undefined;
-  user.expiresAt = undefined;
-  await user.save();
-
-  console.log("OTP verified successfully for:", email);
+  // ✅ Mark verified, but DO NOT clear user.otp here.
+  // registerUser still needs to confirm this same otp later.
+  user.isEmailVerified = true;
+  await user.save({ validateBeforeSave: false });
 
   res.status(200).json({ message: "OTP verified successfully", success: true });
 });
@@ -201,7 +193,8 @@ const PasswordResetOtp = asyncHandler(async (req, res) => {
 
   user.otp = otp;
   user.expiresAt = expiresAt;
-  await user.save();
+  user.isPasswordResetVerified = false;
+  await user.save({ validateBeforeSave: false });
 
   await ResetEmailOtp({
     email,
@@ -219,25 +212,37 @@ const PasswordResetOtp = asyncHandler(async (req, res) => {
 // @access Public
 // CONTROLLER: api/users/resetPassword
 const resetPasswordWithOtp = asyncHandler(async (req, res) => {
-  const { email, otp, password } = req.body; // 🛑 Check for empty values, which would fail Mongoose's 'required: true'
+  const { email, otp, password } = req.body;
 
   if (!email || !otp || !password || password.trim() === "") {
     res.status(400);
     throw new Error("Email, OTP, and a non-empty new password are required");
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select("+otp +expiresAt");
 
-  if (!user || user.otp !== otp || user.expiresAt < new Date()) {
+  if (!user) {
     res.status(400);
-    throw new Error("Invalid or expired OTP");
+    throw new Error("User not found");
   }
 
-  user.password = password; // This will now be the non-empty string
+  if (user.otp !== otp.toString()) {
+    res.status(400);
+    throw new Error("Invalid OTP");
+  }
+
+  const isExpired = user.expiresAt && user.expiresAt < new Date();
+  if (isExpired) {
+    res.status(400);
+    throw new Error("OTP expired");
+  }
+
+  user.password = password;
   user.otp = undefined;
   user.expiresAt = undefined;
+  user.isPasswordResetVerified = false;
 
-  await user.save(); // This should now successfully hash and save the new password
+  await user.save();
 
   res.status(200).json({ message: "Password reset successfully" });
 });
@@ -438,9 +443,11 @@ const updateUser = asyncHandler(async (req, res) => {
   if (user) {
     user.name = req.body.name || user.name;
     user.email = req.body.email || user.email;
-    user.isAdmin = req.body.isAdmin;
-    user.isDelivery = req.body.isDelivery;
-    user.isSeller = req.body.isSeller;
+    user.isAdmin = req.body.isAdmin ?? user.isAdmin;
+    user.isDelivery = req.body.isDelivery ?? user.isDelivery;
+    user.isSeller = req.body.isSeller ?? user.isSeller;
+    user.hideUserManagement =
+      req.body.hideUserManagement ?? user.hideUserManagement;
 
     const updatedUser = await user.save();
     res.json({
@@ -450,6 +457,7 @@ const updateUser = asyncHandler(async (req, res) => {
       isAdmin: updatedUser.isAdmin,
       isDelivery: updatedUser.isDelivery,
       isSeller: updatedUser.isSeller,
+      hideUserManagement: updatedUser.hideUserManagement,
     });
   } else {
     res.status(404);
@@ -562,6 +570,20 @@ const getFavorites = asyncHandler(async (req, res) => {
 
   res.status(200).json(user.favorites);
 });
+// @desc Get logged-in user's cart items (populated)
+// @route GET /api/users/cart
+// @access Private
+const getCart = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).populate(
+    "cartItems.product",
+    "brandname images price",
+  );
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  res.json(user.cartItems);
+});
 
 // @desc Activate user subscription after payment
 // @route POST /api/users/subscribe
@@ -583,4 +605,5 @@ export {
   PasswordResetOtp,
   deleteProfilePicture,
   resetPasswordWithOtp,
+  getCart,
 };

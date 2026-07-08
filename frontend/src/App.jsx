@@ -23,6 +23,16 @@ import Home from "./pages/Home";
 import CategoryProductsPage from "./pages/CategoryProductsPage";
 import SingleProductPage from "./pages/SingleProductPage";
 import CustomizePage from "./pages/CustomizePage";
+import AdminUsersPage from "./pages/admin/AdminUserPage";
+import AdminEditUserPage from "./pages/admin/AdminEditUserPage";
+import AdminUserDetailsPage from "./pages/admin/AdminUserDetailsPage";
+import BuyNowPage from "./pages/BuyNowPage";
+import FavoritesPage from "./pages/FavoritesPage";
+import CartPage from "./pages/CartPage";
+import AllProductsPage from "./pages/AllProductsPage";
+import Account from "./pages/Account";
+import ChooseProductPage from "./pages/ChooseProductPage";
+import ChooseColorPage from "./pages/ChooseColorPage";
 
 const OrdersPage = () => (
   <PlaceholderAdminPage
@@ -35,13 +45,6 @@ const TransactionsPage = () => (
   <PlaceholderAdminPage
     title="Transactions"
     desc="Wire your transactions API + table here."
-  />
-);
-
-const UsersPage = () => (
-  <PlaceholderAdminPage
-    title="All Users"
-    desc="Wire your users API + table here."
   />
 );
 
@@ -188,9 +191,18 @@ export default function App() {
           <Route
             path="/category/:categoryName"
             element={<CategoryProductsPage />}
+            
           />
           <Route path="/customize/:id" element={<CustomizePage />} />
+          <Route path="/choose-product" element={<ChooseProductPage />} />
+          <Route path="/choose-color/:id" element={<ChooseColorPage />} />
           <Route path="/product/:id" element={<SingleProductPage />} />
+          <Route path="/buy-now/:id" element={<BuyNowPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/products" element={<AllProductsPage />} />
+          <Route path="/account" element={<Account />} />
+          <Route path="/cart" element={<CartPage />} />
+          
         </Route>
 
         {/* Admin routes — AdminSidebar layout wraps every /admin/* page */}
@@ -210,7 +222,9 @@ export default function App() {
           <Route path="category-banner" element={<CategoryBannerPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
-          <Route path="users" element={<UsersPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="users/:id" element={<AdminUserDetailsPage />} />
+          <Route path="users/:id/edit" element={<AdminEditUserPage />} />
           <Route path="sellers" element={<SellersPage />} />
         </Route>
 
