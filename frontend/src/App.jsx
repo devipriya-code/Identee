@@ -191,18 +191,22 @@ export default function App() {
           <Route
             path="/category/:categoryName"
             element={<CategoryProductsPage />}
-            
           />
-          <Route path="/customize/:id" element={<CustomizePage />} />
-          <Route path="/choose-product" element={<ChooseProductPage />} />
-          <Route path="/choose-color/:id" element={<ChooseColorPage />} />
+          <Route
+            path="/customize/choose-product"
+            element={<ChooseProductPage />}
+          />
+          <Route
+            path="/customize/choose-color/:type"
+            element={<ChooseColorPage />}
+          />
+          <Route path="/customize/:type" element={<CustomizePage />} />
           <Route path="/product/:id" element={<SingleProductPage />} />
           <Route path="/buy-now/:id" element={<BuyNowPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/products" element={<AllProductsPage />} />
           <Route path="/account" element={<Account />} />
           <Route path="/cart" element={<CartPage />} />
-          
         </Route>
 
         {/* Admin routes — AdminSidebar layout wraps every /admin/* page */}

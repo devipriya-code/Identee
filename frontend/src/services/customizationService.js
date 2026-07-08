@@ -10,8 +10,9 @@ const uploadDesignImage = async (file) => {
   return res.data; // { path }
 };
 
-const saveCustomization = async (productId, elements) => {
-  const res = await axios.post(API_URL, { productId, elements });
+// CHANGED: saves against { garmentType, color } instead of { productId }.
+const saveCustomization = async (garmentType, color, elements) => {
+  const res = await axios.post(API_URL, { garmentType, color, elements });
   return res.data;
 };
 

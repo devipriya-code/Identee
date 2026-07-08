@@ -1,13 +1,5 @@
 // models/customizationModel.js
-//
-// One "elements" array = everything the user placed on the garment
-// (uploaded design images and/or text), stored as percentage-based
-// position/size so it renders correctly at any screen width on replay.
-//
-// UPDATED: each element now carries a `side` tag (front/back/right/left)
-// so a logo placed on the front doesn't also show up on the back —
-// they're independent designs per garment side, filtered client-side by
-// the CustomizePage's active view.
+
 
 import mongoose from "mongoose";
 
@@ -28,6 +20,26 @@ const elementSchema = new mongoose.Schema(
     fontFamily: { type: String, default: "Arial" },
     fontSizePct: { type: Number, default: 6 }, // % of canvas height
     color: { type: String, default: "#000000" },
+    bold: { type: Boolean, default: false },
+    italic: { type: Boolean, default: false },
+    underline: { type: Boolean, default: false },
+    align: {
+      type: String,
+      enum: ["left", "center", "right", "justify"],
+      default: "left",
+    },
+    textEffect: {
+      type: String,
+      enum: [
+        "straight",
+        "arc",
+        "circle",
+        "bulge",
+        "smallToLarge",
+        "largeToSmall",
+      ],
+      default: "straight",
+    },
 
     // shared placement — all percentages relative to the garment canvas
     x: { type: Number, required: true }, // % from left
@@ -42,11 +54,8 @@ const elementSchema = new mongoose.Schema(
 
 const customizationSchema = new mongoose.Schema(
   {
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
+    garmentType: { type: String, required: true }, // e.g. "round-neck-tshirt"
+    color: { type: String, required: true }, // e.g. "black" (slug)
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // optional — guest customizations allowed
     elements: {
       type: [elementSchema],
