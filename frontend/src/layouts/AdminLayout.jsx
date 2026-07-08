@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar";
+import AdminTopbar from "../components/AdminTopbar";
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -17,9 +18,13 @@ export default function AdminLayout() {
           marginLeft: collapsed ? 64 : 220,
           transition: "margin-left 0.22s cubic-bezier(.4,0,.2,1)",
           minHeight: "100vh",
+          background: "#F5F5F4", // light content area behind the transparent topbar
         }}
       >
-        <Outlet />
+        <AdminTopbar />
+        <div style={{ padding: 24 }}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );

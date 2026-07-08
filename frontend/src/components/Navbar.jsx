@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import logo from "../assets/identee-logo.png"; // adjust path
 import { THEME } from "../theme/theme";
 import { getActiveOffer } from "../redux/slices/bannerSlice";
+import { fetchFavorites, fetchCart } from "../redux/slices/cartWishlistSlice";
 
 // ─── Size lists ────────────────────────────────────────────────
 const TSHIRT_SIZES = [
@@ -36,29 +37,29 @@ const NAV_LINKS = [
         items: [
           {
             label: "Round Neck",
-            to: "/products/t-shirts/round-neck",
+            to: "/category/Round Neck",
             sizes: TSHIRT_SIZES,
           },
           {
             label: "Oversized",
-            to: "/products/t-shirts/oversized",
+            to: "/category/Oversized",
             sizes: TSHIRT_SIZES,
           },
           {
             label: "Hoodies",
-            to: "/products/t-shirts/hoodies",
+            to: "/category/Hoodies",
             sizes: TSHIRT_SIZES,
           },
           {
             label: "Sweatshirt",
-            to: "/products/t-shirts/sweatshirt",
+            to: "/category/Sweatshirt",
             sizes: TSHIRT_SIZES,
           },
         ],
       },
       {
         category: "POLO",
-        items: [{ label: "Polo", to: "/products/polo", sizes: POLO_SIZES }],
+        items: [{ label: "Polo", to: "/category/Polo", sizes: POLO_SIZES }],
       },
     ],
   },
@@ -87,11 +88,7 @@ const getInitial = (user) => {
 };
 
 // ── Main Navbar ──────────────────────────────────────────────────
-export default function Navbar({
-  cartCount = 0,
-  wishlistCount = 0,
-  phone = "+91 636 652 6449",
-}) {
+export default function Navbar({ phone = "+91 636 652 6449" }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const [mobileItemOpen, setMobileItemOpen] = useState(null); // which sub-item's sizes are expanded (mobile)
@@ -99,6 +96,9 @@ export default function Navbar({
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { activeOffer } = useSelector((s) => s.banner);
+  const { favorites, cartItems } = useSelector((s) => s.cartWishlist);
+  const wishlistCount = favorites.length;
+  const cartCount = cartItems.length;
 
   useEffect(() => {
     const handleStorage = () => setUser(getUserInfo());
@@ -110,6 +110,13 @@ export default function Navbar({
   useEffect(() => {
     dispatch(getActiveOffer());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (user?.token) {
+      dispatch(fetchFavorites(user.token));
+      dispatch(fetchCart(user.token));
+    }
+  }, [dispatch, user]);
 
   const handleLogout = () => {
     localStorage.removeItem("userInfo");
@@ -295,7 +302,7 @@ export default function Navbar({
 
             {/* Wishlist icon */}
             <Link
-              to="/wishlist"
+              to="/favorites"
               aria-label="Wishlist"
               style={{
                 position: "relative",
@@ -486,11 +493,11 @@ export default function Navbar({
                                 <div className="size-flyout-title">
                                   Select Size
                                 </div>
-                                <div className="size-grid">
+                               <div className="size-grid">
                                   {item.sizes.map((size) => (
                                     <NavLink
                                       key={size}
-                                      to={`${item.to}/${slugify(size)}`}
+                                      to={item.to}
                                       className="size-chip"
                                     >
                                       {size}

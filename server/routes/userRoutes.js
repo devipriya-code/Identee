@@ -11,14 +11,19 @@ import {
   updateUser,
   toggleFavorite,
   getFavorites,
+  getCart,
   sendOtpToEmail,
   verifyOtp,
   PasswordResetOtp,
   resetPasswordWithOtp,
-   deleteProfilePicture,
+  deleteProfilePicture,
 } from "../controllers/userControler.js";
 import { uploadProfileImage } from "../multer/multer.js";
-import { adminOrSeller,adminOnly, protect } from "../middleware/authMiddleware.js";
+import {
+  adminOrSeller,
+  adminOnly,
+  protect,
+} from "../middleware/authMiddleware.js";
 
 router.route("/").post(registerUser).get(protect, adminOrSeller, getUsers);
 router.route("/sendOtp").post(sendOtpToEmail);
@@ -29,15 +34,12 @@ router.post("/resetPassword", resetPasswordWithOtp);
 router.post("/login", authUser);
 router.route("/favorites/:id").post(protect, toggleFavorite);
 router.route("/getfavorites").get(protect, getFavorites);
+router.route("/cart").get(protect, getCart);
 
 router
   .route("/profile")
   .get(protect, getUserProfile)
-  .put(
-    protect,
-    uploadProfileImage,
-    updateUserProfile
-  );
+  .put(protect, uploadProfileImage, updateUserProfile);
 
 router.delete("/profile/picture", protect, deleteProfilePicture);
 
