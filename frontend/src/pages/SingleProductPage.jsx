@@ -1,15 +1,12 @@
-// pages/SingleProductPage.jsx
-//
-// Route this at:   <Route path="/product/:id" element={<SingleProductPage />} />
-// (matches the links already used in CategoryProductsPage: to={`/product/${p._id}`})
-//
-// Data source: GET /api/products/:id/full  → { product, variants, group }
-// (this is your existing getProductFullById controller — no backend changes needed)
+
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchCart } from "../redux/slices/cartWishlistSlice";
+import { useSelector } from "react-redux";
+import {
+  garmentStyleToKey,
+  colorNameToSlug,
+} from "../../../server/utils/customizerMapping"; // ← adjust this path only if utils/ lives elsewhere relative to pages/
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -60,7 +57,7 @@ const SIZE_ORDER = ["S", "M", "L", "XL", "XXL"];
 export default function SingleProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useSelector((s) => s.auth); 
+  const { user } = useSelector((s) => s.auth);
 
   const { data, isLoading, error } = useSWRProduct(id);
 
@@ -137,7 +134,24 @@ export default function SingleProductPage() {
     navigate(`/product/${variantId}`, { replace: true });
   };
 
-  const LENS_SIZE = 160;
+  // ── Customize button handler ──────────────────────────────────
+  // Maps the real product's garmentStyle/color (free-text strings from
+  // theme.js's SIZE_CHARTS + admin-entered color names) onto the
+  // customizer's static catalog key/slug, then navigates there.
+  const handleCustomize = () => {
+    const key = garmentStyleToKey(activeVariant.productdetails?.garmentStyle);
+    if (!key) {
+      setCartMsg({
+        type: "error",
+        text: "This product style isn't available in the customizer yet.",
+      });
+      return;
+    }
+    const colorSlug = colorNameToSlug(activeVariant.productdetails?.color);
+    navigate(`/customize/${key}?color=${colorSlug}`);
+  };
+
+  const LENS_SIZE = 160; // px, matches lens box width/height below
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -617,7 +631,7 @@ export default function SingleProductPage() {
             </button>
 
             <button
-              onClick={() => navigate(`/customize/${activeVariant._id}`)}
+              onClick={handleCustomize}
               style={{
                 flex: 1,
                 padding: "14px 0",

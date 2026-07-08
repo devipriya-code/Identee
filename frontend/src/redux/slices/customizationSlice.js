@@ -16,18 +16,31 @@ export const uploadDesignImage = createAsyncThunk(
     try {
       return await customizationService.uploadDesignImage(file);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
 
+// CHANGED: now takes { garmentType, color, elements } instead of
+// { productId, elements } — this flow opens from a garment-catalog
+// pattern + color, not a database product id. See customizationService,
+// customizationController, and customizationModel for the matching
+// backend changes.
 export const saveCustomization = createAsyncThunk(
   "customization/saveCustomization",
-  async ({ productId, elements }, thunkAPI) => {
+  async ({ garmentType, color, elements }, thunkAPI) => {
     try {
-      return await customizationService.saveCustomization(productId, elements);
+      return await customizationService.saveCustomization(
+        garmentType,
+        color,
+        elements,
+      );
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -38,7 +51,9 @@ export const getCustomizationById = createAsyncThunk(
     try {
       return await customizationService.getCustomizationById(id);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );

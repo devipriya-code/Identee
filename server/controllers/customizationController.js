@@ -13,41 +13,54 @@ export const uploadDesignImage = (req, res) => {
 };
 
 // POST /api/customizations
+// CHANGED: stores { garmentType, color } instead of a Product _id — the
+// customizer now opens from a catalog pattern + color pair, not a
+// specific database product. If your checkout flow needs to resolve
+// (garmentType, color) to a real sellable Product/variant document,
+// that lookup should happen here (or downstream at order time) — that
+// part depends on your Product schema, which I don't have visibility
+// into, so it isn't wired up yet.
 export const createCustomization = async (req, res) => {
   try {
-    const { productId, elements } = req.body;
+    const { garmentType, color, elements } = req.body;
 
-    if (!productId) {
-      return res.status(400).json({ message: "productId is required" });
+    if (!garmentType || !color) {
+      return res
+        .status(400)
+        .json({ message: "garmentType and color are required" });
     }
     if (!Array.isArray(elements) || elements.length === 0) {
-      return res.status(400).json({ message: "Add at least one design element before saving" });
+      return res
+        .status(400)
+        .json({ message: "Add at least one design element before saving" });
     }
 
     const customization = await Customization.create({
-      product: productId,
+      garmentType,
+      color,
       user: req.user?._id, // only present if auth middleware runs before this route
       elements,
     });
 
     res.status(201).json(customization);
   } catch (err) {
-    res.status(500).json({ message: err.message || "Could not save customization" });
+    res
+      .status(500)
+      .json({ message: err.message || "Could not save customization" });
   }
 };
 
 // GET /api/customizations/:id
 export const getCustomizationById = async (req, res) => {
   try {
-    const customization = await Customization.findById(req.params.id).populate(
-      "product",
-      "brandname price images",
-    );
+    const customization = await Customization.findById(req.params.id);
     if (!customization) {
       return res.status(404).json({ message: "Customization not found" });
     }
     res.json(customization);
   } catch (err) {
-    res.status(500).json({ message: err.message || "Could not fetch customization" });
+    res
+      .status(500)
+      .json({ message: err.message || "Could not fetch customization" });
   }
 };

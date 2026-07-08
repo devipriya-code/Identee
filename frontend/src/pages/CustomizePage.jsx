@@ -1,48 +1,64 @@
-// pages/CustomizePage.jsx
-//
-// Route: <Route path="/customize/:id" element={<CustomizePage />} />
-//
-// FIXES IN THIS VERSION:
-//  1. Front/Back/Right/Left now all show the SAME garment image
-//     (images[0]) instead of images[1]/[2]/[3] — those extra gallery
-//     photos aren't real per-angle mockups, so mapping them by index was
-//     showing mismatched/unrelated photos (worn shots, different
-//     backgrounds) on the Back/Right/Left tabs. Once you have real
-//     per-angle mockup photos, flip USE_PER_INDEX_FLAT_IMAGES below to
-//     switch back to per-index mapping.
-//  2. Elements are tagged with `side` ("front"/"back"/"right"/"left") the
-//     moment they're created, and the canvas + Layers panel only show
-//     elements whose `side` matches the active view — so a design placed
-//     while on "Back" no longer bleeds into "Front".
-//  3. 360° Spin mode still cycles through whatever real gallery images
-//     exist (separate feature from the 4 flat views) — harmless either
-//     way, even with only 1 image (it just won't visibly spin).
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  useParams,
+  useSearchParams,
+  useNavigate,
+  Link,
+} from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { getProductFull } from "../redux/slices/productSlice";
+import {
+  GARMENT_TYPES,
+  getGarmentType,
+  getGarmentColor,
+} from "../data/garmentCatalog";
 import {
   uploadDesignImage,
   saveCustomization,
   reset,
 } from "../redux/slices/customizationSlice";
-
-const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
+import GarmentVisual from "../components/GarmentVisual";
 const C = {
   bg: "#FFFFFF",
   panel: "#FAF8F3",
   ink: "#15130F",
   muted: "#71695B",
   border: "#ECE4D2",
-  gold: "#C9A24B",
-  goldSoft: "#C9A24B14",
+  gold: "#F5A623",
+  goldDeep: "#E08E0B",
+  goldSoft: "#F5A62314",
   navy: "#1A2A4A",
   danger: "#B3432B",
 };
 
+// Matches the "CHOOSE FONT" grid on yourdesignstore.in — these are all
+// real Google Fonts families. To render them accurately (instead of
+// falling back to the browser's default serif), add this to your
+// index.html <head>:
+//   <link rel="preconnect" href="https://fonts.googleapis.com">
+//   <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=UnifrakturCook&family=Trocchi&family=Trirong&family=Varela+Round&family=Walter+Turncoat&family=Vampiro+One&family=Ubuntu+Condensed&family=Yantramanav&family=Rosarivo&family=Underdog&family=Yatra+One&family=Varela&family=Uncial+Antiqua&family=Ubuntu&family=Vollkorn&family=Vibur&family=Trochut&family=Yrsa&family=Tinos&display=swap" rel="stylesheet">
 const FONT_OPTIONS = [
+  "Yeseva One",
+  "UnifrakturCook",
+  "Trocchi",
+  "Trirong",
+  "Varela Round",
+  "Walter Turncoat",
+  "Voltaire",
+  "Vampiro One",
+  "Ubuntu Condensed",
+  "Yantramanav",
+  "Rosarivo",
+  "Underdog",
+  "Yatra One",
+  "Varela",
+  "Uncial Antiqua",
+  "Ubuntu",
+  "Vollkorn",
+  "Vibur",
+  "Trochut",
+  "Yrsa",
+  "Tinos",
   "Arial",
   "Georgia",
   "Poppins",
@@ -50,16 +66,50 @@ const FONT_OPTIONS = [
   "Courier New",
 ];
 
+const FONTS_PER_PAGE = 8;
+
+const TEXT_ALIGN_OPTIONS = ["left", "center", "right", "justify"];
+const TEXT_EFFECT_OPTIONS = [
+  { key: "straight", label: "Straight" },
+  { key: "arc-up", label: "Arc Up" },
+  { key: "arc-down", label: "Arc Down" },
+];
+
+// fontSizePct is "% of canvas height" internally (so text scales with
+// the print area at any screen size) — these are the values shown in
+// the FONT SIZE dropdown, from small to poster-sized.
+const FONT_SIZE_OPTIONS = [
+  2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 18, 20, 24, 28, 30,
+];
+
+function makeTextDraft() {
+  return {
+    fontFamily: "",
+    text: "",
+    fontSizePct: 8,
+    color: "#15130F",
+    bold: false,
+    underline: false,
+    italic: false,
+    align: "left",
+    effect: "straight",
+    note: "",
+  };
+}
+
 // Index-aligned: VIEW_KEYS[i] is stored on each element's `side` field.
 const VIEW_KEYS = ["front", "back", "right", "left"];
 const VIEW_LABELS = ["FRONT", "BACK", "RIGHT", "LEFT"];
-
-// Set this to true once your products have 4 real dedicated per-angle
-// mockup photos (in images[0..3], in this exact order). Until then, every
-// flat view reuses images[0] so you never show a mismatched photo.
-const USE_PER_INDEX_FLAT_IMAGES = false;
+// Physical spin order for the 360 drag (front -> right -> back -> left),
+// as opposed to VIEW_KEYS' front/back/right/left tab order.
+const SPIN_ORDER = ["front", "right", "back", "left"];
 
 const PRINT_AREA = { left: 22, top: 27, width: 56, height: 58 };
+
+// Default canvas box the print-canvas measures before ResizeObserver has
+// reported a real size. Without this, fontSizePct * canvasSize.height
+// evaluates to 0 for a frame and freshly-added text is briefly invisible.
+const DEFAULT_CANVAS_SIZE = { width: 480, height: 560 };
 
 function clamp(n, min, max) {
   return Math.min(Math.max(n, min), max);
@@ -67,25 +117,27 @@ function clamp(n, min, max) {
 function makeId() {
   return `el-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-function imgUrl(path) {
+function imgUrl(path, backendUrl) {
   if (!path) return undefined;
   if (path.startsWith("http")) return path;
-  return `${BACKEND_URL}/${path.replace(/^\//, "")}`;
+  return `${backendUrl}/${path.replace(/^\//, "")}`;
 }
 
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export default function CustomizePage() {
-  const { id } = useParams();
+  const { type } = useParams();
+  const [searchParams] = useSearchParams();
+  const colorSlug = searchParams.get("color");
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const {
-    fullProduct,
-    isFullLoading,
-    isError: productError,
-  } = useSelector((s) => s.product);
   const { isUploading, isSaving, isSuccess, isError, message } = useSelector(
     (s) => s.customization,
   );
+
+  const garment = getGarmentType(type);
+  const color = getGarmentColor(garment, colorSlug);
 
   const [elements, setElements] = useState([]);
   const [history, setHistory] = useState([]);
@@ -93,30 +145,35 @@ export default function CustomizePage() {
   const [selectedId, setSelectedId] = useState(null);
   const [dragState, setDragState] = useState(null);
   const [resizeState, setResizeState] = useState(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [canvasSize, setCanvasSize] = useState(DEFAULT_CANVAS_SIZE);
 
   const [viewMode, setViewMode] = useState("flat"); // "flat" | "3d"
   const [activeView, setActiveView] = useState(0);
   const spinDrag = useRef(null);
 
+  // "products" | "tutorials" | "text-font" | "text-edit" | "image" | "art" | null
+  const [activePanel, setActivePanel] = useState(null);
+
+  // Holds the in-progress text element while the Text tool's two-step
+  // "CHOOSE FONT" -> edit-fields flow is open. Nothing is added to the
+  // canvas until "Add Text" is pressed — matches the reference site,
+  // where picking a font doesn't commit anything by itself.
+  const [textDraft, setTextDraft] = useState(null);
+  const [fontSearch, setFontSearch] = useState("");
+  const [fontPage, setFontPage] = useState(1);
+
+  // Tracks whether the *current* drag/resize gesture has actually moved
+  // anything yet. History should only be pushed once, the first time a
+  // gesture changes something — not on every mousedown.
+  const historyCommittedRef = useRef(true);
+
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  const artInputRef = useRef(null);
 
   useEffect(() => {
-    if (id) dispatch(getProductFull(id));
     return () => dispatch(reset());
-  }, [dispatch, id]);
-
-  const images = fullProduct?.product?.images || [];
-
-  // Front/Back/Right/Left all show images[0] unless you've flipped the
-  // flag above to say you have real per-angle photos.
-  const flatViewImage = USE_PER_INDEX_FLAT_IMAGES
-    ? images[activeView] || images[0]
-    : images[0];
-  // 3D spin still cycles through whatever real photos exist.
-  const spinViewImage = images[activeView] || images[0];
-  const garmentImage = viewMode === "3d" ? spinViewImage : flatViewImage;
+  }, [dispatch]);
 
   const currentSide = VIEW_KEYS[Math.min(activeView, VIEW_KEYS.length - 1)];
   const visibleElements = elements.filter((el) => el.side === currentSide);
@@ -127,7 +184,7 @@ export default function CustomizePage() {
     if (!canvas) return;
     const observer = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
-      setCanvasSize({ width, height });
+      if (width > 0 && height > 0) setCanvasSize({ width, height });
     });
     observer.observe(canvas);
     return () => observer.disconnect();
@@ -136,6 +193,20 @@ export default function CustomizePage() {
   const pushHistory = () => {
     setHistory((h) => [...h, elements]);
     setFuture([]);
+  };
+
+  // Call this right before a *direct, single-shot* mutation (add, delete,
+  // rotate, duplicate, layer order, panel edits). Drag/resize commit their
+  // own history lazily — see commitDragHistoryOnce below.
+  const pushHistoryNow = () => pushHistory();
+
+  // Called from inside the drag/resize mousemove handler. Only actually
+  // pushes history the first time a given gesture moves something, so a
+  // plain click-to-select doesn't create a no-op undo step.
+  const commitDragHistoryOnce = () => {
+    if (historyCommittedRef.current) return;
+    historyCommittedRef.current = true;
+    pushHistory();
   };
 
   const handleUndo = () => {
@@ -169,10 +240,12 @@ export default function CustomizePage() {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
+      let moved = false;
 
       if (dragState) {
         const dxPct = ((e.clientX - dragState.startX) / rect.width) * 100;
         const dyPct = ((e.clientY - dragState.startY) / rect.height) * 100;
+        if (Math.abs(dxPct) > 0.15 || Math.abs(dyPct) > 0.15) moved = true;
         setElements((prev) =>
           prev.map((el) =>
             el.id === dragState.id
@@ -193,6 +266,7 @@ export default function CustomizePage() {
       if (resizeState) {
         const dxPct = ((e.clientX - resizeState.startX) / rect.width) * 100;
         const dyPct = ((e.clientY - resizeState.startY) / rect.height) * 100;
+        if (Math.abs(dxPct) > 0.15 || Math.abs(dyPct) > 0.15) moved = true;
         setElements((prev) =>
           prev.map((el) => {
             if (el.id !== resizeState.id) return el;
@@ -210,11 +284,14 @@ export default function CustomizePage() {
           }),
         );
       }
+
+      if (moved) commitDragHistoryOnce();
     };
 
     const handleUp = () => {
       setDragState(null);
       setResizeState(null);
+      historyCommittedRef.current = true;
     };
 
     window.addEventListener("mousemove", handleMove);
@@ -225,21 +302,26 @@ export default function CustomizePage() {
     };
   }, [dragState, resizeState]);
 
+  // 360 spin: drag left/right cycles through front -> right -> back ->
+  // left (physical rotation order), reusing the same 4 photo/silhouette
+  // views.
   const handleSpinMouseDown = (e) => {
     if (viewMode !== "3d") return;
-    spinDrag.current = { startX: e.clientX, startView: activeView };
+    const currentSpinIndex = SPIN_ORDER.indexOf(currentSide);
+    spinDrag.current = { startX: e.clientX, startSpinIndex: currentSpinIndex };
   };
 
   const handleSpinMouseMove = useCallback(
     (e) => {
-      if (viewMode !== "3d" || !spinDrag.current || images.length === 0) return;
+      if (viewMode !== "3d" || !spinDrag.current) return;
       const dx = e.clientX - spinDrag.current.startX;
       const step = Math.round(dx / 60);
-      let next = (spinDrag.current.startView + step) % images.length;
-      if (next < 0) next += images.length;
-      setActiveView(next);
+      let next = (spinDrag.current.startSpinIndex + step) % SPIN_ORDER.length;
+      if (next < 0) next += SPIN_ORDER.length;
+      const side = SPIN_ORDER[next];
+      setActiveView(VIEW_KEYS.indexOf(side));
     },
-    [viewMode, images.length],
+    [viewMode],
   );
 
   useEffect(() => {
@@ -254,33 +336,61 @@ export default function CustomizePage() {
     };
   }, [handleSpinMouseMove]);
 
-  if (isFullLoading) {
-    return (
-      <StudioShell>
-        <CenterMessage color={C.muted}>Loading garment…</CenterMessage>
-      </StudioShell>
-    );
-  }
-  if (productError || !fullProduct?.product) {
+  if (!garment || !color) {
     return (
       <StudioShell>
         <CenterMessage color={C.danger}>
-          Couldn't load this product to customize.
+          We couldn't find that pattern/color.{" "}
+          <Link to="/customize/choose-product" style={{ color: C.gold }}>
+            Choose a pattern
+          </Link>
         </CenterMessage>
       </StudioShell>
     );
   }
 
-  const addTextElement = () => {
-    pushHistory();
+  // ── Text tool ────────────────────────────────────────────────────
+ 
+  const openTextTool = () => {
+    setTextDraft(makeTextDraft());
+    setFontSearch("");
+    setFontPage(1);
+    setActivePanel("text-font");
+  };
+
+  const pickFont = (fontName) => {
+    setTextDraft((d) => ({ ...(d || makeTextDraft()), fontFamily: fontName }));
+    setActivePanel("text-edit");
+  };
+
+  const reopenFontChooser = () => {
+    setFontSearch("");
+    setFontPage(1);
+    setActivePanel("text-font");
+  };
+
+  const closeTextTool = () => {
+    setTextDraft(null);
+    setActivePanel(null);
+  };
+
+  const confirmAddText = () => {
+    if (!textDraft) return;
+    pushHistoryNow();
     const newEl = {
       id: makeId(),
       type: "text",
       side: currentSide,
-      text: "Your Text",
-      fontFamily: "Arial",
-      fontSizePct: 6,
-      color: C.ink,
+      text: textDraft.text.trim() || "Your Text",
+      fontFamily: textDraft.fontFamily || FONT_OPTIONS[0],
+      fontSizePct: textDraft.fontSizePct,
+      color: textDraft.color,
+      bold: textDraft.bold,
+      italic: textDraft.italic,
+      underline: textDraft.underline,
+      align: textDraft.align,
+      effect: textDraft.effect,
+      note: textDraft.note,
       x: 30,
       y: 40,
       width: 40,
@@ -290,10 +400,11 @@ export default function CustomizePage() {
     };
     setElements((prev) => [...prev, newEl]);
     setSelectedId(newEl.id);
+    closeTextTool();
   };
 
   const addNameElement = () => {
-    pushHistory();
+    pushHistoryNow();
     const newEl = {
       id: makeId(),
       type: "text",
@@ -320,7 +431,7 @@ export default function CustomizePage() {
 
     const result = await dispatch(uploadDesignImage(file));
     if (uploadDesignImage.fulfilled.match(result)) {
-      pushHistory();
+      pushHistoryNow();
       const newEl = {
         id: makeId(),
         type: "image",
@@ -335,13 +446,14 @@ export default function CustomizePage() {
       };
       setElements((prev) => [...prev, newEl]);
       setSelectedId(newEl.id);
+      setActivePanel(null);
     }
   };
 
   const handleElementMouseDown = (el, e) => {
     e.stopPropagation();
-    pushHistory();
     setSelectedId(el.id);
+    historyCommittedRef.current = false; // history commits lazily on first move
     setDragState({
       id: el.id,
       startX: e.clientX,
@@ -353,7 +465,7 @@ export default function CustomizePage() {
 
   const handleResizeMouseDown = (el, e) => {
     e.stopPropagation();
-    pushHistory();
+    historyCommittedRef.current = false;
     setResizeState({
       id: el.id,
       startX: e.clientX,
@@ -371,7 +483,7 @@ export default function CustomizePage() {
   };
 
   const rotateSelected = (deg) => {
-    pushHistory();
+    pushHistoryNow();
     setElements((prev) =>
       prev.map((el) =>
         el.id === selectedId
@@ -382,7 +494,7 @@ export default function CustomizePage() {
   };
 
   const bringToFront = () => {
-    pushHistory();
+    pushHistoryNow();
     setElements((prev) => {
       const maxZ = Math.max(
         0,
@@ -395,7 +507,7 @@ export default function CustomizePage() {
   };
 
   const sendToBack = () => {
-    pushHistory();
+    pushHistoryNow();
     setElements((prev) => {
       const minZ = Math.min(
         0,
@@ -409,7 +521,7 @@ export default function CustomizePage() {
 
   const duplicateSelected = () => {
     if (!selectedEl) return;
-    pushHistory();
+    pushHistoryNow();
     const copy = {
       ...selectedEl,
       id: makeId(),
@@ -422,7 +534,7 @@ export default function CustomizePage() {
   };
 
   const deleteSelected = () => {
-    pushHistory();
+    pushHistoryNow();
     setElements((prev) => prev.filter((el) => el.id !== selectedId));
     setSelectedId(null);
   };
@@ -438,139 +550,139 @@ export default function CustomizePage() {
   const handleSave = async () => {
     if (elements.length === 0) return;
     const result = await dispatch(
-      saveCustomization({ productId: id, elements }),
+      saveCustomization({ garmentType: type, color: color.slug, elements }),
     );
     if (saveCustomization.fulfilled.match(result)) {
-      setTimeout(() => navigate(`/product/${id}`), 1200);
+      setTimeout(() => navigate("/customize/choose-product"), 1200);
     }
   };
 
+  const togglePanel = (name) =>
+    setActivePanel((prev) => (prev === name ? null : name));
+
   return (
     <StudioShell>
-      {/* ── Top action bar ── */}
+      {/* ── Top bar: logo · pill toolbar · Tutorials · Order ── */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "16px 24px",
+          padding: "14px 24px",
           borderBottom: `1px solid ${C.border}`,
           background: C.bg,
           flexWrap: "wrap",
           gap: 12,
         }}
       >
-        <Link
-          to={`/product/${id}`}
-          style={{ fontSize: 13, color: C.muted, textDecoration: "underline" }}
-        >
-          ← Back to product
-        </Link>
+        <Logo />
 
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 14,
             flexWrap: "wrap",
           }}
         >
-          <ToolbarButton
-            label="Undo"
-            icon="↩"
-            onClick={handleUndo}
-            disabled={history.length === 0}
-          />
-          <ToolbarButton
-            label="Redo"
-            icon="↪"
-            onClick={handleRedo}
-            disabled={future.length === 0}
-          />
-          <ToolbarButton
-            label="Save"
-            icon="💾"
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              background: C.panel,
+              borderRadius: 999,
+              padding: "4px 10px",
+              border: `1px solid ${C.border}`,
+            }}
+          >
+            <ToolbarButton
+              label="Undo"
+              icon="↩"
+              onClick={handleUndo}
+              disabled={history.length === 0}
+            />
+            <ToolbarButton
+              label="Redo"
+              icon="↪"
+              onClick={handleRedo}
+              disabled={future.length === 0}
+            />
+            <ToolbarButton
+              label="Save"
+              icon="💾"
+              onClick={handleSave}
+              disabled={isSaving}
+            />
+            <ToolbarButton label="Share" icon="🔗" onClick={handleShare} />
+            <ToolbarButton
+              label="Contact"
+              icon="📞"
+              onClick={() => (window.location.href = "tel:+916366526449")}
+            />
+          </div>
+
+          <button
+            onClick={() => togglePanel("tutorials")}
+            style={{
+              padding: "12px 22px",
+              borderRadius: 999,
+              background: C.ink,
+              color: "#fff",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Tutorials
+          </button>
+
+          <button
             onClick={handleSave}
             disabled={isSaving}
-          />
-          <ToolbarButton label="Share" icon="🔗" onClick={handleShare} />
+            style={{
+              padding: "12px 30px",
+              borderRadius: 999,
+              background: C.gold,
+              color: C.ink,
+              border: "none",
+              fontSize: 13,
+              fontWeight: 800,
+              letterSpacing: "0.02em",
+              cursor: isSaving ? "wait" : "pointer",
+              opacity: isSaving ? 0.7 : 1,
+            }}
+          >
+            {isSaving ? "SAVING…" : "Order"}
+          </button>
         </div>
-
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          style={{
-            padding: "12px 26px",
-            borderRadius: 999,
-            background: C.navy,
-            color: "#fff",
-            border: "none",
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            cursor: isSaving ? "wait" : "pointer",
-            opacity: isSaving ? 0.7 : 1,
-          }}
-        >
-          {isSaving ? "SAVING…" : "SAVE DESIGN"}
-        </button>
       </div>
 
       {isUploading && (
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 13,
-            color: C.muted,
-            margin: "12px 0 0",
-          }}
-        >
-          Uploading design…
-        </p>
+        <StatusLine color={C.muted}>Uploading design…</StatusLine>
       )}
       {isSuccess && (
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#3E7C4A",
-            margin: "12px 0 0",
-          }}
-        >
-          Design saved! Redirecting…
-        </p>
+        <StatusLine color="#3E7C4A">Design saved! Redirecting…</StatusLine>
       )}
-      {isError && (
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: 13,
-            fontWeight: 600,
-            color: C.danger,
-            margin: "12px 0 0",
-          }}
-        >
-          {message}
-        </p>
-      )}
+      {isError && <StatusLine color={C.danger}>{message}</StatusLine>}
 
       {/* ── Main workspace ── */}
       <div
-        style={{ display: "flex", flex: 1, minHeight: 0 }}
+        style={{ display: "flex", flex: 1, minHeight: 0, position: "relative" }}
         className="cust-workspace"
       >
-        {/* Left icon sidebar */}
+        {/* Left icon rail — colored badge icons */}
         <div
           style={{
-            width: 104,
+            width: 108,
             flexShrink: 0,
             background: C.panel,
             borderRight: `1px solid ${C.border}`,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 4,
+            gap: 6,
             paddingTop: 20,
           }}
           className="cust-sidebar"
@@ -578,16 +690,43 @@ export default function CustomizePage() {
           <SidebarIcon
             icon="👕"
             label="Products"
-            onClick={() => navigate(`/product/${id}`)}
+            badgeBg="linear-gradient(135deg,#FDE9C8,#F5A623)"
+            active={activePanel === "products"}
+            onClick={() => togglePanel("products")}
           />
-          <SidebarIcon icon="🅰️" label="Text" onClick={addTextElement} />
+          <SidebarIcon
+            icon="🅰️"
+            label="Text"
+            badgeBg="linear-gradient(135deg,#FFE1A8,#FF7A59)"
+            active={activePanel === "text-font" || activePanel === "text-edit"}
+            onClick={openTextTool}
+          />
           <SidebarIcon
             icon="🖼️"
             label="Image"
-            onClick={() => fileInputRef.current?.click()}
+            badgeBg="linear-gradient(135deg,#CFE8FF,#5B8DEF)"
+            active={activePanel === "image"}
+            onClick={() => togglePanel("image")}
           />
-          <SidebarIcon icon="🔤" label="Name" onClick={addNameElement} />
-          <SidebarIcon icon="🛒" label="Order" onClick={handleSave} />
+          <SidebarIcon
+            icon="🎨"
+            label="Art"
+            badgeBg="linear-gradient(135deg,#E3D4FF,#8C6FE8)"
+            active={activePanel === "art"}
+            onClick={() => togglePanel("art")}
+          />
+          <SidebarIcon
+            icon="🔤"
+            label="Name"
+            badgeBg="linear-gradient(135deg,#D6F3D8,#4FAE5C)"
+            onClick={addNameElement}
+          />
+          <SidebarIcon
+            icon="🛒"
+            label="Order"
+            badgeBg="linear-gradient(135deg,#FFE0DA,#E0574A)"
+            onClick={handleSave}
+          />
           <input
             ref={fileInputRef}
             type="file"
@@ -595,7 +734,66 @@ export default function CustomizePage() {
             onChange={handleDesignUpload}
             style={{ display: "none" }}
           />
+          <input
+            ref={artInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleDesignUpload}
+            style={{ display: "none" }}
+          />
         </div>
+
+        {/* Products slide-over panel — two-step: All Products -> Choose Color */}
+        {activePanel === "products" && (
+          <ProductsPanel
+            currentGarmentKey={garment.key}
+            currentColorSlug={color.slug}
+            onClose={() => setActivePanel(null)}
+            onSelectColor={(garmentKey, colorSlug) => {
+              navigate(`/customize/${garmentKey}?color=${colorSlug}`);
+              setActivePanel(null);
+            }}
+          />
+        )}
+        {activePanel === "tutorials" && (
+          <TutorialsPanel onClose={() => setActivePanel(null)} />
+        )}
+        {activePanel === "text-font" && (
+          <FontChooserPanel
+            search={fontSearch}
+            onSearchChange={(v) => {
+              setFontSearch(v);
+              setFontPage(1);
+            }}
+            page={fontPage}
+            onLoadMore={() => setFontPage((p) => p + 1)}
+            selectedFont={textDraft?.fontFamily}
+            onPick={pickFont}
+            onBack={closeTextTool}
+          />
+        )}
+        {activePanel === "text-edit" && textDraft && (
+          <TextEditPanel
+            draft={textDraft}
+            onChange={(patch) => setTextDraft((d) => ({ ...d, ...patch }))}
+            onReopenFont={reopenFontChooser}
+            onBack={closeTextTool}
+            onAdd={confirmAddText}
+          />
+        )}
+        {activePanel === "image" && (
+          <ImagePanel
+            isUploading={isUploading}
+            onBrowse={() => fileInputRef.current?.click()}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+        {activePanel === "art" && (
+          <ArtPanel
+            onBrowse={() => artInputRef.current?.click()}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
 
         {/* Canvas */}
         <div
@@ -615,12 +813,6 @@ export default function CustomizePage() {
             >
               Flat Views
             </ModeButton>
-            <ModeButton
-              active={viewMode === "3d"}
-              onClick={() => setViewMode("3d")}
-            >
-              🔄 360° Spin
-            </ModeButton>
           </div>
 
           <div
@@ -632,20 +824,30 @@ export default function CustomizePage() {
             style={{
               position: "relative",
               width: "100%",
-              maxWidth: 520,
+              maxWidth: 560,
               aspectRatio: "4/5",
               background: "#F3F1EC",
               borderRadius: 16,
               overflow: "hidden",
-              backgroundImage: garmentImage
-                ? `url(${imgUrl(garmentImage)})`
-                : undefined,
-              backgroundSize: "contain",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
               cursor: viewMode === "3d" ? "grab" : "default",
             }}
           >
+            <div
+              style={{
+                position: "absolute",
+                inset: "4% 8%",
+                pointerEvents: "none",
+              }}
+            >
+              <GarmentVisual
+                garmentKey={garment.key}
+                colorSlug={color.slug}
+                shape={garment.shape}
+                view={currentSide}
+                color={color.hex}
+              />
+            </div>
+
             <div
               style={{
                 position: "absolute",
@@ -683,7 +885,7 @@ export default function CustomizePage() {
                 >
                   {el.type === "image" ? (
                     <img
-                      src={imgUrl(el.src)}
+                      src={imgUrl(el.src, BACKEND_URL)}
                       alt=""
                       draggable={false}
                       style={{
@@ -697,11 +899,21 @@ export default function CustomizePage() {
                     <span
                       style={{
                         display: "block",
-                        fontFamily: el.fontFamily,
+                        fontFamily: `"${el.fontFamily}", serif`,
                         fontSize: `${(el.fontSizePct / 100) * canvasSize.height}px`,
                         color: el.color,
-                        whiteSpace: "nowrap",
+                        fontWeight: el.bold ? 700 : 400,
+                        fontStyle: el.italic ? "italic" : "normal",
+                        textDecoration: el.underline ? "underline" : "none",
+                        textAlign: el.align || "left",
+                        whiteSpace: "pre-wrap",
                         pointerEvents: "none",
+                        transform:
+                          el.effect === "arc-up"
+                            ? "skewY(-6deg) scaleY(1.05)"
+                            : el.effect === "arc-down"
+                              ? "skewY(6deg) scaleY(1.05)"
+                              : "none",
                       }}
                     >
                       {el.text}
@@ -735,160 +947,134 @@ export default function CustomizePage() {
           )}
         </div>
 
-        {/* Right view switcher + property panel */}
+        {/* Right rail — circular view switcher + 360 pill + edit card */}
         <div
           style={{
-            width: 240,
+            width: 160,
             flexShrink: 0,
             borderLeft: `1px solid ${C.border}`,
             background: C.bg,
-            padding: 20,
+            padding: "24px 16px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 22,
             overflowY: "auto",
           }}
           className="cust-rightpanel"
         >
-          <p style={sectionLabelStyle}>VIEW</p>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              marginBottom: 24,
-            }}
-          >
-            {VIEW_LABELS.map((label, i) => {
-              const count = elements.filter(
-                (el) => el.side === VIEW_KEYS[i],
-              ).length;
-              return (
-                <button
-                  key={label}
-                  onClick={() => switchView(i)}
+          {VIEW_LABELS.map((label, i) => {
+            const count = elements.filter(
+              (el) => el.side === VIEW_KEYS[i],
+            ).length;
+            const isActive = viewMode === "flat" && activeView === i;
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => switchView(i)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 4,
+                  position: "relative",
+                  width: "100%",
+                }}
+              >
+                <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 6,
-                    background: "none",
-                    border: "none",
-                    cursor: images.length ? "pointer" : "default",
-                    padding: 4,
                     position: "relative",
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    background: "#F3F1EC",
+                    border: isActive
+                      ? `2px solid ${C.gold}`
+                      : `1px solid ${C.border}`,
+                    padding: 6,
+                    boxSizing: "border-box",
+                    pointerEvents: "none",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "relative",
-                      width: 56,
-                      height: 56,
-                      borderRadius: "50%",
-                      overflow: "hidden",
-                      background: "#F3F1EC",
-                      border:
-                        viewMode === "flat" && activeView === i
-                          ? `2px solid ${C.gold}`
-                          : `1px solid ${C.border}`,
-                    }}
-                  >
-                    {/* Always images[0] — same reasoning as flatViewImage above */}
-                    {images[0] ? (
-                      <img
-                        src={imgUrl(images[0])}
-                        alt={label}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                  {count > 0 && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: -2,
-                        right: -2,
-                        minWidth: 16,
-                        height: 16,
-                        borderRadius: 999,
-                        background: C.gold,
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: "0 3px",
-                      }}
-                    >
-                      {count}
-                    </span>
-                  )}
+                  <GarmentVisual
+                    garmentKey={garment.key}
+                    colorSlug={color.slug}
+                    shape={garment.shape}
+                    view={VIEW_KEYS[i]}
+                    color={color.hex}
+                  />
+                </div>
+                {count > 0 && (
                   <span
                     style={{
+                      position: "absolute",
+                      top: -2,
+                      right: 24,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: 999,
+                      background: C.gold,
+                      color: "#fff",
                       fontSize: 10,
-                      letterSpacing: "0.08em",
-                      fontWeight:
-                        viewMode === "flat" && activeView === i ? 700 : 500,
-                      color:
-                        viewMode === "flat" && activeView === i
-                          ? C.ink
-                          : C.muted,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "0 3px",
+                      pointerEvents: "none",
                     }}
                   >
-                    {label}
+                    {count}
                   </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <p style={sectionLabelStyle}>LAYERS · {VIEW_LABELS[activeView]}</p>
-          {visibleElements.length === 0 && (
-            <p style={{ fontSize: 13, color: C.muted }}>
-              Nothing on this side yet — use Text or Image on the left.
-            </p>
-          )}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              marginBottom: 20,
-            }}
-          >
-            {visibleElements
-              .slice()
-              .sort((a, b) => b.zIndex - a.zIndex)
-              .map((el) => (
-                <div
-                  key={el.id}
-                  onClick={() => setSelectedId(el.id)}
+                )}
+                <span
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${selectedId === el.id ? C.gold : C.border}`,
-                    background: selectedId === el.id ? C.goldSoft : "#fff",
-                    cursor: "pointer",
-                    fontSize: 13,
+                    fontSize: 10,
+                    letterSpacing: "0.08em",
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? C.ink : C.muted,
                   }}
                 >
-                  <span>
-                    {el.type === "text"
-                      ? `"${el.text.slice(0, 16)}"`
-                      : "Uploaded design"}
-                  </span>
-                </div>
-              ))}
-          </div>
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+
+          <button
+            onClick={() => setViewMode("3d")}
+            style={{
+              marginTop: 4,
+              padding: "10px 18px",
+              borderRadius: 999,
+              border: "none",
+              background: viewMode === "3d" ? C.goldDeep : C.gold,
+              color: C.ink,
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            TRY 360°
+          </button>
 
           {selectedEl && (
-            <div style={{ paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-              <p style={sectionLabelStyle}>EDIT SELECTED</p>
+            <div
+              style={{
+                width: "100%",
+                marginTop: 8,
+                paddingTop: 16,
+                borderTop: `1px solid ${C.border}`,
+              }}
+            >
+              <p style={sectionLabelStyle}>EDIT</p>
 
               {selectedEl.type === "text" && (
                 <>
@@ -897,34 +1083,55 @@ export default function CustomizePage() {
                     onChange={(e) => updateSelected({ text: e.target.value })}
                     style={inputStyle}
                   />
-                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                    <select
-                      value={selectedEl.fontFamily}
-                      onChange={(e) =>
-                        updateSelected({ fontFamily: e.target.value })
-                      }
-                      style={{ ...inputStyle, flex: 1 }}
+                  <select
+                    value={selectedEl.fontFamily}
+                    onChange={(e) =>
+                      updateSelected({ fontFamily: e.target.value })
+                    }
+                    style={{ ...inputStyle, marginTop: 8 }}
+                  >
+                    {FONT_OPTIONS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="color"
+                    value={selectedEl.color}
+                    onChange={(e) => updateSelected({ color: e.target.value })}
+                    style={{
+                      width: "100%",
+                      height: 36,
+                      marginTop: 8,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 8,
+                      padding: 2,
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <ToggleMiniBtn
+                      active={!!selectedEl.bold}
+                      onClick={() => updateSelected({ bold: !selectedEl.bold })}
                     >
-                      {FONT_OPTIONS.map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="color"
-                      value={selectedEl.color}
-                      onChange={(e) =>
-                        updateSelected({ color: e.target.value })
+                      <b>B</b>
+                    </ToggleMiniBtn>
+                    <ToggleMiniBtn
+                      active={!!selectedEl.underline}
+                      onClick={() =>
+                        updateSelected({ underline: !selectedEl.underline })
                       }
-                      style={{
-                        width: 44,
-                        height: 38,
-                        border: `1px solid ${C.border}`,
-                        borderRadius: 8,
-                        padding: 2,
-                      }}
-                    />
+                    >
+                      <u>U</u>
+                    </ToggleMiniBtn>
+                    <ToggleMiniBtn
+                      active={!!selectedEl.italic}
+                      onClick={() =>
+                        updateSelected({ italic: !selectedEl.italic })
+                      }
+                    >
+                      <i>I</i>
+                    </ToggleMiniBtn>
                   </div>
                 </>
               )}
@@ -932,7 +1139,7 @@ export default function CustomizePage() {
               <div
                 style={{
                   display: "flex",
-                  gap: 8,
+                  gap: 6,
                   marginTop: 12,
                   flexWrap: "wrap",
                 }}
@@ -947,7 +1154,7 @@ export default function CustomizePage() {
                   ⟳
                 </button>
                 <button onClick={duplicateSelected} style={miniBtnStyle}>
-                  Duplicate
+                  Copy
                 </button>
                 <button onClick={bringToFront} style={miniBtnStyle}>
                   Front
@@ -968,6 +1175,40 @@ export default function CustomizePage() {
               </div>
             </div>
           )}
+
+          {visibleElements.length > 0 && (
+            <div style={{ width: "100%", marginTop: 8 }}>
+              <p style={sectionLabelStyle}>LAYERS</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {visibleElements
+                  .slice()
+                  .sort((a, b) => b.zIndex - a.zIndex)
+                  .map((el) => (
+                    <div
+                      key={el.id}
+                      onClick={() => setSelectedId(el.id)}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        border: `1px solid ${
+                          selectedId === el.id ? C.gold : C.border
+                        }`,
+                        background: selectedId === el.id ? C.goldSoft : "#fff",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {el.type === "text"
+                        ? `"${el.text.slice(0, 14)}"`
+                        : "Uploaded design"}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -975,10 +1216,913 @@ export default function CustomizePage() {
         @media (max-width: 900px) {
           .cust-workspace { flex-direction: column; }
           .cust-sidebar { width: 100% !important; flex-direction: row !important; justify-content: space-around; padding: 12px 0 !important; }
-          .cust-rightpanel { width: 100% !important; border-left: none !important; border-top: 1px solid ${C.border}; }
+          .cust-rightpanel { width: 100% !important; border-left: none !important; border-top: 1px solid ${C.border}; flex-direction: row !important; flex-wrap: wrap; justify-content: center; }
+        }
+        @media (max-width: 700px) {
+          .cust-productspanel, .cust-toolpanel { width: 100% !important; position: absolute; inset: 0; z-index: 30; }
         }
       `}</style>
     </StudioShell>
+  );
+}
+
+function Logo() {
+  return (
+    <Link
+      to="/"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        textDecoration: "none",
+      }}
+    >
+      <span
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 8,
+          background: `linear-gradient(135deg, ${C.navy}, ${C.gold})`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontWeight: 800,
+          fontSize: 16,
+        }}
+      >
+        Y
+      </span>
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: "0.02em",
+          color: C.navy,
+          lineHeight: 1.15,
+        }}
+      >
+        YOUR
+        <br />
+        DESIGN STORE
+      </span>
+    </Link>
+  );
+}
+
+function StatusLine({ children, color }) {
+  return (
+    <p
+      style={{
+        textAlign: "center",
+        fontSize: 13,
+        fontWeight: 600,
+        color,
+        margin: "12px 0 0",
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+// Shared shell for the left slide-over tool panels (Text/Image/Art), so
+// they look and behave consistently with ProductsPanel/TutorialsPanel.
+function ToolPanelShell({ title, onClose, children }) {
+  return (
+    <div
+      className="cust-toolpanel"
+      style={{
+        width: 320,
+        maxWidth: "100%",
+        flexShrink: 0,
+        background: "#fff",
+        borderRight: `1px solid ${C.border}`,
+        padding: "20px 24px 28px",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 20,
+        }}
+      >
+        <p
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            letterSpacing: "0.06em",
+            color: C.ink,
+            margin: 0,
+            textTransform: "uppercase",
+          }}
+        >
+          {title}
+        </p>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            border: "none",
+            background: "none",
+            fontSize: 16,
+            cursor: "pointer",
+            color: C.muted,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Step 1 of the Text tool — "CHOOSE FONT": searchable, paginated grid of
+// font previews. Matches the reference site's panel: back arrow closes
+// the whole tool, each card shows the family rendered in itself plus its
+// name underneath, and a "Load More" button reveals more.
+function FontChooserPanel({
+  search,
+  onSearchChange,
+  page,
+  onLoadMore,
+  selectedFont,
+  onPick,
+  onBack,
+}) {
+  const filtered = FONT_OPTIONS.filter((f) =>
+    f.toLowerCase().includes(search.trim().toLowerCase()),
+  );
+  const visible = filtered.slice(0, page * FONTS_PER_PAGE);
+  const hasMore = visible.length < filtered.length;
+
+  return (
+    <div
+      className="cust-toolpanel"
+      style={{
+        width: 340,
+        maxWidth: "100%",
+        flexShrink: 0,
+        background: "#fff",
+        borderRight: `1px solid ${C.border}`,
+        padding: "20px 24px 28px",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          marginBottom: 18,
+        }}
+      >
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          style={{
+            position: "absolute",
+            left: 0,
+            border: "none",
+            background: "none",
+            fontSize: 20,
+            color: C.ink,
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          ←
+        </button>
+        <p
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            color: C.ink,
+            margin: 0,
+          }}
+        >
+          CHOOSE FONT
+        </p>
+      </div>
+
+      <input
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Search Font"
+        style={{ ...inputStyle, marginBottom: 16 }}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {visible.map((font) => (
+          <button
+            key={font}
+            onClick={() => onPick(font)}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              padding: "14px 6px",
+              borderRadius: 8,
+              border: `1px solid ${font === selectedFont ? C.gold : C.border}`,
+              background: "#fff",
+              cursor: "pointer",
+              overflow: "hidden",
+            }}
+          >
+            <span
+              style={{
+                fontFamily: `"${font}", serif`,
+                fontSize: 20,
+                fontWeight: 700,
+                color: C.ink,
+                whiteSpace: "nowrap",
+              }}
+            >
+              EXAMPLE
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                color: C.muted,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "100%",
+              }}
+            >
+              {font}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {visible.length === 0 && (
+        <p style={{ fontSize: 12, color: C.muted, marginTop: 16 }}>
+          No fonts match "{search}".
+        </p>
+      )}
+
+      {hasMore && (
+        <button
+          onClick={onLoadMore}
+          style={{
+            width: "100%",
+            marginTop: 16,
+            padding: "12px 0",
+            borderRadius: 8,
+            border: `1px solid ${C.border}`,
+            background: C.panel,
+            color: C.ink,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          Load More
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Step 2 of the Text tool — the edit-fields panel that appears once a
+// font has been picked: text box, font size + color, bold/underline/
+// italic toggles, a way back into the font chooser, alignment, a text
+// effect selector with a live preview, an internal add-note field, and
+// the "Add Text" button that actually commits the element.
+function TextEditPanel({ draft, onChange, onReopenFont, onBack, onAdd }) {
+  return (
+    <div
+      className="cust-toolpanel"
+      style={{
+        width: 340,
+        maxWidth: "100%",
+        flexShrink: 0,
+        background: "#fff",
+        borderRight: `1px solid ${C.border}`,
+        padding: "20px 24px 28px",
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 16,
+        }}
+      >
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          style={{
+            border: "none",
+            background: "none",
+            fontSize: 18,
+            color: C.ink,
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          ←
+        </button>
+        <p style={{ fontSize: 14, fontWeight: 700, color: C.ink, margin: 0 }}>
+          Add Text
+        </p>
+      </div>
+
+      <textarea
+        autoFocus
+        value={draft.text}
+        onChange={(e) => onChange({ text: e.target.value })}
+        placeholder="Your text here"
+        rows={2}
+        style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+      />
+
+      <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
+        <div style={{ flex: 1 }}>
+          <label style={fieldLabelStyle}>Font Size</label>
+          <select
+            value={draft.fontSizePct}
+            onChange={(e) => onChange({ fontSizePct: Number(e.target.value) })}
+            style={inputStyle}
+          >
+            {FONT_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={fieldLabelStyle}>Color</label>
+          <input
+            type="color"
+            value={draft.color}
+            onChange={(e) => onChange({ color: e.target.value })}
+            style={{
+              width: 44,
+              height: 40,
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              padding: 2,
+            }}
+          />
+        </div>
+      </div>
+
+      <label style={{ ...fieldLabelStyle, marginTop: 14 }}>Font Style</label>
+      <div style={{ display: "flex", gap: 6 }}>
+        <ToggleMiniBtn
+          active={draft.bold}
+          onClick={() => onChange({ bold: !draft.bold })}
+        >
+          <b>B</b>
+        </ToggleMiniBtn>
+        <ToggleMiniBtn
+          active={draft.underline}
+          onClick={() => onChange({ underline: !draft.underline })}
+        >
+          <u>U</u>
+        </ToggleMiniBtn>
+        <ToggleMiniBtn
+          active={draft.italic}
+          onClick={() => onChange({ italic: !draft.italic })}
+        >
+          <i>I</i>
+        </ToggleMiniBtn>
+      </div>
+
+      <label style={{ ...fieldLabelStyle, marginTop: 14 }}>Font</label>
+      <button
+        onClick={onReopenFont}
+        style={{
+          ...inputStyle,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          fontFamily: `"${draft.fontFamily}", serif`,
+        }}
+      >
+        <span>{draft.fontFamily || "Choose a font"}</span>
+        <span style={{ color: C.muted }}>▾</span>
+      </button>
+
+      <label style={{ ...fieldLabelStyle, marginTop: 14 }}>
+        Text Alignment
+      </label>
+      <div style={{ display: "flex", gap: 6 }}>
+        {TEXT_ALIGN_OPTIONS.map((a) => (
+          <ToggleMiniBtn
+            key={a}
+            active={draft.align === a}
+            onClick={() => onChange({ align: a })}
+          >
+            <AlignIcon type={a} />
+          </ToggleMiniBtn>
+        ))}
+      </div>
+
+      <label style={{ ...fieldLabelStyle, marginTop: 14 }}>
+        Text Effect{" "}
+        <span style={{ textTransform: "none", fontWeight: 400 }}>
+          ({TEXT_EFFECT_OPTIONS.find((e) => e.key === draft.effect)?.label})
+        </span>
+      </label>
+      <select
+        value={draft.effect}
+        onChange={(e) => onChange({ effect: e.target.value })}
+        style={{ ...inputStyle, marginBottom: 8 }}
+      >
+        {TEXT_EFFECT_OPTIONS.map((e) => (
+          <option key={e.key} value={e.key}>
+            {e.label}
+          </option>
+        ))}
+      </select>
+      <div
+        style={{
+          border: `1px solid ${C.border}`,
+          borderRadius: 8,
+          padding: "16px 10px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 56,
+          background: C.panel,
+        }}
+      >
+        <TextEffectPreview
+          text={draft.text.trim() || "YOUR DESIGN"}
+          draft={draft}
+          fontSizePx={22}
+        />
+      </div>
+
+      <label style={{ ...fieldLabelStyle, marginTop: 14 }}>Add Note</label>
+      <input
+        value={draft.note}
+        onChange={(e) => onChange({ note: e.target.value })}
+        placeholder="Note for our design team (optional)"
+        style={inputStyle}
+      />
+
+      <button
+        onClick={onAdd}
+        style={{
+          marginTop: 20,
+          width: "100%",
+          padding: "13px 0",
+          borderRadius: 999,
+          border: "none",
+          background: C.ink,
+          color: "#fff",
+          fontWeight: 800,
+          fontSize: 13,
+          cursor: "pointer",
+        }}
+      >
+        Add Text
+      </button>
+    </div>
+  );
+}
+
+function ToggleMiniBtn({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        border: `1px solid ${active ? C.gold : C.border}`,
+        background: active ? C.goldSoft : "#fff",
+        color: C.ink,
+        fontSize: 14,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function AlignIcon({ type }) {
+  const widths =
+    type === "left"
+      ? [16, 11, 14]
+      : type === "center"
+        ? [12, 16, 9]
+        : type === "right"
+          ? [14, 11, 16]
+          : [16, 16, 16];
+  const justify =
+    type === "left"
+      ? "flex-start"
+      : type === "center"
+        ? "center"
+        : type === "right"
+          ? "flex-end"
+          : "flex-start";
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        alignItems: justify,
+      }}
+    >
+      {widths.map((w, i) => (
+        <span
+          key={i}
+          style={{ width: w, height: 2, background: C.ink, display: "block" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Renders text with the chosen style + effect. "Straight" is the true
+// render used on the actual canvas element too. The arc effects are a
+// lightweight CSS approximation (skew) rather than true per-letter
+// curved-baseline text — a nice-to-have upgrade for later if you want
+// pixel-accurate curved text (would need an SVG <textPath>).
+function TextEffectPreview({ text, draft, fontSizePx }) {
+  const baseStyle = {
+    fontFamily: `"${draft.fontFamily}", serif`,
+    color: draft.color,
+    fontWeight: draft.bold ? 700 : 400,
+    fontStyle: draft.italic ? "italic" : "normal",
+    textDecoration: draft.underline ? "underline" : "none",
+    fontSize: fontSizePx,
+    textAlign: draft.align,
+    whiteSpace: "pre-wrap",
+  };
+  if (draft.effect === "arc-up") {
+    return (
+      <span
+        style={{
+          ...baseStyle,
+          display: "inline-block",
+          transform: "skewY(-6deg) scaleY(1.05)",
+        }}
+      >
+        {text}
+      </span>
+    );
+  }
+  if (draft.effect === "arc-down") {
+    return (
+      <span
+        style={{
+          ...baseStyle,
+          display: "inline-block",
+          transform: "skewY(6deg) scaleY(1.05)",
+        }}
+      >
+        {text}
+      </span>
+    );
+  }
+  return <span style={{ ...baseStyle, display: "block" }}>{text}</span>;
+}
+
+// "Add Image" panel — shows the recommended-format hint and a Browse
+// button that opens the existing hidden file input, matching how the
+// reference site's Add Image panel works.
+function ImagePanel({ isUploading, onBrowse, onClose }) {
+  return (
+    <ToolPanelShell title="Add Image" onClose={onClose}>
+      <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+        Recommended format PNG, up to 20MB, 2000×2000px for best print quality.
+      </p>
+      <button
+        onClick={onBrowse}
+        disabled={isUploading}
+        style={{
+          width: "100%",
+          padding: "34px 12px",
+          borderRadius: 12,
+          border: `1.5px dashed ${C.border}`,
+          background: C.panel,
+          color: C.ink,
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: isUploading ? "wait" : "pointer",
+        }}
+      >
+        {isUploading ? "Uploading…" : "Browse Image"}
+      </button>
+    </ToolPanelShell>
+  );
+}
+
+// "Add Art" panel — the reference site has a full clipart-category
+// library here; that catalog isn't wired up on this build yet, so this
+// is an honest placeholder that still lets you upload your own artwork
+// via the same pipeline as Image.
+function ArtPanel({ onBrowse, onClose }) {
+  return (
+    <ToolPanelShell title="Add Art" onClose={onClose}>
+      <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+        The clipart library isn't connected yet — for now you can upload your
+        own artwork the same way as a design image.
+      </p>
+      <button
+        onClick={onBrowse}
+        style={{
+          width: "100%",
+          padding: "34px 12px",
+          borderRadius: 12,
+          border: `1.5px dashed ${C.border}`,
+          background: C.panel,
+          color: C.ink,
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        Upload Artwork
+      </button>
+    </ToolPanelShell>
+  );
+}
+
+// ── Products slide-over: two steps, matching yourdesignstore.in ──
+//
+// Step "products": grid of every garment type (ALL PRODUCTS header,
+// back arrow closes the whole panel).
+// Step "colors": grid of colors for whichever garment was just
+// clicked (CHOOSE COLOR header, back arrow returns to "products").
+// Picking a color calls onSelectColor(garmentKey, colorSlug), which
+// the parent uses to navigate — this component doesn't know about
+// routing itself.
+function ProductsPanel({
+  currentGarmentKey,
+  currentColorSlug,
+  onClose,
+  onSelectColor,
+}) {
+  const [step, setStep] = useState("products"); // "products" | "colors"
+  const [pickedGarment, setPickedGarment] = useState(
+    GARMENT_TYPES.find((g) => g.key === currentGarmentKey) || GARMENT_TYPES[0],
+  );
+
+  const handleBack = () => {
+    if (step === "colors") {
+      setStep("products");
+    } else {
+      onClose();
+    }
+  };
+
+  const handlePickGarment = (g) => {
+    setPickedGarment(g);
+    setStep("colors");
+  };
+
+  return (
+    <div
+      className="cust-productspanel"
+      style={{
+        width: 460,
+        maxWidth: "100%",
+        flexShrink: 0,
+        background: "#fff",
+        borderRight: `1px solid ${C.border}`,
+        padding: "20px 28px 28px",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          marginBottom: 24,
+        }}
+      >
+        <button
+          onClick={handleBack}
+          aria-label="Back"
+          style={{
+            position: "absolute",
+            left: 0,
+            border: "none",
+            background: "none",
+            fontSize: 20,
+            color: C.ink,
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          ←
+        </button>
+        <p
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            color: C.ink,
+            margin: 0,
+          }}
+        >
+          {step === "products" ? "ALL PRODUCTS" : "CHOOSE COLOR"}
+        </p>
+      </div>
+
+      {step === "products" && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 16,
+          }}
+        >
+          {GARMENT_TYPES.map((g) => (
+            <button
+              key={g.key}
+              onClick={() => handlePickGarment(g)}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 10,
+                padding: "16px 10px",
+                borderRadius: 12,
+                border: `1px solid ${
+                  g.key === currentGarmentKey ? C.gold : C.border
+                }`,
+                background: "#fff",
+                cursor: "pointer",
+                transition: "border-color 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = C.gold;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor =
+                  g.key === currentGarmentKey ? C.gold : C.border;
+              }}
+            >
+              <div style={{ width: 70, height: 70 }}>
+                <GarmentVisual
+                  garmentKey={g.key}
+                  colorSlug={g.colors[0]?.slug}
+                  shape={g.shape}
+                  view="front"
+                  color="#F2F2F5"
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: C.ink,
+                  textAlign: "center",
+                  lineHeight: 1.3,
+                }}
+              >
+                {g.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === "colors" && pickedGarment && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 16,
+          }}
+        >
+          {pickedGarment.colors.map((c) => {
+            const isSelected =
+              pickedGarment.key === currentGarmentKey &&
+              c.slug === currentColorSlug;
+            return (
+              <button
+                key={c.slug}
+                onClick={() => onSelectColor(pickedGarment.key, c.slug)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "16px 10px",
+                  borderRadius: 12,
+                  border: `1px solid ${isSelected ? C.gold : C.border}`,
+                  background: "#fff",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = C.gold;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = isSelected
+                    ? C.gold
+                    : C.border;
+                }}
+              >
+                <div style={{ width: 78, height: 90 }}>
+                  <GarmentVisual
+                    garmentKey={pickedGarment.key}
+                    colorSlug={c.slug}
+                    shape={pickedGarment.shape}
+                    view="front"
+                    color={c.hex}
+                  />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
+                  {c.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TutorialsPanel({ onClose }) {
+  const steps = [
+    "How to add Text",
+    "How to upload Image",
+    "How to add Art",
+    "How to resize Art",
+    "How to save your design",
+  ];
+  return (
+    <div
+      style={{
+        width: 280,
+        flexShrink: 0,
+        background: C.bg,
+        borderRight: `1px solid ${C.border}`,
+        padding: 24,
+        overflowY: "auto",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
+        <p style={{ ...sectionLabelStyle, marginBottom: 0 }}>Tutorials</p>
+        <button
+          onClick={onClose}
+          style={{
+            border: "none",
+            background: "none",
+            fontSize: 16,
+            cursor: "pointer",
+            color: C.muted,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {steps.map((s) => (
+          <div
+            key={s}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: `1px solid ${C.border}`,
+              fontSize: 13,
+              color: C.ink,
+            }}
+          >
+            {s}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1023,24 +2167,24 @@ function ToolbarButton({ label, icon, onClick, disabled }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 2,
-        padding: "8px 12px",
-        borderRadius: 10,
+        padding: "6px 10px",
+        borderRadius: 8,
         border: "none",
         background: "none",
-        fontSize: 16,
+        fontSize: 15,
         color: disabled ? "#C9C4B6" : C.ink,
         cursor: disabled ? "not-allowed" : "pointer",
       }}
     >
       <span>{icon}</span>
-      <span style={{ fontSize: 10, color: disabled ? "#C9C4B6" : C.muted }}>
+      <span style={{ fontSize: 9, color: disabled ? "#C9C4B6" : C.muted }}>
         {label}
       </span>
     </button>
   );
 }
 
-function SidebarIcon({ icon, label, onClick }) {
+function SidebarIcon({ icon, label, onClick, badgeBg, active }) {
   return (
     <button
       onClick={onClick}
@@ -1049,14 +2193,28 @@ function SidebarIcon({ icon, label, onClick }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 6,
-        padding: "12px 8px",
+        padding: "10px 8px",
         width: "100%",
         border: "none",
         background: "none",
         cursor: "pointer",
       }}
     >
-      <span style={{ fontSize: 22 }}>{icon}</span>
+      <span
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: badgeBg || C.goldSoft,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 19,
+          boxShadow: active ? `0 0 0 2px ${C.gold}` : "none",
+        }}
+      >
+        {icon}
+      </span>
       <span style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>
         {label}
       </span>
@@ -1093,6 +2251,16 @@ const sectionLabelStyle = {
   marginBottom: 12,
 };
 
+const fieldLabelStyle = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  color: C.muted,
+  marginBottom: 6,
+};
+
 const inputStyle = {
   width: "100%",
   padding: "10px 12px",
@@ -1104,12 +2272,22 @@ const inputStyle = {
 };
 
 const miniBtnStyle = {
-  padding: "6px 12px",
+  padding: "6px 10px",
   borderRadius: 8,
   border: `1px solid ${C.border}`,
   background: "#fff",
   color: C.ink,
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 600,
   cursor: "pointer",
+};
+
+const linkBtnStyle = {
+  border: "none",
+  background: "none",
+  color: C.gold,
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+  padding: 0,
 };
