@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   useParams,
@@ -18,17 +17,20 @@ import {
   reset,
 } from "../redux/slices/customizationSlice";
 import GarmentVisual from "../components/GarmentVisual";
+import ColorPickerPanel from "../components/ColorPickerPanel";
 const C = {
-  bg: "#FFFFFF",
-  panel: "#FAF8F3",
-  ink: "#15130F",
-  muted: "#71695B",
-  border: "#ECE4D2",
-  gold: "#F5A623",
-  goldDeep: "#E08E0B",
-  goldSoft: "#F5A62314",
-  navy: "#1A2A4A",
+  bg: "#FFFCF7",
+  panel: "#F7F2E7",
+  ink: "#1C1A14",
+  muted: "#7A7160",
+  border: "#E6DCC4",
+  gold: "#C9A24B",
+  goldDeep: "#A9822E",
+  goldSoft: "#C9A24B1A",
+  navy: "#20304F",
   danger: "#B3432B",
+  shadow: "0 4px 16px rgba(28,26,20,0.06)",
+  shadowLift: "0 8px 24px rgba(28,26,20,0.10)",
 };
 
 // Matches the "CHOOSE FONT" grid on yourdesignstore.in — these are all
@@ -104,7 +106,19 @@ const VIEW_LABELS = ["FRONT", "BACK", "RIGHT", "LEFT"];
 // as opposed to VIEW_KEYS' front/back/right/left tab order.
 const SPIN_ORDER = ["front", "right", "back", "left"];
 
-const PRINT_AREA = { left: 22, top: 27, width: 56, height: 58 };
+// Named print zones. Each maps to a specific side (front/back/right/left)
+// plus a smaller/larger box on that side. "right"/"left" sleeve reuse the
+// right/left silhouette views; chest positions are small boxes on the
+// front view's upper-left/upper-right.
+const PRINT_POSITIONS = {
+  "front-full":   { side: "front", area: { left: 22, top: 27, width: 56, height: 58 } },
+  "back-full":    { side: "back",  area: { left: 22, top: 27, width: 56, height: 58 } },
+  "left-chest":   { side: "front", area: { left: 24, top: 22, width: 18, height: 18 } },
+  "right-chest":  { side: "front", area: { left: 58, top: 22, width: 18, height: 18 } },
+  "left-sleeve":  { side: "left",  area: { left: 30, top: 30, width: 30, height: 20 } },
+  "right-sleeve": { side: "right", area: { left: 30, top: 30, width: 30, height: 20 } },
+};
+const PRINT_AREA = PRINT_POSITIONS["front-full"].area; // fallback for existing canvas dashed-box render
 
 // Default canvas box the print-canvas measures before ResizeObserver has
 // reported a real size. Without this, fontSizePct * canvasSize.height
@@ -161,6 +175,7 @@ export default function CustomizePage() {
   const [textDraft, setTextDraft] = useState(null);
   const [fontSearch, setFontSearch] = useState("");
   const [fontPage, setFontPage] = useState(1);
+  const [customColors, setCustomColors] = useState([]);
 
   // Tracks whether the *current* drag/resize gesture has actually moved
   // anything yet. History should only be pushed once, the first time a
@@ -350,7 +365,7 @@ export default function CustomizePage() {
   }
 
   // ── Text tool ────────────────────────────────────────────────────
- 
+
   const openTextTool = () => {
     setTextDraft(makeTextDraft());
     setFontSearch("");
@@ -547,13 +562,13 @@ export default function CustomizePage() {
     }
   };
 
-  const handleSave = async () => {
+const handleSave = async () => {
     if (elements.length === 0) return;
     const result = await dispatch(
       saveCustomization({ garmentType: type, color: color.slug, elements }),
     );
     if (saveCustomization.fulfilled.match(result)) {
-      setTimeout(() => navigate("/customize/choose-product"), 1200);
+      setTimeout(() => navigate("/cart"), 1200);
     }
   };
 
@@ -594,6 +609,7 @@ export default function CustomizePage() {
               borderRadius: 999,
               padding: "4px 10px",
               border: `1px solid ${C.border}`,
+              boxShadow: C.shadow,
             }}
           >
             <ToolbarButton
@@ -777,8 +793,23 @@ export default function CustomizePage() {
             draft={textDraft}
             onChange={(patch) => setTextDraft((d) => ({ ...d, ...patch }))}
             onReopenFont={reopenFontChooser}
+            onOpenColorPicker={() => setActivePanel("text-color")}
             onBack={closeTextTool}
             onAdd={confirmAddText}
+          />
+        )}
+        {activePanel === "text-color" && textDraft && (
+          <ColorPickerPanel
+            value={textDraft.color}
+            onChange={(hex) => setTextDraft((d) => ({ ...d, color: hex }))}
+            onBack={() => setActivePanel("text-edit")}
+            customColors={customColors}
+            onAddCustomColor={(hex) =>
+              setCustomColors((prev) =>
+                prev.includes(hex) ? prev : [...prev, hex],
+              )
+            }
+            onRemoveCustomColors={() => setCustomColors([])}
           />
         )}
         {activePanel === "image" && (
@@ -827,8 +858,10 @@ export default function CustomizePage() {
               maxWidth: 560,
               aspectRatio: "4/5",
               background: "#F3F1EC",
-              borderRadius: 16,
+              borderRadius: 20,
               overflow: "hidden",
+              border: `1px solid ${C.border}`,
+              boxShadow: C.shadowLift,
               cursor: viewMode === "3d" ? "grab" : "default",
             }}
           >
@@ -997,9 +1030,12 @@ export default function CustomizePage() {
                     border: isActive
                       ? `2px solid ${C.gold}`
                       : `1px solid ${C.border}`,
+                    boxShadow: isActive ? C.shadow : "none",
                     padding: 6,
                     boxSizing: "border-box",
                     pointerEvents: "none",
+                    transition:
+                      "box-shadow 0.15s ease, border-color 0.15s ease",
                   }}
                 >
                   <GarmentVisual
@@ -1497,7 +1533,14 @@ function FontChooserPanel({
 // italic toggles, a way back into the font chooser, alignment, a text
 // effect selector with a live preview, an internal add-note field, and
 // the "Add Text" button that actually commits the element.
-function TextEditPanel({ draft, onChange, onReopenFont, onBack, onAdd }) {
+function TextEditPanel({
+  draft,
+  onChange,
+  onReopenFont,
+  onOpenColorPicker,
+  onBack,
+  onAdd,
+}) {
   return (
     <div
       className="cust-toolpanel"
@@ -1566,16 +1609,18 @@ function TextEditPanel({ draft, onChange, onReopenFont, onBack, onAdd }) {
         </div>
         <div>
           <label style={fieldLabelStyle}>Color</label>
-          <input
-            type="color"
-            value={draft.color}
-            onChange={(e) => onChange({ color: e.target.value })}
+          <button
+            type="button"
+            onClick={onOpenColorPicker}
+            title="Choose color"
             style={{
               width: 44,
               height: 40,
               border: `1px solid ${C.border}`,
               borderRadius: 8,
               padding: 2,
+              background: draft.color,
+              cursor: "pointer",
             }}
           />
         </div>
@@ -2210,7 +2255,8 @@ function SidebarIcon({ icon, label, onClick, badgeBg, active }) {
           alignItems: "center",
           justifyContent: "center",
           fontSize: 19,
-          boxShadow: active ? `0 0 0 2px ${C.gold}` : "none",
+          boxShadow: active ? `0 0 0 2px ${C.gold}, ${C.shadow}` : C.shadow,
+          transition: "box-shadow 0.15s ease",
         }}
       >
         {icon}

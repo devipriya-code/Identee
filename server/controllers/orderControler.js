@@ -13,6 +13,10 @@ import Counter from "../models/counterModel.js";
 // @desc Create new order
 // @route POST /api/orders
 // @access Private
+// ✅ UPDATED: isPaid / orderStatus now depend on paymentMethod instead of
+// being hardcoded true. For RAZORPAY orders, the frontend only calls this
+// AFTER verifyRazorpayPayment has succeeded, so isPaid: true is safe there.
+// For COD, isPaid stays false until delivery/collection.
 const addorderitems = asyncHandler(async (req, res) => {
   const {
     orderItems,
@@ -25,6 +29,7 @@ const addorderitems = asyncHandler(async (req, res) => {
     totalPrice,
     coupon,
     paymentResult,
+    razorpayOrderId, // ✅ NEW: pass this through from frontend for RAZORPAY orders
   } = req.body;
 
   if (!orderItems || orderItems.length === 0) {
@@ -32,12 +37,22 @@ const addorderitems = asyncHandler(async (req, res) => {
     throw new Error("No order items");
   }
 
+  const isRazorpay = paymentMethod === "RAZORPAY";
+
+  // ✅ Extra safety: if it's a Razorpay order, require a paymentResult with an id.
+  // This stops someone from calling this endpoint directly claiming RAZORPAY
+  // without ever having gone through verifyRazorpayPayment.
+  if (isRazorpay && !paymentResult?.id) {
+    res.status(400);
+    throw new Error("Missing payment confirmation for Razorpay order");
+  }
+
   // ✅ Generate invoice number at order creation time
   const year = new Date().getFullYear();
   const counter = await Counter.findByIdAndUpdate(
     `order-invoice-${year}`,
     { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    { new: true, upsert: true },
   );
   const invoiceNumber = `VF-${year}-${String(counter.seq).padStart(4, "0")}`;
 
@@ -51,7 +66,8 @@ const addorderitems = asyncHandler(async (req, res) => {
     taxPrice,
     shippingPrice,
     totalPrice,
-    invoiceNumber, // ✅ saved immediately on order creation
+    invoiceNumber,
+    razorpayOrderId: razorpayOrderId || null, // ✅ NEW field, add to schema (see note below)
     coupon: coupon
       ? {
           code: coupon.code,
@@ -59,9 +75,10 @@ const addorderitems = asyncHandler(async (req, res) => {
           discountAmount: coupon.discountAmount,
         }
       : null,
-    isPaid: true,
-    paidAt: Date.now(),
-    orderStatus: "CONFIRMED",
+    // ✅ UPDATED — was hardcoded true before
+    isPaid: isRazorpay ? true : false,
+    paidAt: isRazorpay ? Date.now() : undefined,
+    orderStatus: isRazorpay ? "CONFIRMED" : "CREATED",
     paymentResult,
   });
 
@@ -69,12 +86,12 @@ const addorderitems = asyncHandler(async (req, res) => {
   if (coupon?.code) {
     await Offer.findOneAndUpdate(
       { code: coupon.code },
-      { $inc: { usedCount: 1 } }
+      { $inc: { usedCount: 1 } },
     );
   }
   createdOrder = await Order.findById(createdOrder._id).populate(
     "orderItems.product",
-    "images brandname"
+    "images brandname",
   );
 
   await sendEmail({
@@ -88,7 +105,7 @@ const addorderitems = asyncHandler(async (req, res) => {
     if (!product) continue;
 
     const sizeStock = product.productdetails.stockBySize.find(
-      (s) => s.size === item.size
+      (s) => s.size === item.size,
     );
     if (!sizeStock) continue;
 
@@ -343,7 +360,6 @@ const assignOrderToDeliveryPerson = asyncHandler(async (req, res) => {
 // @desc    Generate Invoice
 // @route   GET /api/orders/:id/invoice
 // @access  Private/Admin
-// ✅ No counter logic here — invoice number already saved at order creation
 const generateInvoice = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate("user", "name email")
@@ -369,8 +385,6 @@ const generateInvoice = asyncHandler(async (req, res) => {
     orderItems: orderItemsWithHsn,
     shippingAddress: order.shippingAddress,
     paymentMethod: order.paymentMethod,
-
-    // ✅ coupon at TOP LEVEL — this is what InvoiceScreen reads as invoice.coupon
     coupon: order.coupon
       ? {
           code: order.coupon.code,
@@ -378,14 +392,12 @@ const generateInvoice = asyncHandler(async (req, res) => {
           discountAmount: order.coupon.discountAmount,
         }
       : null,
-
     pricing: {
       cgstPrice: order.cgstPrice,
       sgstPrice: order.sgstPrice,
       taxPrice: order.taxPrice,
       shippingPrice: order.shippingPrice,
       totalPrice: order.totalPrice,
-      // ✅ coupon removed from here
     },
     paymentStatus: {
       isPaid: order.isPaid,
@@ -456,7 +468,7 @@ const getTransactions = asyncHandler(async (req, res) => {
   }
 
   const transactions = await Order.find(query).select(
-    "createdAt paymentMethod isPaid isDelivered totalPrice taxPrice shippingPrice orderItems cgstPrice sgstPrice"
+    "createdAt paymentMethod isPaid isDelivered totalPrice taxPrice shippingPrice orderItems cgstPrice sgstPrice",
   );
 
   res.json(transactions);
@@ -468,6 +480,10 @@ const razorpay = new Razorpay({
 });
 
 // CREATE RAZORPAY ORDER
+// ✅ UPDATED: now supports a direct "Buy Now" single-product flow via
+// req.body.buyNowProductId, in addition to the existing cart flow.
+// In BOTH cases the price is looked up / computed server-side — the client
+// can never dictate the amount that gets charged.
 const createRazorpayOrder = async (req, res) => {
   try {
     let couponCode = null;
@@ -477,23 +493,36 @@ const createRazorpayOrder = async (req, res) => {
     } else if (req.body.couponCode) {
       couponCode = req.body.couponCode.trim();
     }
-
     if (couponCode === "") couponCode = null;
 
     const user = await User.findById(req.user._id);
-
-    if (!user || user.cartItems.length === 0) {
-      return res.status(400).json({ message: "Cart is empty" });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
     }
 
     let subtotal = 0;
-    for (const item of user.cartItems) {
-      if (!item.price) {
-        return res.status(400).json({ message: "Cart item price missing" });
+
+    // ✅ NEW: Buy Now path — trust only the product id + qty, look up price ourselves
+    if (req.body.buyNowProductId) {
+      const qty = Number(req.body.qty) > 0 ? Number(req.body.qty) : 1;
+      const product = await Product.findById(req.body.buyNowProductId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
       }
-      subtotal += item.price;
+      subtotal = parseFloat((product.price * qty).toFixed(2));
+    } else {
+      // Existing cart path
+      if (!user.cartItems || user.cartItems.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
+      }
+      for (const item of user.cartItems) {
+        if (!item.price) {
+          return res.status(400).json({ message: "Cart item price missing" });
+        }
+        subtotal += item.price;
+      }
+      subtotal = parseFloat(subtotal.toFixed(2));
     }
-    subtotal = parseFloat(subtotal.toFixed(2));
 
     const cgstAmount = parseFloat(((subtotal * 2.5) / 100).toFixed(2));
     const sgstAmount = parseFloat(((subtotal * 2.5) / 100).toFixed(2));
@@ -501,20 +530,25 @@ const createRazorpayOrder = async (req, res) => {
 
     const shippingSettings = await ShippingCost.findOne();
     if (!shippingSettings) {
-      return res.status(400).json({ message: "Shipping settings not configured" });
+      return res
+        .status(400)
+        .json({ message: "Shipping settings not configured" });
     }
 
     const defaultAddress =
       user.addresses?.find((addr) => addr.isDefault) || user.addresses?.[0];
 
     if (!defaultAddress || !defaultAddress.state) {
-      return res.status(400).json({ message: "No default address found for shipping" });
+      return res
+        .status(400)
+        .json({ message: "No default address found for shipping" });
     }
 
     const stateRule = shippingSettings.shippingRules.find(
-      (rule) => rule.state === defaultAddress.state
-    );
-
+  (rule) =>
+    rule.state.trim().toLowerCase() ===
+    defaultAddress.state.trim().toLowerCase()
+);
     if (!stateRule) {
       return res.status(400).json({
         message: `Shipping not available for state: ${defaultAddress.state}`,
@@ -546,7 +580,10 @@ const createRazorpayOrder = async (req, res) => {
       }
 
       const rawDiscount = (subtotal * offer.offerPercentage) / 100;
-      discountAmount = Math.min(rawDiscount, subtotal + taxAmount + shippingAmount - 1);
+      discountAmount = Math.min(
+        rawDiscount,
+        subtotal + taxAmount + shippingAmount - 1,
+      );
       discountAmount = parseFloat(discountAmount.toFixed(2));
 
       couponSnapshot = {
@@ -557,7 +594,7 @@ const createRazorpayOrder = async (req, res) => {
     }
 
     const finalAmount = parseFloat(
-      (subtotal + taxAmount + shippingAmount - discountAmount).toFixed(2)
+      (subtotal + taxAmount + shippingAmount - discountAmount).toFixed(2),
     );
 
     if (finalAmount < 1) {
@@ -597,7 +634,14 @@ const createRazorpayOrder = async (req, res) => {
 // VERIFY RAZORPAY PAYMENT
 const verifyRazorpayPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing payment fields" });
+    }
 
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
@@ -612,7 +656,9 @@ const verifyRazorpayPayment = async (req, res) => {
         paymentId: razorpay_payment_id,
       });
     } else {
-      res.status(400).json({ success: false, message: "Invalid payment signature" });
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid payment signature" });
     }
   } catch (error) {
     console.error("❌ Verify Error:", error);
@@ -682,13 +728,24 @@ export const updateOrderStatus = async (req, res) => {
 const getOrderStatusCounts = asyncHandler(async (req, res) => {
   const confirmed = await Order.countDocuments({ orderStatus: "CONFIRMED" });
   const packed = await Order.countDocuments({ orderStatus: "PACKED" });
-  const outForDelivery = await Order.countDocuments({ orderStatus: "OUT_FOR_DELIVERY" });
-  const returnApproved = await Order.countDocuments({ orderStatus: "RETURN_APPROVED" });
-  const returnCompleted = await Order.countDocuments({ orderStatus: "RETURN_COMPLETED" });
+  const outForDelivery = await Order.countDocuments({
+    orderStatus: "OUT_FOR_DELIVERY",
+  });
+  const returnApproved = await Order.countDocuments({
+    orderStatus: "RETURN_APPROVED",
+  });
+  const returnCompleted = await Order.countDocuments({
+    orderStatus: "RETURN_COMPLETED",
+  });
   const delivered = await Order.countDocuments({ orderStatus: "DELIVERED" });
 
   const allOrders =
-    confirmed + packed + outForDelivery + returnApproved + returnCompleted + delivered;
+    confirmed +
+    packed +
+    outForDelivery +
+    returnApproved +
+    returnCompleted +
+    delivered;
 
   res.json({
     allOrders,
@@ -704,11 +761,9 @@ const getOrderStatusCounts = asyncHandler(async (req, res) => {
 // @desc   Create billing invoice
 // @route  POST /api/orders/billinginvoice
 // @access Private/Admin
-// ✅ hsnCode is preserved per item — passed through from frontend as part of items array
 const createBillingInvoice = asyncHandler(async (req, res) => {
   const { logo, from, to, date, items, notes, signature } = req.body;
 
-  // ✅ Normalize each item — preserve hsnCode, default to "6109" if missing
   const normalizedItems = items.map((item) => ({
     description: item.description,
     hsnCode: item.hsnCode || "6109",
@@ -721,15 +776,15 @@ const createBillingInvoice = asyncHandler(async (req, res) => {
 
   const subtotal = normalizedItems.reduce(
     (sum, item) => sum + item.rate * item.qty,
-    0
+    0,
   );
   const cgstTotal = normalizedItems.reduce(
     (sum, item) => sum + ((item.cgst || 0) / 100) * item.rate * item.qty,
-    0
+    0,
   );
   const sgstTotal = normalizedItems.reduce(
     (sum, item) => sum + ((item.sgst || 0) / 100) * item.rate * item.qty,
-    0
+    0,
   );
   const total = subtotal + cgstTotal + sgstTotal;
 
@@ -738,7 +793,7 @@ const createBillingInvoice = asyncHandler(async (req, res) => {
     from,
     to,
     date,
-    items: normalizedItems, // ✅ hsnCode included per item
+    items: normalizedItems,
     subtotal,
     cgstTotal,
     sgstTotal,
@@ -798,6 +853,43 @@ const getIncomeByPincode = asyncHandler(async (req, res) => {
   res.status(200).json(data);
 });
 
+// @desc    Razorpay webhook (payment.captured) — safety net if browser
+// closes before the "handler" callback in checkout fires.
+// @route   POST /api/orders/razorpay/webhook
+// @access  Public (verified via signature, not auth token)
+// ✅ NOTE: requires RAZORPAY_WEBHOOK_SECRET in .env and this route registered
+// with express.raw() body parser (see routes note below), and a
+// `razorpayOrderId` field added to the Order schema (see note below).
+const razorpayWebhook = async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const signature = req.headers["x-razorpay-signature"];
+
+    const shasum = crypto.createHmac("sha256", webhookSecret);
+    shasum.update(req.body); // req.body must be the raw buffer here
+    const digest = shasum.digest("hex");
+
+    if (digest !== signature) {
+      return res.status(400).json({ message: "Invalid webhook signature" });
+    }
+
+    const payload = JSON.parse(req.body.toString());
+
+    if (payload.event === "payment.captured") {
+      const orderId = payload.payload.payment.entity.order_id;
+      await Order.findOneAndUpdate(
+        { razorpayOrderId: orderId },
+        { isPaid: true, paidAt: Date.now(), orderStatus: "CONFIRMED" },
+      );
+    }
+
+    res.json({ status: "ok" });
+  } catch (error) {
+    console.error("❌ Webhook Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export {
   addorderitems,
   getOrderById,
@@ -822,4 +914,5 @@ export {
   createRazorpayOrder,
   verifyRazorpayPayment,
   getIncomeByPincode,
+  razorpayWebhook,
 };

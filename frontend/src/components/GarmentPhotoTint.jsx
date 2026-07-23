@@ -1,9 +1,30 @@
-
-
 import { useRef, useEffect, useState } from "react";
 import GarmentSilhouette from "./GarmentSilhouette";
 
-const BG_THRESHOLD = 235; // pixels lighter than this (background) are left transparent
+// Base garment photos — imported so Vite bundles them and gives us a
+// real, working URL (fetching "/garments/base/..." as a plain string
+// only works if the file sits in /public, which these don't).
+import frontTee from "../assets/frontee.png";
+import backTee from "../assets/backtee.png";
+import leftTee from "../assets/lefttee.png";
+import rightTee from "../assets/righttee.png";
+
+// Add a row here every time you shoot a new shape/view. Anything not
+// listed falls back to the drawn SVG silhouette automatically.
+const GARMENT_PHOTOS = {
+  tee: { front: frontTee, back: backTee, left: leftTee, right: rightTee },
+  "tee-oversized": {
+    front: frontTee,
+    back: backTee,
+    left: leftTee,
+    right: rightTee,
+  },
+};
+
+const BG_THRESHOLD = 245; // pixels lighter than this (background) are left transparent
+// IMPORTANT: photograph the garment in LIGHT GREY, not pure white.
+// A white garment would also fall above this threshold and get erased
+// along with the background — grey stays below it and tints correctly.
 
 function hexToRgb(hex) {
   const h = hex.replace("#", "");
@@ -57,11 +78,18 @@ export default function GarmentPhotoTint({
   const canvasRef = useRef(null);
   const [status, setStatus] = useState("loading"); // loading | ok | error
 
+  const photoSrc = GARMENT_PHOTOS[shape]?.[view];
+
   useEffect(() => {
+    if (!photoSrc) {
+      // haven't shot/uploaded a base photo for this shape+view yet
+      setStatus("error");
+      return;
+    }
+
     setStatus("loading");
     const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = `/garments/base/${shape}-${view}.jpg`;
+    img.src = photoSrc;
 
     img.onload = () => {
       if (canvasRef.current) {
@@ -70,10 +98,9 @@ export default function GarmentPhotoTint({
       }
     };
     img.onerror = () => setStatus("error");
-  }, [shape, view, color]);
+  }, [photoSrc, color]);
 
   if (status === "error") {
-    // haven't shot/uploaded a base photo for this shape+view yet
     return <GarmentSilhouette shape={shape} view={view} color={color} />;
   }
 
