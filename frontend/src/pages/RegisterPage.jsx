@@ -104,7 +104,17 @@ export default function RegisterPage() {
     if (!validateStep2()) return;
     setLoading(true);
     try {
-      // registerUser already validates the OTP internally — no separate verify call needed
+      // Step 1: verify the OTP first (registerUser requires isEmailVerified = true)
+      const verifyRes = await fetch(`${API}/api/users/verifyOtp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), otp: otp.trim() }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok)
+        throw new Error(verifyData.message || "OTP verification failed");
+
+      // Step 2: register the user
       const res = await fetch(`${API}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

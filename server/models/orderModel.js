@@ -101,6 +101,7 @@ const orderSchema = mongoose.Schema(
       update_time: { type: String },
       email_adress: { type: String },
     },
+    razorpayOrderId: { type: String, default: null },
     shippingRates: { type: [shippingRateSchema], default: [] },
 
     cgstPrice: { type: Number, default: 0 },   // ✅ ADDED
