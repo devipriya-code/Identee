@@ -1,20 +1,9 @@
-// pages/ChooseColorPage.jsx
-//
-// Route: <Route path="/customize/choose-color/:type" element={<ChooseColorPage />} />
-//
-// Step 2 — restyled to match yourdesignstore.in's /products/chooseColor/:type
-// screen exactly:
-//   - Centered page title "CHOOSE COLOR" in deep indigo
-//   - Black pill "CHANGE PRODUCT" button floated top-right, independent
-//     of the centered title (not the same flex row — the reference site
-//     keeps the title centered on the page and the button pinned to the
-//     top-right corner of the content area)
-//   - Borderless swatch grid: garment image + lowercase color name
-//     centered underneath, no card background/border
-
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { getGarmentType } from "../data/garmentCatalog";
-import GarmentSilhouette from "../components/GarmentSilhouette";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchGarmentTypes } from "../redux/slices/garmentTypeSlice";
+import { fetchAllGarmentImages } from "../redux/slices/garmentImageSlice";
+import GarmentVisual from "../components/GarmentVisual";
 
 const C = {
   bg: "#FFFFFF",
@@ -27,18 +16,36 @@ const C = {
 export default function ChooseColorPage() {
   const { type } = useParams();
   const navigate = useNavigate();
-  const garment = getGarmentType(type);
+  const dispatch = useDispatch();
+  const { items: garmentTypes } = useSelector((s) => s.garmentType);
+  const { items: garmentImages, isLoading } = useSelector(
+    (s) => s.garmentImage,
+  );
 
-  if (!garment) {
+  useEffect(() => {
+    dispatch(fetchGarmentTypes());
+    dispatch(fetchAllGarmentImages());
+  }, [dispatch]);
+
+  const garment = garmentTypes.find((g) => g.key === type);
+
+  // every uploaded color-photo-set for this garment = the available colors
+  const colors = garmentImages
+    .filter((d) => d.garmentType === type)
+    .map((d) => ({ slug: d.colorSlug, name: d.colorName, hex: d.colorHex }));
+
+  if (!isLoading && !garment) {
     return (
       <div style={{ padding: 60, textAlign: "center", color: C.muted }}>
-        We couldn't find that pattern.{" "}
+        We couldn't find that product.{" "}
         <Link to="/customize/choose-product" style={{ color: C.title }}>
-          Choose a pattern
+          Choose a product
         </Link>
       </div>
     );
   }
+
+  if (!garment) return null;
 
   return (
     <div
@@ -64,7 +71,6 @@ export default function ChooseColorPage() {
             fontWeight: 700,
             letterSpacing: "0.06em",
             cursor: "pointer",
-            whiteSpace: "nowrap",
           }}
         >
           CHANGE PRODUCT
@@ -77,11 +83,16 @@ export default function ChooseColorPage() {
             color: C.title,
             textAlign: "center",
             margin: "0 0 48px",
-            letterSpacing: "0.01em",
           }}
         >
           CHOOSE COLOR
         </h1>
+
+        {colors.length === 0 && (
+          <p style={{ textAlign: "center", color: C.muted }}>
+            No colors uploaded for this product yet.
+          </p>
+        )}
 
         <div
           style={{
@@ -91,7 +102,7 @@ export default function ChooseColorPage() {
             rowGap: 40,
           }}
         >
-          {garment.colors.map((color) => (
+          {colors.map((color) => (
             <button
               key={color.slug}
               onClick={() =>
@@ -125,10 +136,10 @@ export default function ChooseColorPage() {
                 }}
               >
                 <div style={{ width: "78%", height: "78%" }}>
-                  <GarmentSilhouette
-                    shape={garment.shape}
+                  <GarmentVisual
+                    garmentKey={garment.key}
+                    colorSlug={color.slug}
                     view="front"
-                    color={color.hex}
                   />
                 </div>
               </div>

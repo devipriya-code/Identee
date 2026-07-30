@@ -1,12 +1,16 @@
-
-
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useSelector } from "react-redux";
-import {
-  garmentStyleToKey,
-  colorNameToSlug,
-} from "../../../server/utils/customizerMapping"; // ← adjust this path only if utils/ lives elsewhere relative to pages/
+import { useDispatch, useSelector } from "react-redux";
+import { fetchGarmentTypes } from "../redux/slices/garmentTypeSlice";
+import { fetchAllGarmentImages } from "../redux/slices/garmentImageSlice";
+
+function slugify(str) {
+  return (str || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -57,7 +61,15 @@ const SIZE_ORDER = ["S", "M", "L", "XL", "XXL"];
 export default function SingleProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
+  const { items: garmentTypes } = useSelector((s) => s.garmentType);
+  const { items: garmentImages } = useSelector((s) => s.garmentImage);
+
+  useEffect(() => {
+    dispatch(fetchGarmentTypes());
+    dispatch(fetchAllGarmentImages());
+  }, [dispatch]);
 
   const { data, isLoading, error } = useSWRProduct(id);
 
@@ -139,16 +151,51 @@ export default function SingleProductPage() {
   // theme.js's SIZE_CHARTS + admin-entered color names) onto the
   // customizer's static catalog key/slug, then navigates there.
   const handleCustomize = () => {
-    const key = garmentStyleToKey(activeVariant.productdetails?.garmentStyle);
-    if (!key) {
+    const garmentStyle = activeVariant.productdetails?.garmentStyle;
+    const matchedGarment = garmentTypes.find(
+      (g) => g.category === garmentStyle,
+    );
+
+    console.log("DEBUG — product garmentStyle:", JSON.stringify(garmentStyle));
+    console.log(
+      "DEBUG — available garmentTypes:",
+      garmentTypes.map((g) => ({ key: g.key, category: g.category })),
+    );
+    console.log("DEBUG — matchedGarment:", matchedGarment);
+    console.log(
+      "DEBUG — product color:",
+      JSON.stringify(activeVariant.productdetails?.color),
+    );
+    console.log(
+      "DEBUG — garmentImages available:",
+      garmentImages.map((d) => ({
+        garmentType: d.garmentType,
+        colorSlug: d.colorSlug,
+      })),
+    );
+
+    if (!matchedGarment) {
       setCartMsg({
         type: "error",
         text: "This product style isn't available in the customizer yet.",
       });
       return;
     }
-    const colorSlug = colorNameToSlug(activeVariant.productdetails?.color);
-    navigate(`/customize/${key}?color=${colorSlug}`);
+
+    const colorSlug = slugify(activeVariant.productdetails?.color);
+    const hasPhotos = garmentImages.some(
+      (d) => d.garmentType === matchedGarment.key && d.colorSlug === colorSlug,
+    );
+
+    if (!hasPhotos) {
+      setCartMsg({
+        type: "error",
+        text: "This color isn't set up in the customizer yet.",
+      });
+      return;
+    }
+
+    navigate(`/customize/${matchedGarment.key}?color=${colorSlug}`);
   };
 
   const LENS_SIZE = 160; // px, matches lens box width/height below

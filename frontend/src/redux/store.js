@@ -7,6 +7,11 @@ import customizationReducer from "./slices/customizationSlice";
 import userManagementReducer from "./slices/userManagementSlice";
 import orderReducer from "./slices/orderSlice";
 import cartWishlistReducer from "./slices/cartWishlistSlice";
+import garmentImageReducer from "./slices/garmentImageSlice";
+import garmentTypeReducer from "./slices/garmentTypeSlice";
+import artCategoryReducer from "./slices/artCategorySlice";
+import artDesignReducer from "./slices/artDesignSlice";
+import shippingReducer from "./slices/shippingSlice";
 
 export const store = configureStore({
   reducer: {
@@ -17,7 +22,12 @@ export const store = configureStore({
     customization: customizationReducer,
     userManagement: userManagementReducer,
     orders: orderReducer,
+    shipping: shippingReducer,
+    artCategory: artCategoryReducer,
+    artDesign: artDesignReducer,
     cartWishlist: cartWishlistReducer,
+    garmentImage: garmentImageReducer,
+    garmentType: garmentTypeReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

@@ -38,6 +38,42 @@ const NAV_GROUPS = [
         label: "Products",
       },
       {
+        to: "/admin/garment-photos",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm2 3a1 1 0 100 2 1 1 0 000-2zm10 7H4l3-4 2 2 3-4 4 6z" />
+          </svg>
+        ),
+        label: "Garment Photos",
+      },
+      {
+        to: "/admin/garment-types",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4z" />
+          </svg>
+        ),
+        label: "Garment Types",
+      },
+      {
+        to: "/admin/art-categories",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M4 4h12v12H4z" />
+          </svg>
+        ),
+        label: "Art Categories",
+      },
+      {
+        to: "/admin/art-designs",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M4 4h12v12H4z" />
+          </svg>
+        ),
+        label: "Art Designs",
+      },
+      {
         to: "/admin/upload-product",
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
