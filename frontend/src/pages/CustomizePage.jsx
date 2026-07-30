@@ -6,18 +6,22 @@ import {
   Link,
 } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  GARMENT_TYPES,
-  getGarmentType,
-  getGarmentColor,
-} from "../data/garmentCatalog";
+import { fetchGarmentTypes } from "../redux/slices/garmentTypeSlice";
+
+import { getShowcase } from "../redux/slices/categoryBannerSlice";
+
 import {
   uploadDesignImage,
   saveCustomization,
   reset,
 } from "../redux/slices/customizationSlice";
+import { fetchAllGarmentImages } from "../redux/slices/garmentImageSlice";
+import { fetchArtCategories } from "../redux/slices/artCategorySlice";
+import { fetchArtDesigns } from "../redux/slices/artDesignSlice";
 import GarmentVisual from "../components/GarmentVisual";
 import ColorPickerPanel from "../components/ColorPickerPanel";
+import Garment3DViewer from "../components/Garment3DViewer";
+import tshirtModel from "../assets/models/tshirt.glb";
 const C = {
   bg: "#FFFCF7",
   panel: "#F7F2E7",
@@ -111,12 +115,30 @@ const SPIN_ORDER = ["front", "right", "back", "left"];
 // right/left silhouette views; chest positions are small boxes on the
 // front view's upper-left/upper-right.
 const PRINT_POSITIONS = {
-  "front-full":   { side: "front", area: { left: 22, top: 27, width: 56, height: 58 } },
-  "back-full":    { side: "back",  area: { left: 22, top: 27, width: 56, height: 58 } },
-  "left-chest":   { side: "front", area: { left: 24, top: 22, width: 18, height: 18 } },
-  "right-chest":  { side: "front", area: { left: 58, top: 22, width: 18, height: 18 } },
-  "left-sleeve":  { side: "left",  area: { left: 30, top: 30, width: 30, height: 20 } },
-  "right-sleeve": { side: "right", area: { left: 30, top: 30, width: 30, height: 20 } },
+  "front-full": {
+    side: "front",
+    area: { left: 22, top: 27, width: 56, height: 58 },
+  },
+  "back-full": {
+    side: "back",
+    area: { left: 22, top: 27, width: 56, height: 58 },
+  },
+  "left-chest": {
+    side: "front",
+    area: { left: 24, top: 22, width: 18, height: 18 },
+  },
+  "right-chest": {
+    side: "front",
+    area: { left: 58, top: 22, width: 18, height: 18 },
+  },
+  "left-sleeve": {
+    side: "left",
+    area: { left: 30, top: 30, width: 30, height: 20 },
+  },
+  "right-sleeve": {
+    side: "right",
+    area: { left: 30, top: 30, width: 30, height: 20 },
+  },
 };
 const PRINT_AREA = PRINT_POSITIONS["front-full"].area; // fallback for existing canvas dashed-box render
 
@@ -149,9 +171,18 @@ export default function CustomizePage() {
   const { isUploading, isSaving, isSuccess, isError, message } = useSelector(
     (s) => s.customization,
   );
+  const { items: garmentTypes } = useSelector((s) => s.garmentType);
+  const { items: garmentImages } = useSelector((s) => s.garmentImage);
+  const { items: artCategories } = useSelector((s) => s.artCategory);
+  const { items: artDesigns } = useSelector((s) => s.artDesign);
 
-  const garment = getGarmentType(type);
-  const color = getGarmentColor(garment, colorSlug);
+  const garment = garmentTypes.find((g) => g.key === type);
+  const colorDoc = garmentImages.find(
+    (d) => d.garmentType === type && d.colorSlug === colorSlug,
+  );
+  const color = colorDoc
+    ? { slug: colorSlug, name: colorDoc.colorName, hex: colorDoc.colorHex }
+    : null;
 
   const [elements, setElements] = useState([]);
   const [history, setHistory] = useState([]);
@@ -163,6 +194,7 @@ export default function CustomizePage() {
 
   const [viewMode, setViewMode] = useState("flat"); // "flat" | "3d"
   const [activeView, setActiveView] = useState(0);
+  const [spinFloat, setSpinFloat] = useState(0); // continuous position along SPIN_ORDER, for smooth blending
   const spinDrag = useRef(null);
 
   // "products" | "tutorials" | "text-font" | "text-edit" | "image" | "art" | null
@@ -190,9 +222,32 @@ export default function CustomizePage() {
     return () => dispatch(reset());
   }, [dispatch]);
 
+  useEffect(() => {
+    dispatch(fetchGarmentTypes());
+    dispatch(fetchAllGarmentImages());
+    dispatch(getShowcase()); // 🔄 changed
+    dispatch(fetchArtCategories());
+  }, [dispatch]);
+
   const currentSide = VIEW_KEYS[Math.min(activeView, VIEW_KEYS.length - 1)];
   const visibleElements = elements.filter((el) => el.side === currentSide);
   const selectedEl = visibleElements.find((el) => el.id === selectedId);
+
+  // Sum of every Art design price currently placed anywhere on the
+  // garment (front/back/left/right combined) — this is what the
+  // customer pays on top of the base garment price.
+  const artAddOnTotal = elements.reduce(
+    (sum, el) => sum + (el.artPrice || 0),
+    0,
+  );
+
+  // Which two sides are currently blending in 3D spin mode, and how far
+  // between them we are (0 = fully on lowerSide, 1 = fully on upperSide).
+  const spinLowerIdx = Math.floor(spinFloat) % SPIN_ORDER.length;
+  const spinUpperIdx = (spinLowerIdx + 1) % SPIN_ORDER.length;
+  const spinFrac = spinFloat - Math.floor(spinFloat);
+  const spinLowerSide = SPIN_ORDER[spinLowerIdx];
+  const spinUpperSide = SPIN_ORDER[spinUpperIdx];
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -322,19 +377,24 @@ export default function CustomizePage() {
   // views.
   const handleSpinMouseDown = (e) => {
     if (viewMode !== "3d") return;
-    const currentSpinIndex = SPIN_ORDER.indexOf(currentSide);
-    spinDrag.current = { startX: e.clientX, startSpinIndex: currentSpinIndex };
+    spinDrag.current = { startX: e.clientX, startSpinFloat: spinFloat };
   };
 
   const handleSpinMouseMove = useCallback(
     (e) => {
       if (viewMode !== "3d" || !spinDrag.current) return;
       const dx = e.clientX - spinDrag.current.startX;
-      const step = Math.round(dx / 60);
-      let next = (spinDrag.current.startSpinIndex + step) % SPIN_ORDER.length;
-      if (next < 0) next += SPIN_ORDER.length;
-      const side = SPIN_ORDER[next];
-      setActiveView(VIEW_KEYS.indexOf(side));
+      const PIXELS_PER_STEP = 90; // drag this far (px) to cross fully from one photo to the next
+      let next = spinDrag.current.startSpinFloat + dx / PIXELS_PER_STEP;
+      next =
+        ((next % SPIN_ORDER.length) + SPIN_ORDER.length) % SPIN_ORDER.length;
+      setSpinFloat(next);
+      const nearestIdx = Math.round(next) % SPIN_ORDER.length;
+      const side = SPIN_ORDER[nearestIdx];
+      setActiveView((prev) => {
+        const idx = VIEW_KEYS.indexOf(side);
+        return idx === prev ? prev : idx;
+      });
     },
     [viewMode],
   );
@@ -350,6 +410,25 @@ export default function CustomizePage() {
       window.removeEventListener("mouseup", handleUp);
     };
   }, [handleSpinMouseMove]);
+  // Auto-rotate while in 3D mode — pauses whenever the user is dragging
+  // (spinDrag.current is set), resumes automatically on mouse-up.
+  useEffect(() => {
+    if (viewMode !== "3d") return;
+    const interval = setInterval(() => {
+      if (spinDrag.current) return; // user is actively dragging — don't fight them
+      setSpinFloat((prev) => {
+        const next = (prev + 0.012) % SPIN_ORDER.length;
+        const nearestIdx = Math.round(next) % SPIN_ORDER.length;
+        const side = SPIN_ORDER[nearestIdx];
+        setActiveView((p) => {
+          const idx = VIEW_KEYS.indexOf(side);
+          return idx === p ? p : idx;
+        });
+        return next;
+      });
+    }, 30);
+    return () => clearInterval(interval);
+  }, [viewMode]);
 
   if (!garment || !color) {
     return (
@@ -465,6 +544,27 @@ export default function CustomizePage() {
     }
   };
 
+  const handleSelectArtDesign = (design) => {
+    pushHistoryNow();
+    const newEl = {
+      id: makeId(),
+      type: "image",
+      side: currentSide,
+      src: design.imageUrl, // already a full backend-hosted path
+      artDesignId: design._id, // kept for price lookup at checkout time
+      artPrice: design.price,
+      x: 30,
+      y: 30,
+      width: 35,
+      height: 35,
+      rotation: 0,
+      zIndex: elements.length,
+    };
+    setElements((prev) => [...prev, newEl]);
+    setSelectedId(newEl.id);
+    setActivePanel(null);
+  };
+
   const handleElementMouseDown = (el, e) => {
     e.stopPropagation();
     setSelectedId(el.id);
@@ -491,6 +591,95 @@ export default function CustomizePage() {
     });
   };
 
+  // Renders one side's design elements (text/image) at a given opacity.
+  // In flat/edit mode (interactive=true) they're draggable/selectable; in
+  // 3D spin mode (interactive=false) they're just visual, crossfading
+  // along with the garment photo underneath — so text/art placed on
+  // front and back both fade in/out smoothly as the garment "rotates".
+  const renderSideElements = (sideElements, opacity, interactive) =>
+    sideElements
+      .slice()
+      .sort((a, b) => a.zIndex - b.zIndex)
+      .map((el) => (
+        <div
+          key={el.id}
+          onMouseDown={
+            interactive ? (e) => handleElementMouseDown(el, e) : undefined
+          }
+          style={{
+            position: "absolute",
+            left: `${el.x}%`,
+            top: `${el.y}%`,
+            width: `${el.width}%`,
+            height: el.type === "image" ? `${el.height}%` : "auto",
+            transform: `rotate(${el.rotation}deg)`,
+            transformOrigin: "center",
+            cursor: interactive ? "move" : "default",
+            outline:
+              interactive && selectedId === el.id
+                ? `2px dashed ${C.gold}`
+                : "none",
+            outlineOffset: 2,
+            userSelect: "none",
+            opacity,
+            pointerEvents: interactive ? "auto" : "none",
+          }}
+        >
+          {el.type === "image" ? (
+            <img
+              src={imgUrl(el.src, BACKEND_URL)}
+              alt=""
+              draggable={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                pointerEvents: "none",
+              }}
+            />
+          ) : (
+            <span
+              style={{
+                display: "block",
+                fontFamily: `"${el.fontFamily}", serif`,
+                fontSize: `${(el.fontSizePct / 100) * canvasSize.height}px`,
+                color: el.color,
+                fontWeight: el.bold ? 700 : 400,
+                fontStyle: el.italic ? "italic" : "normal",
+                textDecoration: el.underline ? "underline" : "none",
+                textAlign: el.align || "left",
+                whiteSpace: "pre-wrap",
+                pointerEvents: "none",
+                transform:
+                  el.effect === "arc-up"
+                    ? "skewY(-6deg) scaleY(1.05)"
+                    : el.effect === "arc-down"
+                      ? "skewY(6deg) scaleY(1.05)"
+                      : "none",
+              }}
+            >
+              {el.text}
+            </span>
+          )}
+
+          {interactive && selectedId === el.id && (
+            <div
+              onMouseDown={(e) => handleResizeMouseDown(el, e)}
+              style={{
+                position: "absolute",
+                right: -7,
+                bottom: -7,
+                width: 14,
+                height: 14,
+                borderRadius: "50%",
+                background: C.gold,
+                border: "2px solid #fff",
+                cursor: "nwse-resize",
+              }}
+            />
+          )}
+        </div>
+      ));
   const updateSelected = (patch) => {
     setElements((prev) =>
       prev.map((el) => (el.id === selectedId ? { ...el, ...patch } : el)),
@@ -562,7 +751,7 @@ export default function CustomizePage() {
     }
   };
 
-const handleSave = async () => {
+  const handleSave = async () => {
     if (elements.length === 0) return;
     const result = await dispatch(
       saveCustomization({ garmentType: type, color: color.slug, elements }),
@@ -653,6 +842,23 @@ const handleSave = async () => {
           >
             Tutorials
           </button>
+
+          {artAddOnTotal > 0 && (
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: C.ink,
+                background: C.panel,
+                border: `1px solid ${C.border}`,
+                borderRadius: 999,
+                padding: "8px 14px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Add-ons: +₹{artAddOnTotal}
+            </span>
+          )}
 
           <button
             onClick={handleSave}
@@ -764,6 +970,8 @@ const handleSave = async () => {
           <ProductsPanel
             currentGarmentKey={garment.key}
             currentColorSlug={color.slug}
+            garmentTypes={garmentTypes}
+            garmentImages={garmentImages}
             onClose={() => setActivePanel(null)}
             onSelectColor={(garmentKey, colorSlug) => {
               navigate(`/customize/${garmentKey}?color=${colorSlug}`);
@@ -821,7 +1029,13 @@ const handleSave = async () => {
         )}
         {activePanel === "art" && (
           <ArtPanel
-            onBrowse={() => artInputRef.current?.click()}
+            categories={artCategories}
+            designs={artDesigns}
+            onOpenCategory={(categoryId) =>
+              dispatch(fetchArtDesigns(categoryId))
+            }
+            onSelectDesign={handleSelectArtDesign}
+            onBrowseUpload={() => artInputRef.current?.click()}
             onClose={() => setActivePanel(null)}
           />
         )}
@@ -872,105 +1086,40 @@ const handleSave = async () => {
                 pointerEvents: "none",
               }}
             >
-              <GarmentVisual
-                garmentKey={garment.key}
-                colorSlug={color.slug}
-                shape={garment.shape}
-                view={currentSide}
-                color={color.hex}
-              />
+              {viewMode === "3d" ? (
+                <Garment3DViewer
+                  color={color.hex}
+                  frontElements={elements.filter((el) => el.side === "front")}
+                  backElements={elements.filter((el) => el.side === "back")}
+                  modelPath={tshirtModel}
+                  backendUrl={BACKEND_URL}
+                />
+              ) : (
+                <CrossfadeGarment
+                  garmentKey={garment.key}
+                  colorSlug={color.slug}
+                  view={currentSide}
+                />
+              )}
             </div>
 
-            <div
-              style={{
-                position: "absolute",
-                left: `${PRINT_AREA.left}%`,
-                top: `${PRINT_AREA.top}%`,
-                width: `${PRINT_AREA.width}%`,
-                height: `${PRINT_AREA.height}%`,
-                border: `1.5px dashed ${C.gold}`,
-                borderRadius: 6,
-                pointerEvents: "none",
-              }}
-            />
+            {viewMode === "flat" && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: `${PRINT_AREA.left}%`,
+                  top: `${PRINT_AREA.top}%`,
+                  width: `${PRINT_AREA.width}%`,
+                  height: `${PRINT_AREA.height}%`,
+                  border: `1.5px dashed ${C.gold}`,
+                  borderRadius: 6,
+                  pointerEvents: "none",
+                }}
+              />
+            )}
 
-            {visibleElements
-              .slice()
-              .sort((a, b) => a.zIndex - b.zIndex)
-              .map((el) => (
-                <div
-                  key={el.id}
-                  onMouseDown={(e) => handleElementMouseDown(el, e)}
-                  style={{
-                    position: "absolute",
-                    left: `${el.x}%`,
-                    top: `${el.y}%`,
-                    width: `${el.width}%`,
-                    height: el.type === "image" ? `${el.height}%` : "auto",
-                    transform: `rotate(${el.rotation}deg)`,
-                    transformOrigin: "center",
-                    cursor: "move",
-                    outline:
-                      selectedId === el.id ? `2px dashed ${C.gold}` : "none",
-                    outlineOffset: 2,
-                    userSelect: "none",
-                  }}
-                >
-                  {el.type === "image" ? (
-                    <img
-                      src={imgUrl(el.src, BACKEND_URL)}
-                      alt=""
-                      draggable={false}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        pointerEvents: "none",
-                      }}
-                    />
-                  ) : (
-                    <span
-                      style={{
-                        display: "block",
-                        fontFamily: `"${el.fontFamily}", serif`,
-                        fontSize: `${(el.fontSizePct / 100) * canvasSize.height}px`,
-                        color: el.color,
-                        fontWeight: el.bold ? 700 : 400,
-                        fontStyle: el.italic ? "italic" : "normal",
-                        textDecoration: el.underline ? "underline" : "none",
-                        textAlign: el.align || "left",
-                        whiteSpace: "pre-wrap",
-                        pointerEvents: "none",
-                        transform:
-                          el.effect === "arc-up"
-                            ? "skewY(-6deg) scaleY(1.05)"
-                            : el.effect === "arc-down"
-                              ? "skewY(6deg) scaleY(1.05)"
-                              : "none",
-                      }}
-                    >
-                      {el.text}
-                    </span>
-                  )}
-
-                  {selectedId === el.id && (
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(el, e)}
-                      style={{
-                        position: "absolute",
-                        right: -7,
-                        bottom: -7,
-                        width: 14,
-                        height: 14,
-                        borderRadius: "50%",
-                        background: C.gold,
-                        border: "2px solid #fff",
-                        cursor: "nwse-resize",
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
+            {viewMode === "flat" &&
+              renderSideElements(visibleElements, 1, true)}
           </div>
 
           {viewMode === "3d" && (
@@ -1041,9 +1190,7 @@ const handleSave = async () => {
                   <GarmentVisual
                     garmentKey={garment.key}
                     colorSlug={color.slug}
-                    shape={garment.shape}
                     view={VIEW_KEYS[i]}
-                    color={color.hex}
                   />
                 </div>
                 {count > 0 && (
@@ -1084,7 +1231,10 @@ const handleSave = async () => {
           })}
 
           <button
-            onClick={() => setViewMode("3d")}
+            onClick={() => {
+              setSpinFloat(SPIN_ORDER.indexOf(currentSide));
+              setViewMode("3d");
+            }}
             style={{
               marginTop: 4,
               padding: "10px 18px",
@@ -1261,7 +1411,86 @@ const handleSave = async () => {
     </StudioShell>
   );
 }
+// Smoothly fades between garment view photos instead of an abrupt swap —
+// used in 3D spin mode so switching front/right/back/left doesn't jump.
+function CrossfadeGarment({ garmentKey, colorSlug, view }) {
+  const [current, setCurrent] = useState(view);
+  const [incoming, setIncoming] = useState(null);
+  const [fadeIn, setFadeIn] = useState(false);
 
+  useEffect(() => {
+    if (view === current) return;
+    setIncoming(view);
+    setFadeIn(false);
+    const raf = requestAnimationFrame(() => setFadeIn(true));
+    const timer = setTimeout(() => {
+      setCurrent(view);
+      setIncoming(null);
+      setFadeIn(false);
+    }, 220);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div style={{ position: "absolute", inset: 0 }}>
+        <GarmentVisual
+          garmentKey={garmentKey}
+          colorSlug={colorSlug}
+          view={current}
+        />
+      </div>
+      {incoming && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: fadeIn ? 1 : 0,
+            transition: "opacity 0.22s ease",
+          }}
+        >
+          <GarmentVisual
+            garmentKey={garmentKey}
+            colorSlug={colorSlug}
+            view={incoming}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Continuous crossfade between the two nearest of the 4 view photos,
+// driven by a fractional "spinFloat" position — this is what makes the
+// drag feel like a smooth scrub instead of 4 discrete jumps.
+function Spin360Blend({ garmentKey, colorSlug, spinFloat }) {
+  const lowerIdx = Math.floor(spinFloat) % SPIN_ORDER.length;
+  const upperIdx = (lowerIdx + 1) % SPIN_ORDER.length;
+  const frac = spinFloat - Math.floor(spinFloat);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div style={{ position: "absolute", inset: 0, opacity: 1 - frac }}>
+        <GarmentVisual
+          garmentKey={garmentKey}
+          colorSlug={colorSlug}
+          view={SPIN_ORDER[lowerIdx]}
+        />
+      </div>
+      <div style={{ position: "absolute", inset: 0, opacity: frac }}>
+        <GarmentVisual
+          garmentKey={garmentKey}
+          colorSlug={colorSlug}
+          view={SPIN_ORDER[upperIdx]}
+        />
+      </div>
+    </div>
+  );
+}
 function Logo() {
   return (
     <Link
@@ -1269,39 +1498,19 @@ function Logo() {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 10,
+        gap: 8,
         textDecoration: "none",
+        color: C.ink,
+        padding: "8px 14px 8px 10px",
+        borderRadius: 999,
+        border: `1px solid ${C.border}`,
+        transition: "background 0.15s ease",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = C.panel)}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <span
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 8,
-          background: `linear-gradient(135deg, ${C.navy}, ${C.gold})`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontWeight: 800,
-          fontSize: 16,
-        }}
-      >
-        Y
-      </span>
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 800,
-          letterSpacing: "0.02em",
-          color: C.navy,
-          lineHeight: 1.15,
-        }}
-      >
-        YOUR
-        <br />
-        DESIGN STORE
-      </span>
+      <span style={{ fontSize: 16, lineHeight: 1 }}>←</span>
+      <span style={{ fontSize: 13, fontWeight: 600 }}>Back to Shop</span>
     </Link>
   );
 }
@@ -1882,30 +2091,226 @@ function ImagePanel({ isUploading, onBrowse, onClose }) {
 // library here; that catalog isn't wired up on this build yet, so this
 // is an honest placeholder that still lets you upload your own artwork
 // via the same pipeline as Image.
-function ArtPanel({ onBrowse, onClose }) {
+// "Add Art" panel — two steps: browse categories (Marvel, Anime, etc.),
+// then browse designs inside the picked category. Each design shows its
+// price; clicking one adds it to the canvas via onSelectDesign. A
+// "Upload your own artwork" fallback stays available at the bottom of
+// the categories step, same pipeline as the Image tool.
+function ArtPanel({
+  categories,
+  designs,
+  onOpenCategory,
+  onSelectDesign,
+  onBrowseUpload,
+  onClose,
+}) {
+  const [step, setStep] = useState("categories"); // "categories" | "designs"
+  const [activeCategory, setActiveCategory] = useState(null);
+
+  const handleBack = () => {
+    if (step === "designs") {
+      setStep("categories");
+      setActiveCategory(null);
+    } else {
+      onClose();
+    }
+  };
+
+  const handlePickCategory = (cat) => {
+    setActiveCategory(cat);
+    setStep("designs");
+    onOpenCategory(cat._id);
+  };
+
   return (
-    <ToolPanelShell title="Add Art" onClose={onClose}>
-      <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
-        The clipart library isn't connected yet — for now you can upload your
-        own artwork the same way as a design image.
-      </p>
-      <button
-        onClick={onBrowse}
+    <div
+      className="cust-toolpanel"
+      style={{
+        width: 340,
+        maxWidth: "100%",
+        flexShrink: 0,
+        background: "#fff",
+        borderRight: `1px solid ${C.border}`,
+        padding: "20px 24px 28px",
+        overflowY: "auto",
+      }}
+    >
+      <div
         style={{
-          width: "100%",
-          padding: "34px 12px",
-          borderRadius: 12,
-          border: `1.5px dashed ${C.border}`,
-          background: C.panel,
-          color: C.ink,
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          marginBottom: 18,
         }}
       >
-        Upload Artwork
-      </button>
-    </ToolPanelShell>
+        <button
+          onClick={handleBack}
+          aria-label="Back"
+          style={{
+            position: "absolute",
+            left: 0,
+            border: "none",
+            background: "none",
+            fontSize: 18,
+            color: C.ink,
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          ←
+        </button>
+        <p
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            letterSpacing: "0.06em",
+            color: C.ink,
+            margin: 0,
+            textTransform: "uppercase",
+          }}
+        >
+          {step === "categories" ? "Add Art" : activeCategory?.name}
+        </p>
+      </div>
+
+      {step === "categories" && (
+        <>
+          {categories.length === 0 && (
+            <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+              No art categories available yet.
+            </p>
+          )}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+              marginBottom: 20,
+            }}
+          >
+            {categories.map((cat) => (
+              <button
+                key={cat._id}
+                onClick={() => handlePickCategory(cat)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: 10,
+                  borderRadius: 10,
+                  border: `1px solid ${C.border}`,
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                <img
+                  src={imgUrl(cat.thumbnail, BACKEND_URL)}
+                  alt={cat.name}
+                  style={{
+                    width: "100%",
+                    aspectRatio: "1/1",
+                    objectFit: "cover",
+                    borderRadius: 8,
+                  }}
+                />
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>
+                  {cat.name}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <p
+            style={{
+              fontSize: 11,
+              color: C.muted,
+              textAlign: "center",
+              margin: "8px 0",
+            }}
+          >
+            — or —
+          </p>
+          <button
+            onClick={onBrowseUpload}
+            style={{
+              width: "100%",
+              padding: "16px 12px",
+              borderRadius: 12,
+              border: `1.5px dashed ${C.border}`,
+              background: C.panel,
+              color: C.ink,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Upload Your Own Artwork
+          </button>
+        </>
+      )}
+
+      {step === "designs" && (
+        <>
+          {designs.length === 0 && (
+            <p style={{ fontSize: 12, color: C.muted }}>
+              No designs in this category yet.
+            </p>
+          )}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+            }}
+          >
+            {designs.map((d) => (
+              <button
+                key={d._id}
+                onClick={() => onSelectDesign(d)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: 10,
+                  borderRadius: 10,
+                  border: `1px solid ${C.border}`,
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                <img
+                  src={imgUrl(d.imageUrl, BACKEND_URL)}
+                  alt={d.name}
+                  style={{
+                    width: "100%",
+                    aspectRatio: "1/1",
+                    objectFit: "contain",
+                    background: "#F7F5F0",
+                    borderRadius: 8,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: C.ink,
+                    textAlign: "center",
+                  }}
+                >
+                  {d.name}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.gold }}>
+                  +₹{d.price}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1921,13 +2326,18 @@ function ArtPanel({ onBrowse, onClose }) {
 function ProductsPanel({
   currentGarmentKey,
   currentColorSlug,
+  garmentTypes,
+  garmentImages,
   onClose,
   onSelectColor,
 }) {
   const [step, setStep] = useState("products"); // "products" | "colors"
-  const [pickedGarment, setPickedGarment] = useState(
-    GARMENT_TYPES.find((g) => g.key === currentGarmentKey) || GARMENT_TYPES[0],
-  );
+  const [pickedGarmentKey, setPickedGarmentKey] = useState(currentGarmentKey);
+
+  const pickedGarment = garmentTypes.find((g) => g.key === pickedGarmentKey);
+  const pickedGarmentColors = garmentImages
+    .filter((d) => d.garmentType === pickedGarmentKey)
+    .map((d) => ({ slug: d.colorSlug, name: d.colorName, hex: d.colorHex }));
 
   const handleBack = () => {
     if (step === "colors") {
@@ -1938,7 +2348,7 @@ function ProductsPanel({
   };
 
   const handlePickGarment = (g) => {
-    setPickedGarment(g);
+    setPickedGarmentKey(g.key);
     setStep("colors");
   };
 
@@ -2001,54 +2411,89 @@ function ProductsPanel({
             gap: 16,
           }}
         >
-          {GARMENT_TYPES.map((g) => (
-            <button
-              key={g.key}
-              onClick={() => handlePickGarment(g)}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 10,
-                padding: "16px 10px",
-                borderRadius: 12,
-                border: `1px solid ${
-                  g.key === currentGarmentKey ? C.gold : C.border
-                }`,
-                background: "#fff",
-                cursor: "pointer",
-                transition: "border-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = C.gold;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor =
-                  g.key === currentGarmentKey ? C.gold : C.border;
-              }}
-            >
-              <div style={{ width: 70, height: 70 }}>
-                <GarmentVisual
-                  garmentKey={g.key}
-                  colorSlug={g.colors[0]?.slug}
-                  shape={g.shape}
-                  view="front"
-                  color="#F2F2F5"
-                />
-              </div>
-              <span
+          {garmentTypes.map((g) => {
+            const firstColor = garmentImages.find(
+              (d) => d.garmentType === g.key,
+            );
+            return (
+              <button
+                key={g.key}
+                onClick={() => handlePickGarment(g)}
                 style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: C.ink,
-                  textAlign: "center",
-                  lineHeight: 1.3,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "16px 10px",
+                  borderRadius: 14,
+                  border: `1px solid ${
+                    g.key === currentGarmentKey ? C.gold : C.border
+                  }`,
+                  background: "#fff",
+                  cursor: "pointer",
+                  boxShadow:
+                    g.key === currentGarmentKey
+                      ? "0 4px 14px rgba(201,162,75,0.18)"
+                      : "0 1px 4px rgba(28,26,20,0.05)",
+                  transition:
+                    "border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = C.gold;
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 6px 16px rgba(201,162,75,0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor =
+                    g.key === currentGarmentKey ? C.gold : C.border;
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow =
+                    g.key === currentGarmentKey
+                      ? "0 4px 14px rgba(201,162,75,0.18)"
+                      : "0 1px 4px rgba(28,26,20,0.05)";
                 }}
               >
-                {g.label}
-              </span>
-            </button>
-          ))}
+                <div style={{ width: 70, height: 70 }}>
+                  {firstColor ? (
+                    <GarmentVisual
+                      garmentKey={g.key}
+                      colorSlug={firstColor.colorSlug}
+                      view="front"
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#F3F1EC",
+                        borderRadius: 8,
+                        fontSize: 9,
+                        color: C.muted,
+                        textAlign: "center",
+                      }}
+                    >
+                      No photo
+                    </div>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: C.ink,
+                    textAlign: "center",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {g.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -2060,7 +2505,12 @@ function ProductsPanel({
             gap: 16,
           }}
         >
-          {pickedGarment.colors.map((c) => {
+          {pickedGarmentColors.length === 0 && (
+            <p style={{ fontSize: 13, color: C.muted, gridColumn: "1 / -1" }}>
+              No colors uploaded for this product yet.
+            </p>
+          )}
+          {pickedGarmentColors.map((c) => {
             const isSelected =
               pickedGarment.key === currentGarmentKey &&
               c.slug === currentColorSlug;
@@ -2093,9 +2543,7 @@ function ProductsPanel({
                   <GarmentVisual
                     garmentKey={pickedGarment.key}
                     colorSlug={c.slug}
-                    shape={pickedGarment.shape}
                     view="front"
-                    color={c.hex}
                   />
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
@@ -2237,31 +2685,50 @@ function SidebarIcon({ icon, label, onClick, badgeBg, active }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 6,
-        padding: "10px 8px",
+        gap: 7,
+        padding: "12px 8px",
         width: "100%",
         border: "none",
         background: "none",
         cursor: "pointer",
+        borderRadius: 12,
+        transition: "background 0.15s ease, transform 0.1s ease",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = C.panel;
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.transform = "translateY(0)";
       }}
     >
       <span
         style={{
-          width: 42,
-          height: 42,
-          borderRadius: 12,
+          width: 44,
+          height: 44,
+          borderRadius: 14,
           background: badgeBg || C.goldSoft,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 19,
-          boxShadow: active ? `0 0 0 2px ${C.gold}, ${C.shadow}` : C.shadow,
+          fontSize: 20,
+          boxShadow: active
+            ? `0 0 0 2px ${C.gold}, ${C.shadow}`
+            : "0 2px 6px rgba(28,26,20,0.08)",
           transition: "box-shadow 0.15s ease",
         }}
       >
         {icon}
       </span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>
+      <span
+        style={{
+          fontSize: 10.5,
+          fontWeight: 600,
+          color: active ? C.ink : C.muted,
+          letterSpacing: "0.01em",
+        }}
+      >
         {label}
       </span>
     </button>

@@ -19,6 +19,10 @@ import contactRoutes from "./routes/contactRoutes.js";
 import enquiryRoutes from "./routes/Enquiryroutes.js";
 import customizationRoutes from "./routes/customizationRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
+import garmentColorImageRoutes from "./routes/garmentColorImageRoutes.js";
+import garmentTypeRoutes from "./routes/garmentTypeRoutes.js";
+import artCategoryRoutes from "./routes/artCategoryRoutes.js";
+import artDesignRoutes from "./routes/artDesignRoutes.js";
 import cors from "cors";
 import "./utils/subscriptionCron.js";
 import "./utils/razorpayInstance.js";
@@ -66,6 +70,10 @@ app.use("/api/enquiry", enquiryRoutes);
 app.use("/api/shipping", shippingRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/customizations", customizationRoutes);
+app.use("/api/garment-images", garmentColorImageRoutes);
+app.use("/api/garment-types", garmentTypeRoutes);
+app.use("/api/art-categories", artCategoryRoutes);
+app.use("/api/art-designs", artDesignRoutes);
 
 app.get("/api/config/paypal", (req, res) =>
   res.send(process.env.PAYPAL_CLIENT_ID),

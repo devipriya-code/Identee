@@ -2,9 +2,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { createProduct, reset } from "../../redux/slices/productSlice";
+
 import { toast } from "react-toastify";
 import { THEME, SIZE_CHARTS, inputStyle, labelStyle } from "../../theme/theme";
 import "react-toastify/dist/ReactToastify.css";
+import { getAllCategoryBanners } from "../../redux/slices/categoryBannerSlice";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const WASH_OPTIONS = [
@@ -20,7 +22,6 @@ const WASH_OPTIONS = [
 const GENDERS = ["Men", "Women", "Kids", "Unisex"];
 const AGE_RANGES = ["Adult", "Teen", "Kids", "Infant"];
 const PRODUCT_TYPES = ["Casual", "Formal", "Sports", "Ethnic", "Party"];
-const GARMENT_STYLES = Object.keys(SIZE_CHARTS);
 
 const emptyVariant = () => ({
   id: Date.now() + Math.random(),
@@ -232,33 +233,43 @@ function ImageDropzone({ images, previews, onChange }) {
   );
 }
 
-function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
+function VariantCard({
+  variant,
+  index,
+  onChange,
+  onRemove,
+  canRemove,
+  garmentStyleOptions,
+}) {
   const update = (field, value) =>
     onChange(index, { ...variant, [field]: value });
 
-  const sizeOptions = SIZE_CHARTS[variant.garmentStyle] || [];
-
   const changeStyle = (style) => {
-    // garment style changed — drop sizes that no longer apply
-    const allowed = SIZE_CHARTS[style] || [];
-    const nextSizes = variant.sizes.filter((s) => allowed.includes(s));
-    const nextStock = {};
-    nextSizes.forEach((s) => (nextStock[s] = variant.stockBySize[s] ?? 0));
-    onChange(index, {
-      ...variant,
-      garmentStyle: style,
-      sizes: nextSizes,
-      stockBySize: nextStock,
-    });
+    // garment style changed — sizes are manual now, so just update the style
+    onChange(index, { ...variant, garmentStyle: style });
   };
 
-  const toggleSize = (size) => {
-    const next = variant.sizes.includes(size)
-      ? variant.sizes.filter((s) => s !== size)
-      : [...variant.sizes, size];
+  const [sizeDraft, setSizeDraft] = useState("");
+
+  const addSize = () => {
+    const s = sizeDraft.trim().toUpperCase();
+    if (!s || variant.sizes.includes(s)) return;
+    onChange(index, {
+      ...variant,
+      sizes: [...variant.sizes, s],
+      stockBySize: { ...variant.stockBySize, [s]: 0 },
+    });
+    setSizeDraft("");
+  };
+
+  const removeSize = (size) => {
     const stock = { ...variant.stockBySize };
-    if (!next.includes(size)) delete stock[size];
-    onChange(index, { ...variant, sizes: next, stockBySize: stock });
+    delete stock[size];
+    onChange(index, {
+      ...variant,
+      sizes: variant.sizes.filter((s) => s !== size),
+      stockBySize: stock,
+    });
   };
 
   return (
@@ -389,46 +400,91 @@ function VariantCard({ variant, index, onChange, onRemove, canRemove }) {
             onChange={(e) => changeStyle(e.target.value)}
             style={inputStyle}
           >
-            {GARMENT_STYLES.map((s) => (
+            <option value="">Select…</option>
+            {garmentStyleOptions.map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
         </Field>
       </div>
 
-      {/* Sizes — options change based on garment style */}
+      {/* Sizes — admin types and adds each size manually */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Sizes *</label>
-        <div
-          style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}
-        >
-          {sizeOptions.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => toggleSize(s)}
-              style={{
-                padding: "4px 12px",
-                borderRadius: 6,
-                border: `1px solid ${variant.sizes.includes(s) ? THEME.gold : THEME.border}`,
-                background: variant.sizes.includes(s)
-                  ? THEME.goldBg
-                  : THEME.surface,
-                color: variant.sizes.includes(s)
-                  ? THEME.goldBright
-                  : THEME.textMuted,
-                cursor: "pointer",
-                fontSize: 12,
-                fontFamily: "'Inter', sans-serif",
-                fontWeight: variant.sizes.includes(s) ? 600 : 400,
-              }}
-            >
-              {s}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <input
+            value={sizeDraft}
+            onChange={(e) => setSizeDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addSize();
+              }
+            }}
+            placeholder="e.g. S, M, L, XL, Free Size"
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button
+            type="button"
+            onClick={addSize}
+            style={{
+              padding: "0 16px",
+              borderRadius: 8,
+              border: "none",
+              background: THEME.gold,
+              color: "#0B0B0C",
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            Add
+          </button>
         </div>
-      </div>
 
+        {variant.sizes.length > 0 && (
+          <div
+            style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}
+          >
+            {variant.sizes.map((s) => (
+              <span
+                key={s}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 6px 4px 12px",
+                  borderRadius: 999,
+                  border: `1px solid ${THEME.gold}`,
+                  background: THEME.goldBg,
+                  color: THEME.goldBright,
+                  fontSize: 12,
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 600,
+                }}
+              >
+                {s}
+                <button
+                  type="button"
+                  onClick={() => removeSize(s)}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: THEME.goldBright,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    lineHeight: 1,
+                    padding: "0 2px",
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      
       {/* Stock by size */}
       {variant.sizes.length > 0 && (
         <div style={{ marginBottom: 16 }}>
@@ -505,8 +561,17 @@ export default function ProductUploadPage() {
   const { isLoading, isError, isSuccess, message } = useSelector(
     (state) => state.product,
   );
+  const { banners } = useSelector((state) => state.categoryBanner);
+  const garmentStyleOptions = banners.map((b) => b.category);
   const [form, setForm] = useState(emptyForm());
   const [formErrors, setFormErrors] = useState({});
+
+  useEffect(() => {
+    dispatch(getAllCategoryBanners());
+  }, [dispatch]);
+  useEffect(() => {
+    dispatch(getAllCategoryBanners());
+  }, [dispatch]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -515,7 +580,11 @@ export default function ProductUploadPage() {
       toast.success("Product uploaded successfully");
       dispatch(reset());
     }
-  }, [isSuccess, dispatch]);
+    if (isError) {
+      toast.error(message || "Something went wrong");
+      dispatch(reset());
+    }
+  }, [isSuccess, isError, message, dispatch]);
 
   useEffect(() => {
     return () => {
@@ -824,12 +893,18 @@ export default function ProductUploadPage() {
             </select>
           </Field>
           <Field label="Category *">
-            <input
+            <select
               value={form.category}
               onChange={(e) => set("category", e.target.value)}
-              placeholder="e.g. Topwear"
               style={inputStyle}
-            />
+            >
+              <option value="">Select…</option>
+              {banners.map((b) => (
+                <option key={b._id} value={b.category}>
+                  {b.category}
+                </option>
+              ))}
+            </select>
             {err("category")}
           </Field>
           <Field label="Subcategory *">
@@ -1012,6 +1087,7 @@ export default function ProductUploadPage() {
               onChange={updateVariant}
               onRemove={removeVariant}
               canRemove={form.variants.length > 1}
+              garmentStyleOptions={garmentStyleOptions}
             />
           ))}
         </div>
