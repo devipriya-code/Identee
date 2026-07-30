@@ -15,7 +15,6 @@ const initialState = {
   message: "",
 };
 
-// GET PRODUCTS
 export const getProducts = createAsyncThunk(
   "products/getAll",
   async (_, thunkAPI) => {
@@ -28,7 +27,6 @@ export const getProducts = createAsyncThunk(
   },
 );
 
-// GET FULL PRODUCT (product + variants + group) — used by CustomizePage
 export const getProductFull = createAsyncThunk(
   "products/getFull",
   async (id, thunkAPI) => {
@@ -41,12 +39,16 @@ export const getProductFull = createAsyncThunk(
   },
 );
 
-// GET PRODUCTS BY GARMENT STYLE (category listing page)
+// GET PRODUCTS BY GARMENT STYLE — used by both the navbar's category page
+// and (indirectly, via getCategoryShowcase) the Home page banners.
 export const getProductsByGarmentStyle = createAsyncThunk(
   "products/getByGarmentStyle",
-  async (garmentStyle, thunkAPI) => {
+  async ({ garmentStyle, subcategory }, thunkAPI) => {
     try {
-      return await productService.getProductsByGarmentStyle(garmentStyle);
+      return await productService.getProductsByGarmentStyle({
+        garmentStyle,
+        subcategory,
+      });
     } catch (error) {
       const message = error.response?.data?.message || error.message;
       return thunkAPI.rejectWithValue(message);
@@ -54,7 +56,6 @@ export const getProductsByGarmentStyle = createAsyncThunk(
   },
 );
 
-// GET PRODUCT BY ID
 export const getProductById = createAsyncThunk(
   "products/getById",
   async (id, thunkAPI) => {
@@ -67,7 +68,6 @@ export const getProductById = createAsyncThunk(
   },
 );
 
-// CREATE PRODUCT
 export const createProduct = createAsyncThunk(
   "products/create",
   async (productData, thunkAPI) => {
@@ -81,7 +81,6 @@ export const createProduct = createAsyncThunk(
   },
 );
 
-// UPDATE PRODUCT
 export const updateProduct = createAsyncThunk(
   "products/update",
   async ({ id, productData }, thunkAPI) => {
@@ -95,7 +94,6 @@ export const updateProduct = createAsyncThunk(
   },
 );
 
-// DELETE PRODUCT
 export const deleteProduct = createAsyncThunk(
   "products/delete",
   async (id, thunkAPI) => {
@@ -122,7 +120,6 @@ const productSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // ─── GET PRODUCTS ──────────────────────────────────
       .addCase(getProducts.pending, (state) => {
         state.isLoading = true;
       })
@@ -137,16 +134,6 @@ const productSlice = createSlice({
         state.message = action.payload;
       })
 
-      // ─── GET FULL PRODUCT ────────────────────────────────
-      // FIX: isError/message used to be shared across every product thunk
-      // in this slice (list/create/update/delete/full-fetch all wrote to
-      // the same flags). That meant one unrelated failure anywhere else in
-      // the app (e.g. an admin list fetch) would leave isError = true
-      // forever — CustomizePage would then show "Couldn't load this
-      // product" even when getProductFull itself succeeded, because
-      // nothing ever reset isError back to false. Now pending/fulfilled
-      // both clear it explicitly, and fullProduct resets on pending so a
-      // stale previous product's data can't flash while a new :id loads.
       .addCase(getProductFull.pending, (state) => {
         state.isFullLoading = true;
         state.isError = false;
@@ -164,7 +151,6 @@ const productSlice = createSlice({
         state.message = action.payload;
       })
 
-      // ─── GET PRODUCTS BY GARMENT STYLE ──────────────────
       .addCase(getProductsByGarmentStyle.pending, (state) => {
         state.isCategoryLoading = true;
       })
@@ -178,12 +164,10 @@ const productSlice = createSlice({
         state.message = action.payload;
       })
 
-      // ─── GET PRODUCT BY ID ─────────────────────────────
       .addCase(getProductById.fulfilled, (state, action) => {
         state.product = action.payload;
       })
 
-      // ─── CREATE PRODUCT ────────────────────────────────
       .addCase(createProduct.pending, (state) => {
         state.isLoading = true;
         state.isSuccess = false;
@@ -201,7 +185,6 @@ const productSlice = createSlice({
         state.message = action.payload;
       })
 
-      // ─── UPDATE PRODUCT ────────────────────────────────
       .addCase(updateProduct.pending, (state) => {
         state.isLoading = true;
       })
@@ -218,7 +201,6 @@ const productSlice = createSlice({
         state.message = action.payload;
       })
 
-      // ─── DELETE PRODUCT ────────────────────────────────
       .addCase(deleteProduct.pending, (state) => {
         state.isLoading = true;
       })

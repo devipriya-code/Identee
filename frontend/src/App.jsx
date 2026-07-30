@@ -33,6 +33,17 @@ import AllProductsPage from "./pages/AllProductsPage";
 import Account from "./pages/Account";
 import ChooseProductPage from "./pages/ChooseProductPage";
 import ChooseColorPage from "./pages/ChooseColorPage";
+import AdminShippingPage from "./pages/admin/AdminShippingPage";
+
+// ── NEW: Checkout flow ──────────────────────────────────────────────────
+import CheckoutPage from "./pages/CheckoutPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
+import MyOrdersPage from "./pages/MyOrderPage";
+// ──────────────────────────────────────────────────────────────────────────
+import GarmentPhotosPage from "./pages/admin/GarmentPhotosPage";
+import GarmentTypesPage from "./pages/admin/GarmentTypesPage";
+import ArtCategoriesPage from "./pages/admin/ArtCategoriesPage";
+import ArtDesignsPage from "./pages/admin/ArtDesignsPage";
 
 const OrdersPage = () => (
   <PlaceholderAdminPage
@@ -159,6 +170,13 @@ const GuestRoute = ({ children }) => {
   if (user.isSeller) return <Navigate to="/seller/dashboard" replace />;
   return <Navigate to="/" replace />;
 };
+
+// ✅ NEW: Logged-in customers only — checkout/order pages need an authenticated user
+const PrivateRoute = ({ children }) => {
+  const user = getUserInfo();
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -207,6 +225,32 @@ export default function App() {
           <Route path="/products" element={<AllProductsPage />} />
           <Route path="/account" element={<Account />} />
           <Route path="/cart" element={<CartPage />} />
+
+          {/* ✅ NEW: Checkout flow — must be logged in */}
+          <Route
+            path="/checkout"
+            element={
+              <PrivateRoute>
+                <CheckoutPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/order-success/:id"
+            element={
+              <PrivateRoute>
+                <OrderSuccessPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <PrivateRoute>
+                <MyOrdersPage />
+              </PrivateRoute>
+            }
+          />
         </Route>
 
         {/* Admin routes — AdminSidebar layout wraps every /admin/* page */}
@@ -224,12 +268,17 @@ export default function App() {
           <Route path="offer-banner" element={<OfferBannerPage />} />
           <Route path="video-banner" element={<VideoBannerPage />} />
           <Route path="category-banner" element={<CategoryBannerPage />} />
+          <Route path="art-categories" element={<ArtCategoriesPage />} />
+          <Route path="art-designs" element={<ArtDesignsPage />} />
+          <Route path="garment-types" element={<GarmentTypesPage />} />
+          <Route path="garment-photos" element={<GarmentPhotosPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="users/:id" element={<AdminUserDetailsPage />} />
           <Route path="users/:id/edit" element={<AdminEditUserPage />} />
           <Route path="sellers" element={<SellersPage />} />
+          <Route path="shipping" element={<AdminShippingPage />} />
         </Route>
 
         {/* Seller routes */}

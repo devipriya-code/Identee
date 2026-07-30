@@ -7,7 +7,7 @@ const shippingRateSchema = mongoose.Schema(
     estimatedDeliveryDate: { type: String, default: "N/A" },
     currency: { type: String, default: "USD" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const transactionSchema = mongoose.Schema(
@@ -39,7 +39,7 @@ const transactionSchema = mongoose.Schema(
       type: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const orderSchema = mongoose.Schema(
@@ -68,6 +68,13 @@ const orderSchema = mongoose.Schema(
       },
     ],
     shippingAddress: {
+      // ✅ NEW — collected on the checkout Shipping Details step
+      firstName: { type: String, default: "" },
+      lastName: { type: String, default: "" },
+      email: { type: String, default: "" },
+      secondaryPhone: { type: String, default: "" },
+
+      // existing fields — unchanged
       doorNo: { type: String, default: "" },
       street: { type: String, default: "" },
       nearestLandmark: { type: String, default: "" },
@@ -104,8 +111,8 @@ const orderSchema = mongoose.Schema(
     razorpayOrderId: { type: String, default: null },
     shippingRates: { type: [shippingRateSchema], default: [] },
 
-    cgstPrice: { type: Number, default: 0 },   // ✅ ADDED
-    sgstPrice: { type: Number, default: 0 },   // ✅ ADDED
+    cgstPrice: { type: Number, default: 0 },
+    sgstPrice: { type: Number, default: 0 },
 
     taxPrice: { type: Number, required: true },
     shippingPrice: { type: Number, required: true },
@@ -120,14 +127,14 @@ const orderSchema = mongoose.Schema(
       discountAmount: { type: Number },
     },
 
-    invoiceNumber: { type: String, default: null }, // ✅ ADDED
+    invoiceNumber: { type: String, default: null },
 
     deliveredAt: { type: Date },
 
     invoiceDetails: { type: Object, default: null },
     transaction: { type: [transactionSchema], default: [] },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Order = mongoose.model("Order", orderSchema);

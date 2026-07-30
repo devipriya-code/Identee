@@ -13,10 +13,6 @@ import Counter from "../models/counterModel.js";
 // @desc Create new order
 // @route POST /api/orders
 // @access Private
-// ✅ UPDATED: isPaid / orderStatus now depend on paymentMethod instead of
-// being hardcoded true. For RAZORPAY orders, the frontend only calls this
-// AFTER verifyRazorpayPayment has succeeded, so isPaid: true is safe there.
-// For COD, isPaid stays false until delivery/collection.
 const addorderitems = asyncHandler(async (req, res) => {
   const {
     orderItems,
@@ -29,7 +25,7 @@ const addorderitems = asyncHandler(async (req, res) => {
     totalPrice,
     coupon,
     paymentResult,
-    razorpayOrderId, // ✅ NEW: pass this through from frontend for RAZORPAY orders
+    razorpayOrderId,
   } = req.body;
 
   if (!orderItems || orderItems.length === 0) {
@@ -37,17 +33,31 @@ const addorderitems = asyncHandler(async (req, res) => {
     throw new Error("No order items");
   }
 
+  // ✅ NEW — reject orders with an incomplete shipping address instead of
+  // silently saving empty strings. Previously shippingAddress was saved
+  // as-is with no checks, so any caller that skipped the address step
+  // (an old/broken flow, a direct API call, etc.) could create an order
+  // with no state/city — which is exactly what produced the "—" rows in
+  // the admin Shipping page. This also protects shippingPrice/totalPrice
+  // integrity: an order with no state should never have been priced at all.
+  if (
+    !shippingAddress ||
+    !shippingAddress.state ||
+    !shippingAddress.state.trim() ||
+    !shippingAddress.city ||
+    !shippingAddress.city.trim()
+  ) {
+    res.status(400);
+    throw new Error("A complete shipping address (state and city) is required");
+  }
+
   const isRazorpay = paymentMethod === "RAZORPAY";
 
-  // ✅ Extra safety: if it's a Razorpay order, require a paymentResult with an id.
-  // This stops someone from calling this endpoint directly claiming RAZORPAY
-  // without ever having gone through verifyRazorpayPayment.
   if (isRazorpay && !paymentResult?.id) {
     res.status(400);
     throw new Error("Missing payment confirmation for Razorpay order");
   }
 
-  // ✅ Generate invoice number at order creation time
   const year = new Date().getFullYear();
   const counter = await Counter.findByIdAndUpdate(
     `order-invoice-${year}`,
@@ -67,7 +77,7 @@ const addorderitems = asyncHandler(async (req, res) => {
     shippingPrice,
     totalPrice,
     invoiceNumber,
-    razorpayOrderId: razorpayOrderId || null, // ✅ NEW field, add to schema (see note below)
+    razorpayOrderId: razorpayOrderId || null,
     coupon: coupon
       ? {
           code: coupon.code,
@@ -75,7 +85,6 @@ const addorderitems = asyncHandler(async (req, res) => {
           discountAmount: coupon.discountAmount,
         }
       : null,
-    // ✅ UPDATED — was hardcoded true before
     isPaid: isRazorpay ? true : false,
     paidAt: isRazorpay ? Date.now() : undefined,
     orderStatus: isRazorpay ? "CONFIRMED" : "CREATED",
@@ -480,10 +489,10 @@ const razorpay = new Razorpay({
 });
 
 // CREATE RAZORPAY ORDER
-// ✅ UPDATED: now supports a direct "Buy Now" single-product flow via
-// req.body.buyNowProductId, in addition to the existing cart flow.
-// In BOTH cases the price is looked up / computed server-side — the client
-// can never dictate the amount that gets charged.
+// ✅ UPDATED: supports the checkout-form shippingAddress (falls back to the
+// user's saved default address if none is sent), plus the existing Buy Now
+// single-product flow via req.body.buyNowProductId. Price is always looked
+// up / computed server-side — the client can never dictate the amount charged.
 const createRazorpayOrder = async (req, res) => {
   try {
     let couponCode = null;
@@ -502,7 +511,6 @@ const createRazorpayOrder = async (req, res) => {
 
     let subtotal = 0;
 
-    // ✅ NEW: Buy Now path — trust only the product id + qty, look up price ourselves
     if (req.body.buyNowProductId) {
       const qty = Number(req.body.qty) > 0 ? Number(req.body.qty) : 1;
       const product = await Product.findById(req.body.buyNowProductId);
@@ -511,7 +519,6 @@ const createRazorpayOrder = async (req, res) => {
       }
       subtotal = parseFloat((product.price * qty).toFixed(2));
     } else {
-      // Existing cart path
       if (!user.cartItems || user.cartItems.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
@@ -535,20 +542,24 @@ const createRazorpayOrder = async (req, res) => {
         .json({ message: "Shipping settings not configured" });
     }
 
+    // ✅ prefer the checkout-form address over the account's saved default
+    const checkoutAddress = req.body.shippingAddress;
     const defaultAddress =
-      user.addresses?.find((addr) => addr.isDefault) || user.addresses?.[0];
+      checkoutAddress && checkoutAddress.state
+        ? checkoutAddress
+        : user.addresses?.find((addr) => addr.isDefault) || user.addresses?.[0];
 
     if (!defaultAddress || !defaultAddress.state) {
       return res
         .status(400)
-        .json({ message: "No default address found for shipping" });
+        .json({ message: "No shipping address / state provided" });
     }
 
     const stateRule = shippingSettings.shippingRules.find(
-  (rule) =>
-    rule.state.trim().toLowerCase() ===
-    defaultAddress.state.trim().toLowerCase()
-);
+      (rule) =>
+        rule.state.trim().toLowerCase() ===
+        defaultAddress.state.trim().toLowerCase(),
+    );
     if (!stateRule) {
       return res.status(400).json({
         message: `Shipping not available for state: ${defaultAddress.state}`,
@@ -575,7 +586,7 @@ const createRazorpayOrder = async (req, res) => {
         return res.status(400).json({ message: "Invalid coupon" });
       }
 
-      if (offer.usedCount >= offer.maxUses) {
+      if (offer.usedCount >= offer.maxUsage) {
         return res.status(400).json({ message: "Coupon usage limit exceeded" });
       }
 
@@ -857,16 +868,13 @@ const getIncomeByPincode = asyncHandler(async (req, res) => {
 // closes before the "handler" callback in checkout fires.
 // @route   POST /api/orders/razorpay/webhook
 // @access  Public (verified via signature, not auth token)
-// ✅ NOTE: requires RAZORPAY_WEBHOOK_SECRET in .env and this route registered
-// with express.raw() body parser (see routes note below), and a
-// `razorpayOrderId` field added to the Order schema (see note below).
 const razorpayWebhook = async (req, res) => {
   try {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers["x-razorpay-signature"];
 
     const shasum = crypto.createHmac("sha256", webhookSecret);
-    shasum.update(req.body); // req.body must be the raw buffer here
+    shasum.update(req.body);
     const digest = shasum.digest("hex");
 
     if (digest !== signature) {

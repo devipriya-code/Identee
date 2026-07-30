@@ -24,7 +24,14 @@ function CategoryCard({ category, banner, onUpload, onDelete, isLoading }) {
         background: THEME.surface,
       }}
     >
-      <p style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: THEME.text }}>
+      <p
+        style={{
+          margin: "0 0 10px",
+          fontSize: 14,
+          fontWeight: 700,
+          color: THEME.text,
+        }}
+      >
         {category}
       </p>
 
@@ -48,7 +55,9 @@ function CategoryCard({ category, banner, onUpload, onDelete, isLoading }) {
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
-          <span style={{ fontSize: 12, color: THEME.textMuted }}>No banner uploaded</span>
+          <span style={{ fontSize: 12, color: THEME.textMuted }}>
+            No banner uploaded
+          </span>
         )}
       </div>
 
@@ -72,7 +81,9 @@ function CategoryCard({ category, banner, onUpload, onDelete, isLoading }) {
             textAlign: "center",
             padding: "8px 0",
             borderRadius: 6,
-            background: isLoading ? "#8A6F2E" : `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
+            background: isLoading
+              ? "#8A6F2E"
+              : `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
             color: "#0B0B0C",
             fontWeight: 700,
             fontSize: 12,
@@ -104,11 +115,14 @@ function CategoryCard({ category, banner, onUpload, onDelete, isLoading }) {
 
 export default function CategoryBannerPage() {
   const dispatch = useDispatch();
-  const { banners, isLoading, isError, message } = useSelector((s) => s.categoryBanner);
-  const [newCategory, setNewCategory] = useState("");
-  // Categories the admin has typed in but not yet uploaded an image for.
-  // Kept in local state so the card shows up immediately on "+ Add".
-  const [pendingCategories, setPendingCategories] = useState([]);
+  const { banners, isLoading, isError, message } = useSelector(
+    (s) => s.categoryBanner,
+  );
+  // Admin picks from the SAME controlled GARMENT_STYLES list used on the
+  // product upload form's "Garment Style" select — this is the one and only
+  // taxonomy for both the navbar dropdown and these Home page banners now,
+  // so it can never fragment into typo'd near-duplicates.
+  const [selectedStyle, setSelectedStyle] = useState("");
 
   useEffect(() => {
     dispatch(getAllCategoryBanners());
@@ -116,13 +130,6 @@ export default function CategoryBannerPage() {
   }, [dispatch]);
 
   const bannerFor = (category) => banners.find((b) => b.category === category);
-
-  // Once a pending category actually gets a banner saved in the DB,
-  // it will appear in `banners` — drop it from the pending list then.
-  useEffect(() => {
-    setPendingCategories((prev) => prev.filter((c) => !bannerFor(c)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [banners]);
 
   const handleUpload = (category, file) => {
     const formData = new FormData();
@@ -142,78 +149,105 @@ export default function CategoryBannerPage() {
       .catch((err) => toast.error(err || "Delete failed"));
   };
 
-  const savedCategories = banners.map((b) => b.category);
-  const extraCategories = savedCategories.filter((c) => !GARMENT_STYLES.includes(c));
+  // Every card shown is one of the controlled GARMENT_STYLES — nothing else.
+  // Any stray/legacy banner categories that don't match a real garment style
+  // (leftover typo'd entries from before this fix) are listed separately
+  // below so the admin can clean them up, rather than silently showing them
+  // as if they were valid.
+  const legacyCategories = banners
+    .map((b) => b.category)
+    .filter((c) => !GARMENT_STYLES.includes(c));
 
-  const allCategories = [
-    ...GARMENT_STYLES,
-    ...extraCategories,
-    ...pendingCategories.filter(
-      (c) => !GARMENT_STYLES.includes(c) && !extraCategories.includes(c),
-    ),
-  ];
-
-  const handleAddCategory = (e) => {
-    e.preventDefault();
-    const name = newCategory.trim();
-    if (!name) return;
-    if (allCategories.includes(name)) {
-      toast.error("Category already exists");
-      return;
-    }
-    setPendingCategories((prev) => [...prev, name]);
-    setNewCategory("");
-    toast.info(`"${name}" added below — upload a banner image to save it`);
-  };
+  const stylesWithoutBanner = GARMENT_STYLES.filter((s) => !bannerFor(s));
 
   return (
-    <div style={{ minHeight: "100vh", background: THEME.bg, color: THEME.text, padding: "32px 40px", fontFamily: "'Inter', sans-serif" }}>
-      <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>Admin · Content</p>
-      <h1 style={{ margin: "4px 0 4px", fontSize: 26, fontWeight: 600, fontFamily: "'Cormorant Garamond', serif" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: THEME.bg,
+        color: THEME.text,
+        padding: "32px 40px",
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>
+        Admin · Content
+      </p>
+      <h1
+        style={{
+          margin: "4px 0 4px",
+          fontSize: 26,
+          fontWeight: 600,
+          fontFamily: "'Cormorant Garamond', serif",
+        }}
+      >
         Category Banners
       </h1>
       <p style={{ margin: "0 0 20px", fontSize: 14, color: THEME.textMuted }}>
-        One banner image per garment category. These power the Home page category grid and link to that category's product listing.
+        One banner image per garment style. These power the Home page category
+        grid and the navbar's "Products" dropdown — both use this exact same
+        list, so a banner here always matches real products of that style.
       </p>
-
-      <form onSubmit={handleAddCategory} style={{ display: "flex", gap: 10, marginBottom: 24, maxWidth: 420 }}>
-        <input
-          value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value)}
-          placeholder="Add a new category (e.g. Denim Jackets)"
-          style={{ ...inputStyle, flex: 1 }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: "0 16px",
-            borderRadius: 8,
-            border: `1px dashed ${THEME.gold}`,
-            background: "transparent",
-            color: THEME.goldBright,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontSize: 13,
-          }}
-        >
-          + Add
-        </button>
-      </form>
 
       {isError && <p style={{ color: THEME.danger }}>{message}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-        {allCategories.map((category) => (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: 16,
+        }}
+      >
+        {GARMENT_STYLES.map((style) => (
           <CategoryCard
-            key={category}
-            category={category}
-            banner={bannerFor(category)}
+            key={style}
+            category={style}
+            banner={bannerFor(style)}
             onUpload={handleUpload}
             onDelete={handleDelete}
             isLoading={isLoading}
           />
         ))}
       </div>
+
+      {legacyCategories.length > 0 && (
+        <div style={{ marginTop: 36 }}>
+          <p style={{ ...labelStyle, color: THEME.danger, marginBottom: 10 }}>
+            Legacy / Mismatched Banners
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: THEME.textMuted,
+              marginBottom: 14,
+              maxWidth: 560,
+            }}
+          >
+            These were saved under names that don't match any current garment
+            style (likely typos from before). They won't show any products on
+            the Home page or navbar. Delete them, or re-upload under the correct
+            style above.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 16,
+            }}
+          >
+            {legacyCategories.map((category) => (
+              <CategoryCard
+                key={category}
+                category={category}
+                banner={bannerFor(category)}
+                onUpload={handleUpload}
+                onDelete={handleDelete}
+                isLoading={isLoading}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

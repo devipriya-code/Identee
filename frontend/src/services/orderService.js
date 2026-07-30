@@ -18,5 +18,13 @@ const getOrderById = async (id, token) => {
   return data;
 };
 
-const orderService = { createOrder, getMyOrders, getOrderById };
+// Admin-only — GET /orders returns ALL orders (adminOrSeller middleware).
+// Used by the Shipping page to show which state/cost each order was billed.
+const getAllOrders = async (token) => {
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  const { data } = await api.get("/orders", config);
+  return data;
+};
+
+const orderService = { createOrder, getMyOrders, getOrderById, getAllOrders };
 export default orderService;

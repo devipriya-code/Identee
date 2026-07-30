@@ -1,38 +1,15 @@
 // pages/Home.jsx
-// Redesigned flow (per new structure):
-// Navbar (unchanged, lives outside this file)
-// -> Hero banner (unchanged)
-// -> Running marquee strip (unchanged)
-// -> Product Category banner grid (new — split navy/gold banners)
-// -> Style Outlook — video editorial section (new)
-// -> "Design Your Own" customization CTA
-// -> Young's Favourite
-// -> Testimonials
-// -> "Need Help / Bulk Orders" band
-// -> Footer (contact band + link columns + map)
-// -> Floating WhatsApp + Instagram icons (fixed, left edge)
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { getShowcase } from "../redux/slices/categoryBannerSlice";
 import { getVideoBanner } from "../redux/slices/bannerSlice";
-// One pre-made clip per swatch color — same shot, shirt actually recolored
-// in editing ahead of time. Swapping the <source> is how the color-change
-// effect gets built without live-recoloring real footage in the browser.
-// Single hero banner video — you only have one clip, so the earlier
-// "swap a different clip per color" idea is on hold until you have
-// actual color-graded variants to swap between.
 import homeBannerVideo from "../assets/videos/homebanner-video.mp4";
-// Reused for the "Design Your Own" band until a dedicated customizer
-// preview clip is recorded — same footage the old Bulk Order band used.
 import customizeVideo from "../assets/videos/sub-video2.mp4";
-
-// Sub-videos used for Young's Favourite, Testimonials, and Style Outlook
 import subVideo1 from "../assets/videos/sub-video1.mp4";
 import subVideo7 from "../assets/videos/sub-video7.mp4";
 import subVideo8 from "../assets/videos/sub-video8.mp4";
 import subVideo9 from "../assets/videos/suv-video9.mp4";
-// Dedicated clips reused inside the Style Outlook side panels
 import hoodieVideo from "../assets/videos/hoodie.mp4";
 import polosVideo from "../assets/videos/polos.mp4";
 
@@ -52,10 +29,8 @@ const C = {
   border: "#ECE4D2",
   card: "#FFFFFF",
   shadow: "0 18px 36px -18px rgba(21,19,15,0.18)",
-  navy: "#1B2340", // deep navy used in category banner split backgrounds
+  navy: "#1B2340",
 };
-
-// soft pastel backgrounds cycled behind product / category imagery
 const PASTELS = [
   "#ECECEC",
   "#E7DEF3",
@@ -64,16 +39,13 @@ const PASTELS = [
   "#FDEFD9",
   "#DDEAF6",
 ];
-
 // color-morph themes for the hero "pick a color" widget
 const HERO_COLOR_THEMES = [
   { name: "Amber Glow", dot: "#E3963B", from: "#F8CE86", to: "#D9843A" },
   { name: "Mystic Mauve", dot: "#8C6FE8", from: "#C3B2F8", to: "#6A54C8" },
   { name: "Fresh Moss", dot: "#6FA35A", from: "#BEDBA0", to: "#598F62" },
 ];
-
 const HERO_PRODUCTS = ["Tees", "Hoodie", "Pants"];
-
 // tiny flat garment glyphs, tinted with the active color
 function GarmentIcon({ type, color }) {
   const common = { width: 26, height: 26, viewBox: "0 0 24 24", fill: color };

@@ -1,5 +1,5 @@
 // components/Navbar.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import logo from "../assets/identee-logo.png"; // adjust path
@@ -7,62 +7,13 @@ import { THEME } from "../theme/theme";
 import { getActiveOffer } from "../redux/slices/bannerSlice";
 import { fetchFavorites, fetchCart } from "../redux/slices/cartWishlistSlice";
 
-// ─── Size lists ────────────────────────────────────────────────
-const TSHIRT_SIZES = [
-  "4-6",
-  "6-8",
-  "8-10",
-  "10-12",
-  "12-14",
-  "14-16",
-  "S",
-  "M",
-  "L",
-  "XL",
-  "XXL",
-];
-const POLO_SIZES = ["10-12", "12-14", "14-16", "S", "M", "L", "XL", "XXL"];
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const slugify = (s) => s.toLowerCase().replace(/\s+/g, "-");
 
-// ─── Navigation links ─────────────────────────────────────────────
-const NAV_LINKS = [
+// ─── Static navigation links (Products is injected dynamically below) ─────
+const STATIC_NAV_LINKS = [
   { to: "/", label: "Home" },
-  {
-    to: "/products",
-    label: "Products",
-    subLinks: [
-      {
-        category: "T-SHIRTS",
-        items: [
-          {
-            label: "Round Neck",
-            to: "/category/Round Neck",
-            sizes: TSHIRT_SIZES,
-          },
-          {
-            label: "Oversized",
-            to: "/category/Oversized",
-            sizes: TSHIRT_SIZES,
-          },
-          {
-            label: "Hoodies",
-            to: "/category/Hoodies",
-            sizes: TSHIRT_SIZES,
-          },
-          {
-            label: "Sweatshirt",
-            to: "/category/Sweatshirt",
-            sizes: TSHIRT_SIZES,
-          },
-        ],
-      },
-      {
-        category: "POLO",
-        items: [{ label: "Polo", to: "/category/Polo", sizes: POLO_SIZES }],
-      },
-    ],
-  },
   { to: "/about-us", label: "About Us" },
   { to: "/contact-us", label: "Contact Us" },
 ];
@@ -91,8 +42,9 @@ const getInitial = (user) => {
 export default function Navbar({ phone = "+91 636 652 6449" }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
-  const [mobileItemOpen, setMobileItemOpen] = useState(null); // which sub-item's sizes are expanded (mobile)
+  const [mobileItemOpen, setMobileItemOpen] = useState(null); // which sub-item's subcategories are expanded (mobile)
   const [user, setUser] = useState(getUserInfo());
+  const [categoryMap, setCategoryMap] = useState({}); // { "Round Neck": ["Oversized", ...], ... } — live from backend
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { activeOffer } = useSelector((s) => s.banner);
@@ -117,6 +69,49 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
       dispatch(fetchCart(user.token));
     }
   }, [dispatch, user]);
+
+  // ── Fetch live categories from the backend — updates whenever an admin
+  // creates a new category/product, no code changes needed on the frontend.
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/products/categories`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setCategoryMap(data || {});
+      } catch (err) {
+        console.error("Failed to load categories for navbar:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Build the "Products" mega-dropdown from live category data.
+  // Each top-level category becomes a clickable item; its subcategories
+  // (if any) show in the hover flyout that used to list sizes.
+  const productCategoryItems = useMemo(
+    () =>
+      Object.entries(categoryMap).map(([category, subcategories]) => ({
+        label: category,
+        to: `/category/${encodeURIComponent(category)}`,
+        subcategories: subcategories || [],
+      })),
+    [categoryMap],
+  );
+
+  const NAV_LINKS = useMemo(() => {
+    const links = [STATIC_NAV_LINKS[0]]; // Home
+    links.push({
+      to: "/products",
+      label: "Products",
+      subLinks:
+        productCategoryItems.length > 0
+          ? [{ category: "Shop by Category", items: productCategoryItems }]
+          : [],
+    });
+    links.push(STATIC_NAV_LINKS[1], STATIC_NAV_LINKS[2]); // About / Contact
+    return links;
+  }, [productCategoryItems]);
 
   const handleLogout = () => {
     localStorage.removeItem("userInfo");
@@ -259,6 +254,8 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
           >
             <button
               aria-label="Search"
+              data-tooltip="Search"
+              className="navbar-icon"
               style={{
                 background: "none",
                 border: "none",
@@ -285,6 +282,8 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
             <Link
               to={user ? "/account" : "/login"}
               aria-label="Account"
+              data-tooltip={user ? "Account" : "Sign In"}
+              className="navbar-icon"
               style={{ color: THEME.ink, display: "flex" }}
             >
               <svg
@@ -300,10 +299,39 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
               </svg>
             </Link>
 
+            {/* Orders icon — only when logged in */}
+            {user && (
+              <Link
+                to="/orders"
+                aria-label="My Orders"
+                data-tooltip="My Orders"
+                className="navbar-icon"
+                style={{
+                  color: THEME.ink,
+                  display: "flex",
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  width={20}
+                  height={20}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M21 8L12 3 3 8v8l9 5 9-5V8z" />
+                  <path d="M3 8l9 5 9-5" strokeLinejoin="round" />
+                  <path d="M12 13v8" />
+                </svg>
+              </Link>
+            )}
+
             {/* Wishlist icon */}
             <Link
               to="/favorites"
               aria-label="Wishlist"
+              data-tooltip="Wishlist"
+              className="navbar-icon"
               style={{
                 position: "relative",
                 color: THEME.ink,
@@ -339,6 +367,8 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
             <Link
               to="/cart"
               aria-label="Cart"
+              data-tooltip="Cart"
+              className="navbar-icon"
               style={{
                 position: "relative",
                 color: THEME.ink,
@@ -478,39 +508,50 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
                   >
                     {link.label}
                   </NavLink>
-                  <div className="mega-dropdown">
-                    <div className="mega-grid">
-                      {link.subLinks.map((group) => (
-                        <div key={group.category} className="mega-group">
-                          <div className="mega-category">{group.category}</div>
-                          {group.items.map((item) => (
-                            <div key={item.to} className="mega-subitem-wrapper">
-                              <NavLink to={item.to} className="dropdown-item">
-                                {item.label}
-                                <span className="chev">›</span>
-                              </NavLink>
-                              <div className="size-flyout">
-                                <div className="size-flyout-title">
-                                  Select Size
-                                </div>
-                               <div className="size-grid">
-                                  {item.sizes.map((size) => (
-                                    <NavLink
-                                      key={size}
-                                      to={item.to}
-                                      className="size-chip"
-                                    >
-                                      {size}
-                                    </NavLink>
-                                  ))}
-                                </div>
-                              </div>
+                  {link.subLinks.length > 0 && (
+                    <div className="mega-dropdown">
+                      <div className="mega-grid mega-grid-single">
+                        {link.subLinks.map((group) => (
+                          <div key={group.category} className="mega-group">
+                            <div className="mega-category">
+                              {group.category}
                             </div>
-                          ))}
-                        </div>
-                      ))}
+                            {group.items.map((item) => (
+                              <div
+                                key={item.to}
+                                className="mega-subitem-wrapper"
+                              >
+                                <NavLink to={item.to} className="dropdown-item">
+                                  {item.label}
+                                  {item.subcategories.length > 0 && (
+                                    <span className="chev">›</span>
+                                  )}
+                                </NavLink>
+                                {item.subcategories.length > 0 && (
+                                  <div className="size-flyout">
+                                    <div className="size-flyout-title">
+                                      Subcategories
+                                    </div>
+                                    <div className="size-grid">
+                                      {item.subcategories.map((sub) => (
+                                        <NavLink
+                                          key={sub}
+                                          to={`${item.to}?subcategory=${encodeURIComponent(sub)}`}
+                                          className="size-chip"
+                                        >
+                                          {sub}
+                                        </NavLink>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             }
@@ -570,6 +611,17 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
 
                     {mobileProductsOpen && (
                       <div style={{ paddingLeft: 12, marginBottom: 8 }}>
+                        {link.subLinks.length === 0 && (
+                          <p
+                            style={{
+                              fontSize: 13,
+                              color: THEME.muted,
+                              padding: "10px 0",
+                            }}
+                          >
+                            No categories yet.
+                          </p>
+                        )}
                         {link.subLinks.map((group) => (
                           <div
                             key={group.category}
@@ -611,10 +663,32 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
                                       cursor: "pointer",
                                     }}
                                   >
-                                    {item.label}
-                                    <span>{isOpen ? "−" : "+"}</span>
+                                    <Link
+                                      to={item.to}
+                                      onClick={(e) => {
+                                        // let the label itself navigate; only the
+                                        // caret toggles the subcategory list
+                                        if (item.subcategories.length === 0) {
+                                          setMobileOpen(false);
+                                        } else {
+                                          e.preventDefault();
+                                          setMobileItemOpen(
+                                            isOpen ? null : key,
+                                          );
+                                        }
+                                      }}
+                                      style={{
+                                        color: THEME.ink,
+                                        textDecoration: "none",
+                                      }}
+                                    >
+                                      {item.label}
+                                    </Link>
+                                    {item.subcategories.length > 0 && (
+                                      <span>{isOpen ? "−" : "+"}</span>
+                                    )}
                                   </button>
-                                  {isOpen && (
+                                  {isOpen && item.subcategories.length > 0 && (
                                     <div
                                       style={{
                                         display: "flex",
@@ -623,10 +697,10 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
                                         padding: "8px 0 10px",
                                       }}
                                     >
-                                      {item.sizes.map((size) => (
+                                      {item.subcategories.map((sub) => (
                                         <Link
-                                          key={size}
-                                          to={`${item.to}/${slugify(size)}`}
+                                          key={sub}
+                                          to={`${item.to}?subcategory=${encodeURIComponent(sub)}`}
                                           onClick={() => {
                                             setMobileOpen(false);
                                             setMobileItemOpen(null);
@@ -642,7 +716,7 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
                                             textDecoration: "none",
                                           }}
                                         >
-                                          {size}
+                                          {sub}
                                         </Link>
                                       ))}
                                     </div>
@@ -676,6 +750,26 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
                 </NavLink>
               );
             })}
+
+            {/* My Orders — mobile menu (only when logged in) */}
+            {user && (
+              <Link
+                to="/orders"
+                onClick={() => setMobileOpen(false)}
+                style={{
+                  display: "block",
+                  padding: "14px 0",
+                  borderBottom: `1px solid ${THEME.border}`,
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: THEME.ink,
+                  textDecoration: "none",
+                }}
+              >
+                My Orders
+              </Link>
+            )}
+
             {!user ? (
               <Link
                 to="/login"
@@ -740,6 +834,54 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
           user-select: none;
         }
 
+        /* ── Icon hover tooltips ── */
+        .navbar-icon {
+          position: relative;
+        }
+        .navbar-icon::after {
+          content: attr(data-tooltip);
+          position: absolute;
+          top: calc(100% + 10px);
+          left: 50%;
+          transform: translateX(-50%) translateY(4px);
+          background: ${THEME.ink};
+          color: #FFFFFF;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          white-space: nowrap;
+          padding: 5px 10px;
+          border-radius: 6px;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+          z-index: 220;
+        }
+        .navbar-icon::before {
+          content: "";
+          position: absolute;
+          top: calc(100% + 5px);
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-bottom-color: ${THEME.ink};
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity 0.15s ease, visibility 0.15s;
+          z-index: 220;
+        }
+        .navbar-icon:hover::after,
+        .navbar-icon:hover::before {
+          opacity: 1;
+          visibility: visible;
+        }
+        .navbar-icon:hover::after {
+          transform: translateX(-50%) translateY(0);
+        }
+
         /* ── Mega dropdown ── */
         .nav-dropdown-wrapper { position: relative; }
         .mega-dropdown {
@@ -771,6 +913,9 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
           grid-template-columns: 1fr 1fr;
           gap: 12px 24px;
         }
+        .mega-grid-single {
+          grid-template-columns: 1fr;
+        }
         .mega-group { display: flex; flex-direction: column; }
         .mega-category {
           font-size: 12px;
@@ -783,7 +928,7 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
           margin-bottom: 8px;
         }
 
-        /* ── Sub-item (Round Neck / Oversized / ... / Polo) with size flyout ── */
+        /* ── Sub-item (dynamic category) with subcategory flyout ── */
         .mega-subitem-wrapper { position: relative; }
         .dropdown-item {
           display: flex;

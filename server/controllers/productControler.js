@@ -1649,18 +1649,17 @@ const getCategories = asyncHandler(async (req, res) => {
   const { gender } = req.query;
   const filter = gender ? { "productdetails.gender": gender } : {};
 
-  // ✅ Fix: select the full productdetails object, not nested paths
   const products = await Product.find(filter)
     .select("productdetails -_id")
     .lean();
 
   const map = {};
   products.forEach((p) => {
-    const cat = p.productdetails?.category;
+    const style = p.productdetails?.garmentStyle;
     const sub = p.productdetails?.subcategory;
-    if (!cat) return;
-    if (!map[cat]) map[cat] = [];
-    if (sub && !map[cat].includes(sub)) map[cat].push(sub);
+    if (!style) return;
+    if (!map[style]) map[style] = [];
+    if (sub && !map[style].includes(sub)) map[style].push(sub);
   });
 
   res.json(map);

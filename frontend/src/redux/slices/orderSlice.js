@@ -43,10 +43,29 @@ export const fetchOrderById = createAsyncThunk(
   },
 );
 
+export const fetchAllOrders = createAsyncThunk(
+  "orders/fetchAllOrders",
+  async (_, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+      return await orderService.getAllOrders(token);
+    } catch (err) {
+      return thunkAPI.rejectWithValue(
+        err.response?.data?.message || err.message,
+      );
+    }
+  
+  },
+);
+
+
+
 const orderSlice = createSlice({
   name: "orders",
   initialState: {
     orders: [],
+    allOrders: [],
+    allOrdersLoading: false,
     currentOrder: null,
     placedOrder: null,
     loading: false,
@@ -97,6 +116,17 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrderById.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+       .addCase(fetchAllOrders.pending, (state) => {
+        state.allOrdersLoading = true;
+      })
+      .addCase(fetchAllOrders.fulfilled, (state, action) => {
+        state.allOrdersLoading = false;
+        state.allOrders = action.payload;
+      })
+      .addCase(fetchAllOrders.rejected, (state, action) => {
+        state.allOrdersLoading = false;
         state.error = action.payload;
       });
   },

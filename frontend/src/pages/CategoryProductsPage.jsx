@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getProductsByGarmentStyle } from "../redux/slices/productSlice";
 
@@ -14,29 +14,58 @@ const C = {
 };
 
 export default function CategoryProductsPage() {
-  const { categoryName } = useParams();
+  const { categoryName } = useParams(); // this is now a garmentStyle, e.g. "Round Neck"
   const decoded = decodeURIComponent(categoryName);
+  const [searchParams] = useSearchParams();
+  const subcategory = searchParams.get("subcategory");
+
   const dispatch = useDispatch();
   const { categoryProducts, isCategoryLoading } = useSelector((s) => s.product);
 
   useEffect(() => {
-    dispatch(getProductsByGarmentStyle(decoded));
-  }, [dispatch, decoded]);
+    dispatch(getProductsByGarmentStyle({ garmentStyle: decoded, subcategory }));
+  }, [dispatch, decoded, subcategory]);
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, padding: "40px 24px" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-        <p style={{ fontSize: 12, letterSpacing: "0.2em", color: C.muted, textTransform: "uppercase", fontWeight: 700, margin: 0 }}>
+        <p
+          style={{
+            fontSize: 12,
+            letterSpacing: "0.2em",
+            color: C.muted,
+            textTransform: "uppercase",
+            fontWeight: 700,
+            margin: 0,
+          }}
+        >
           Shop
         </p>
-        <h1 style={{ margin: "6px 0 28px", fontSize: 32, fontWeight: 800, color: C.ink }}>
+        <h1
+          style={{
+            margin: "6px 0 4px",
+            fontSize: 32,
+            fontWeight: 800,
+            color: C.ink,
+          }}
+        >
           {decoded}
         </h1>
+        {subcategory && (
+          <p style={{ margin: "0 0 28px", fontSize: 14, color: C.muted }}>
+            Filtered by: <strong style={{ color: C.ink }}>{subcategory}</strong>
+          </p>
+        )}
+        {!subcategory && <div style={{ marginBottom: 28 }} />}
 
-        {isCategoryLoading && <p style={{ color: C.muted }}>Loading products…</p>}
+        {isCategoryLoading && (
+          <p style={{ color: C.muted }}>Loading products…</p>
+        )}
 
         {!isCategoryLoading && categoryProducts.length === 0 && (
-          <p style={{ color: C.muted }}>No products found in this category yet.</p>
+          <p style={{ color: C.muted }}>
+            No products found in this category yet.
+          </p>
         )}
 
         <div
@@ -59,21 +88,40 @@ export default function CategoryProductsPage() {
                 display: "block",
               }}
             >
-              <div style={{ aspectRatio: "4/5", background: "#F3F1EC", overflow: "hidden" }}>
+              <div
+                style={{
+                  aspectRatio: "4/5",
+                  background: "#F3F1EC",
+                  overflow: "hidden",
+                }}
+              >
                 {p.images?.[0] && (
                   <img
                     src={`${BACKEND_URL}/${p.images[0]}`}
                     alt={p.brandname}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
                   />
                 )}
               </div>
               <div style={{ padding: "12px 14px" }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{p.brandname}</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                  {p.brandname}
+                </p>
                 <p style={{ margin: "4px 0 0", fontSize: 13, color: C.muted }}>
                   {p.productdetails?.color}
                 </p>
-                <p style={{ margin: "6px 0 0", fontSize: 15, fontWeight: 700, color: C.gold }}>
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: C.gold,
+                  }}
+                >
                   ₹{p.price}
                 </p>
               </div>
