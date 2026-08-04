@@ -38,6 +38,24 @@ const NAV_GROUPS = [
         label: "Products",
       },
       {
+        to: "/admin/bulk-upload",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M3 3a1 1 0 000 2h14a1 1 0 100-2H3zm0 4a1 1 0 000 2h9a1 1 0 100-2H3zm0 4a1 1 0 100 2h6a1 1 0 100-2H3zm11 3a1 1 0 011-1h1V9a1 1 0 112 0v4h1a1 1 0 110 2h-1v4a1 1 0 11-2 0v-4h-1a1 1 0 01-1-1z" />
+          </svg>
+        ),
+        label: "Bulk Upload",
+      },
+      {
+        to: "/admin/art-bulk-upload",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path d="M3 3a1 1 0 000 2h14a1 1 0 100-2H3zm0 4a1 1 0 000 2h9a1 1 0 100-2H3zm0 4a1 1 0 100 2h6a1 1 0 100-2H3zm11 3a1 1 0 011-1h1V9a1 1 0 112 0v4h1a1 1 0 110 2h-1v4a1 1 0 11-2 0v-4h-1a1 1 0 01-1-1z" />
+          </svg>
+        ),
+        label: "Bulk Upload Art",
+      },
+      {
         to: "/admin/garment-photos",
         icon: (
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -117,6 +135,19 @@ const NAV_GROUPS = [
           </svg>
         ),
         label: "Orders",
+      },
+      {
+        to: "/admin/invoices",
+        icon: (
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path
+              fillRule="evenodd"
+              d="M4 2a2 2 0 00-2 2v14l3-2 3 2 3-2 3 2 3-2 3 2V4a2 2 0 00-2-2H4zm2 4h8a1 1 0 110 2H6a1 1 0 110-2zm0 4h8a1 1 0 110 2H6a1 1 0 110-2zm0 4h5a1 1 0 110 2H6a1 1 0 110-2z"
+              clipRule="evenodd"
+            />
+          </svg>
+        ),
+        label: "Invoices",
       },
       {
         to: "/admin/transactions",

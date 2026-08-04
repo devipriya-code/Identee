@@ -12,19 +12,19 @@ const getShippingCost = async () => {
   return res.data;
 };
 
-const addState = async ({ state, cost }, token) => {
+const addState = async ({ state, cost, alwaysCharge }, token) => {
   const res = await axios.post(
     `${API_URL}/addstate`,
-    { state, cost },
+    { state, cost, alwaysCharge },
     authHeader(token),
   );
   return res.data;
 };
 
-const updateState = async (id, cost, token) => {
+const updateState = async (id, { cost, alwaysCharge }, token) => {
   const res = await axios.put(
     `${API_URL}/updatestate/${id}`,
-    { cost },
+    { cost, alwaysCharge },
     authHeader(token),
   );
   return res.data;

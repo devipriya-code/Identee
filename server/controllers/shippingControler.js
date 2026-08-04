@@ -25,7 +25,7 @@ const getShippingCost = async (req, res) => {
  */
 const addStateShipping = async (req, res) => {
   try {
-    const { state, cost } = req.body;
+    const { state, cost, alwaysCharge } = req.body;
 
     if (!state || cost == null) {
       return res.status(400).json({ message: "State and cost are required" });
@@ -42,14 +42,18 @@ const addStateShipping = async (req, res) => {
 
     // prevent duplicate state
     const exists = settings.shippingRules.find(
-      (s) => s.state.toLowerCase() === state.toLowerCase()
+      (s) => s.state.toLowerCase() === state.toLowerCase(),
     );
 
     if (exists) {
       return res.status(400).json({ message: "State already exists" });
     }
 
-    settings.shippingRules.push({ state, cost });
+    settings.shippingRules.push({
+      state,
+      cost,
+      alwaysCharge: Boolean(alwaysCharge),
+    });
     await settings.save();
 
     res.json(settings);
@@ -59,11 +63,11 @@ const addStateShipping = async (req, res) => {
 };
 
 /**
- * Update state shipping cost
+ * Update state shipping cost (and/or its alwaysCharge flag)
  */
 const updateStateShipping = async (req, res) => {
   try {
-    const { cost } = req.body;
+    const { cost, alwaysCharge } = req.body;
     const { id } = req.params;
 
     if (cost == null) {
@@ -83,6 +87,9 @@ const updateStateShipping = async (req, res) => {
     }
 
     stateRule.cost = cost;
+    if (alwaysCharge !== undefined) {
+      stateRule.alwaysCharge = Boolean(alwaysCharge);
+    }
     await settings.save();
 
     res.json(settings);
@@ -105,7 +112,7 @@ const updateFreeShipping = async (req, res) => {
     const settings = await shippingCosts.findOneAndUpdate(
       {},
       { freeShippingAbove },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     res.json(settings);
@@ -152,7 +159,6 @@ const getShippingCostByState = async (req, res) => {
       return res.status(400).json({ message: "State is required" });
     }
 
-    // Use the correct model name (lowercase as imported)
     const shippingSettings = await shippingCosts.findOne();
 
     if (!shippingSettings) {
@@ -160,7 +166,7 @@ const getShippingCostByState = async (req, res) => {
     }
 
     const stateRule = shippingSettings.shippingRules.find(
-      (rule) => rule.state.toLowerCase() === state.toLowerCase()
+      (rule) => rule.state.toLowerCase() === state.toLowerCase(),
     );
 
     if (!stateRule) {
@@ -173,13 +179,13 @@ const getShippingCostByState = async (req, res) => {
       shippingCost: stateRule.cost,
       freeShippingAbove: shippingSettings.freeShippingAbove,
       state: stateRule.state,
+      alwaysCharge: stateRule.alwaysCharge || false,
     });
   } catch (error) {
     console.error("Error fetching shipping cost:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 export {
   getShippingCost,

@@ -58,6 +58,21 @@ const C = {
 
 const SIZE_ORDER = ["S", "M", "L", "XL", "XXL"];
 
+const qtyBtnStyle = {
+  width: 26,
+  height: 26,
+  borderRadius: 6,
+  border: `1px solid ${C.border}`,
+  background: "#fff",
+  cursor: "pointer",
+  fontSize: 14,
+  fontWeight: 700,
+  color: C.ink,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
 export default function SingleProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -74,7 +89,11 @@ export default function SingleProductPage() {
   const { data, isLoading, error } = useSWRProduct(id);
 
   const [activeVariantId, setActiveVariantId] = useState(id);
-  const [selectedSize, setSelectedSize] = useState("");
+  // Single selected size + a shared qty stepper for that size —
+  // matches the standard "pick a size, then a qty" pattern (like Flipkart's
+  // cart line-item Qty dropdown) instead of a stepper per size.
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [qty, setQty] = useState(1);
   const [mainImageIdx, setMainImageIdx] = useState(0);
   const [cartMsg, setCartMsg] = useState(null);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -87,7 +106,8 @@ export default function SingleProductPage() {
   // Re-sync if the user lands here fresh with a different :id
   useEffect(() => {
     setActiveVariantId(id);
-    setSelectedSize("");
+    setSelectedSize(null);
+    setQty(1);
     setMainImageIdx(0);
   }, [id]);
 
@@ -137,41 +157,42 @@ export default function SingleProductPage() {
     stockBySize.map((s) => [s.size, s.stock]),
   );
   const availableSizes = SIZE_ORDER.filter((s) => s in stockMap);
+  const selectedStock = selectedSize ? stockMap[selectedSize] || 0 : 0;
+  const totalSelectedQty = selectedSize ? qty : 0;
+
+  const handleSelectSize = (size) => {
+    const stock = stockMap[size] || 0;
+    if (stock <= 0) return;
+    setSelectedSize(size);
+    setQty(1);
+    setCartMsg(null);
+  };
+
+  const incrementQty = () => {
+    if (!selectedSize) return;
+    setQty((prev) => (prev >= selectedStock ? prev : prev + 1));
+    setCartMsg(null);
+  };
+
+  const decrementQty = () => {
+    setQty((prev) => (prev <= 1 ? prev : prev - 1));
+    setCartMsg(null);
+  };
 
   const handleSwitchVariant = (variantId) => {
     setActiveVariantId(variantId);
     setMainImageIdx(0);
-    setSelectedSize("");
+    setSelectedSize(null);
+    setQty(1);
     setCartMsg(null);
     navigate(`/product/${variantId}`, { replace: true });
   };
 
   // ── Customize button handler ──────────────────────────────────
-  // Maps the real product's garmentStyle/color (free-text strings from
-  // theme.js's SIZE_CHARTS + admin-entered color names) onto the
-  // customizer's static catalog key/slug, then navigates there.
   const handleCustomize = () => {
     const garmentStyle = activeVariant.productdetails?.garmentStyle;
     const matchedGarment = garmentTypes.find(
       (g) => g.category === garmentStyle,
-    );
-
-    console.log("DEBUG — product garmentStyle:", JSON.stringify(garmentStyle));
-    console.log(
-      "DEBUG — available garmentTypes:",
-      garmentTypes.map((g) => ({ key: g.key, category: g.category })),
-    );
-    console.log("DEBUG — matchedGarment:", matchedGarment);
-    console.log(
-      "DEBUG — product color:",
-      JSON.stringify(activeVariant.productdetails?.color),
-    );
-    console.log(
-      "DEBUG — garmentImages available:",
-      garmentImages.map((d) => ({
-        garmentType: d.garmentType,
-        colorSlug: d.colorSlug,
-      })),
     );
 
     if (!matchedGarment) {
@@ -249,9 +270,10 @@ export default function SingleProductPage() {
     }
   };
 
+  // ── Buy Now — sends the one selected size + qty ───────────────────
   const handleBuyNow = () => {
-    if (!selectedSize) {
-      setCartMsg({ type: "error", text: "Please select a size first." });
+    if (!selectedSize || qty <= 0) {
+      setCartMsg({ type: "error", text: "Please select a size." });
       return;
     }
     if (!user) {
@@ -259,13 +281,17 @@ export default function SingleProductPage() {
       return;
     }
     navigate(`/buy-now/${activeVariant._id}`, {
-      state: { product: activeVariant, size: selectedSize, qty: 1 },
+      state: {
+        product: activeVariant,
+        items: [{ size: selectedSize, qty }],
+      },
     });
   };
 
+  // ── Add to Cart — one call for the selected size/qty ──────────────
   const handleAddToCart = async () => {
-    if (!selectedSize) {
-      setCartMsg({ type: "error", text: "Please select a size first." });
+    if (!selectedSize || qty <= 0) {
+      setCartMsg({ type: "error", text: "Please select a size." });
       return;
     }
     if (!user) {
@@ -288,12 +314,19 @@ export default function SingleProductPage() {
             "Content-Type": "application/json",
             ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           },
-          body: JSON.stringify({ qty: 1, size: selectedSize, action: "add" }),
+          // action: "set" — the stepper already shows the exact quantity
+          // the customer wants for this size, so we set it directly
+          // rather than incrementing on top of whatever was there.
+          body: JSON.stringify({ qty, size: selectedSize, action: "set" }),
         },
       );
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Could not add to cart");
+      if (!res.ok)
+        throw new Error(
+          json.message || `Could not add size ${selectedSize} to cart`,
+        );
       setCartMsg({ type: "ok", text: "Added to cart." });
+      setQty(1);
     } catch (err) {
       setCartMsg({
         type: "error",
@@ -561,56 +594,86 @@ export default function SingleProductPage() {
             }}
           />
 
-          {/* Size */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              flexWrap: "wrap",
-            }}
-          >
-            <p style={{ ...sectionLabelStyle, margin: 0 }}>SELECT SIZE</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              {SIZE_ORDER.map((size) => {
-                const inStock = (stockMap[size] || 0) > 0;
-                const isActive = selectedSize === size;
-                return (
-                  <button
-                    key={size}
-                    disabled={!inStock}
-                    onClick={() => {
-                      setSelectedSize(size);
-                      setCartMsg(null);
-                    }}
-                    style={{
-                      minWidth: 38,
-                      height: 34,
-                      padding: "0 8px",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: inStock ? "pointer" : "not-allowed",
-                      color: !inStock ? "#C9C4B6" : isActive ? "#fff" : C.ink,
-                      background: !inStock
-                        ? "#F3F1EC"
-                        : isActive
-                          ? C.ink
-                          : "#fff",
-                      border: `1px solid ${!inStock ? C.border : isActive ? C.ink : C.border}`,
-                      textDecoration: !inStock ? "line-through" : "none",
-                    }}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
-            </div>
+          {/* Size — pick one size, chip-style, like the color swatches above */}
+          <p style={sectionLabelStyle}>SELECT SIZE</p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {SIZE_ORDER.map((size) => {
+              const stock = stockMap[size] || 0;
+              const inStock = stock > 0;
+              const isSelected = selectedSize === size;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  disabled={!inStock}
+                  onClick={() => handleSelectSize(size)}
+                  title={!inStock ? "Out of stock" : `${stock} left`}
+                  style={{
+                    minWidth: 48,
+                    height: 44,
+                    padding: "0 14px",
+                    borderRadius: 8,
+                    border: `1px solid ${isSelected ? C.gold : C.border}`,
+                    background: isSelected ? C.goldSoft : "#fff",
+                    color: !inStock ? C.muted : C.ink,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: inStock ? "pointer" : "not-allowed",
+                    opacity: inStock ? 1 : 0.45,
+                    textDecoration: !inStock ? "line-through" : "none",
+                  }}
+                >
+                  {size}
+                </button>
+              );
+            })}
           </div>
-          <p style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
-            SELECTED SIZE:{" "}
-            <strong style={{ color: C.ink }}>{selectedSize || "—"}</strong>
-          </p>
+          {selectedSize && (
+            <p style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+              {selectedStock} left in size{" "}
+              <strong style={{ color: C.ink }}>{selectedSize}</strong>
+            </p>
+          )}
+
+          <p style={{ ...sectionLabelStyle, marginTop: 20 }}>QUANTITY</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <button
+              type="button"
+              disabled={!selectedSize || qty <= 1}
+              onClick={decrementQty}
+              style={{
+                ...qtyBtnStyle,
+                width: 34,
+                height: 34,
+                cursor: !selectedSize || qty <= 1 ? "not-allowed" : "pointer",
+                opacity: !selectedSize || qty <= 1 ? 0.5 : 1,
+              }}
+            >
+              −
+            </button>
+            <span
+              style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}
+            >
+              {selectedSize ? qty : 0}
+            </span>
+            <button
+              type="button"
+              disabled={!selectedSize || qty >= selectedStock}
+              onClick={incrementQty}
+              style={{
+                ...qtyBtnStyle,
+                width: 34,
+                height: 34,
+                cursor:
+                  !selectedSize || qty >= selectedStock
+                    ? "not-allowed"
+                    : "pointer",
+                opacity: !selectedSize || qty >= selectedStock ? 0.5 : 1,
+              }}
+            >
+              +
+            </button>
+          </div>
 
           <hr
             style={{
@@ -620,12 +683,18 @@ export default function SingleProductPage() {
             }}
           />
 
-          {/* Size chart */}
+          {/* Size chart — button + window.open instead of <a>, since the
+              VS Code paste bug on this project strips opening `<a` tags */}
           {activeVariant.sizeChart && (
-            <a
-              href={`${BACKEND_URL}/${activeVariant.sizeChart}`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() =>
+                window.open(
+                  `${BACKEND_URL}/${activeVariant.sizeChart}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -633,15 +702,17 @@ export default function SingleProductPage() {
                 padding: "10px 16px",
                 borderRadius: 999,
                 border: `1px solid ${C.border}`,
+                background: "#fff",
                 textDecoration: "none",
                 color: C.ink,
                 fontSize: 13,
                 fontWeight: 600,
                 marginBottom: 20,
+                cursor: "pointer",
               }}
             >
               📏 Size Chart
-            </a>
+            </button>
           )}
 
           {cartMsg && (
@@ -696,7 +767,7 @@ export default function SingleProductPage() {
             </button>
             <button
               onClick={handleAddToCart}
-              disabled={addingToCart}
+              disabled={addingToCart || totalSelectedQty === 0}
               style={{
                 flex: 1,
                 padding: "14px 0",
@@ -707,8 +778,11 @@ export default function SingleProductPage() {
                 fontSize: 14,
                 fontWeight: 700,
                 letterSpacing: "0.04em",
-                cursor: addingToCart ? "wait" : "pointer",
-                opacity: addingToCart ? 0.7 : 1,
+                cursor:
+                  addingToCart || totalSelectedQty === 0
+                    ? "not-allowed"
+                    : "pointer",
+                opacity: addingToCart || totalSelectedQty === 0 ? 0.6 : 1,
               }}
             >
               {addingToCart ? "ADDING…" : "ADD TO CART"}
@@ -717,6 +791,7 @@ export default function SingleProductPage() {
 
           <button
             onClick={handleBuyNow}
+            disabled={totalSelectedQty === 0}
             style={{
               width: "100%",
               marginTop: 14,
@@ -728,7 +803,8 @@ export default function SingleProductPage() {
               fontSize: 14,
               fontWeight: 700,
               letterSpacing: "0.04em",
-              cursor: "pointer",
+              cursor: totalSelectedQty === 0 ? "not-allowed" : "pointer",
+              opacity: totalSelectedQty === 0 ? 0.6 : 1,
             }}
           >
             BUY NOW

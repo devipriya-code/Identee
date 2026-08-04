@@ -45,6 +45,12 @@ import GarmentTypesPage from "./pages/admin/GarmentTypesPage";
 import ArtCategoriesPage from "./pages/admin/ArtCategoriesPage";
 import ArtDesignsPage from "./pages/admin/ArtDesignsPage";
 
+import AdminInvoicesPage from "./pages/admin/AdminInvoicesPage";
+import InvoicePreviewPage from "./pages/admin/InvoicePreviewPage";
+import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
+import ProductBulkUploadPage from "./pages/admin/ProductBulkUploadPage";
+import ArtBulkUploadPage from "./pages/admin/ArtBulkUploadPage";
+
 const OrdersPage = () => (
   <PlaceholderAdminPage
     title="Orders"
@@ -272,13 +278,23 @@ export default function App() {
           <Route path="art-designs" element={<ArtDesignsPage />} />
           <Route path="garment-types" element={<GarmentTypesPage />} />
           <Route path="garment-photos" element={<GarmentPhotosPage />} />
-          <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="users/:id" element={<AdminUserDetailsPage />} />
           <Route path="users/:id/edit" element={<AdminEditUserPage />} />
           <Route path="sellers" element={<SellersPage />} />
           <Route path="shipping" element={<AdminShippingPage />} />
+          <Route
+            path="/admin/bulk-upload"
+            element={<ProductBulkUploadPage />}
+          />
+          <Route
+            path="/admin/art-bulk-upload"
+            element={<ArtBulkUploadPage />}
+          />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/:orderId" element={<InvoicePreviewPage />} />
         </Route>
 
         {/* Seller routes */}

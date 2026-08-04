@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { THEME } from "../../theme/theme";
 import CheckoutStepper from "./CheckoutStepper";
 import AddressStep from "./AddressStep";
@@ -7,10 +7,32 @@ import PaymentStep from "./PaymentStep";
 
 // items/buyNow are optional overrides for the "Buy Now" flow.
 // Leave both undefined for normal cart checkout (falls back to redux cart).
-export default function CheckoutFlow({ items, buyNow }) {
+export default function CheckoutFlow({ items: itemsProp, buyNow: buyNowProp }) {
   const [step, setStep] = useState(1);
   const [shippingAddress, setShippingAddress] = useState(null);
   const [coupon, setCoupon] = useState(null);
+
+  // Local, editable copy of the Buy Now items — this is what lets the +/−
+  // quantity controls in OrderSummaryStep actually change something. Cart
+  // checkout (itemsProp undefined) is untouched — OrderSummaryStep/
+  // PaymentStep still fall back to the redux cart in that case.
+  const [items, setItems] = useState(itemsProp || null);
+
+  useEffect(() => {
+    setItems(itemsProp || null);
+  }, [itemsProp]);
+
+  // Recompute the total quantity being bought whenever a size's quantity
+  // changes on the Order Summary step, so the price quote fetched in
+  // PaymentStep always matches exactly what's shown on screen.
+  const buyNow = buyNowProp
+    ? {
+        ...buyNowProp,
+        qty: items
+          ? items.reduce((sum, it) => sum + it.qty, 0)
+          : buyNowProp.qty,
+      }
+    : buyNowProp;
 
   return (
     <div
@@ -32,6 +54,7 @@ export default function CheckoutFlow({ items, buyNow }) {
         {step === 2 && (
           <OrderSummaryStep
             items={items}
+            onItemsChange={setItems}
             shippingAddress={shippingAddress}
             onChangeAddress={() => setStep(1)}
             coupon={coupon}

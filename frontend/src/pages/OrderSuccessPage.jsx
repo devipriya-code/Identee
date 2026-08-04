@@ -84,24 +84,53 @@ export default function OrderSuccessPage() {
     >
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         {/* Success banner */}
+        {/* Success banner */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: "50%",
-              background: THEME.goldBg,
-              border: `1.5px solid ${THEME.gold}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 16px",
-              fontSize: 26,
-              color: THEME.goldDeep,
-            }}
+          <svg
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            style={{ margin: "0 auto 16px", display: "block" }}
           >
-            ✓
-          </div>
+            <circle
+              cx="36"
+              cy="36"
+              r="33"
+              fill="none"
+              stroke="#2E7D32"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray="207"
+              strokeDashoffset="207"
+              style={{
+                animation: "successCircle 0.6s ease-out forwards",
+                transformOrigin: "center",
+              }}
+            />
+            <path
+              d="M22 37 L32 47 L50 27"
+              fill="none"
+              stroke="#2E7D32"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="40"
+              strokeDashoffset="40"
+              style={{
+                animation: "successCheck 0.35s 0.5s ease-out forwards",
+              }}
+            />
+          </svg>
+          <style>{`
+            @keyframes successCircle {
+              from { stroke-dashoffset: 207; }
+              to { stroke-dashoffset: 0; }
+            }
+            @keyframes successCheck {
+              from { stroke-dashoffset: 40; }
+              to { stroke-dashoffset: 0; }
+            }
+          `}</style>
           <h1
             style={{
               margin: 0,

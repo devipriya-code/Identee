@@ -6,6 +6,7 @@ import RegisterEmailOtp from "../utils/registerEmailOtp.js";
 import ResetEmailOtp from "../utils/resetEmailOtp.js";
 import Subscription from "../models/subscriptionModel.js";
 import Order from "../models/orderModel.js";
+import ShippingCost from "../models/shippingcostModel.js";
 import path from "path";
 import fs from "fs";
 // @desc Auth user & get token
@@ -385,6 +386,35 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (!addresses.some((a) => a.isDefault) && addresses.length > 0) {
       addresses[0].isDefault = true;
     }
+
+    // ✅ NEW — validate every address's state against the live ShippingCost
+    // rules before saving. The frontend Account page now uses a <select>
+    // fed from this same collection, so normal usage can't produce a bad
+    // state string — but a direct API call still could, and a bad state
+    // saved here is exactly what silently broke checkout later (the
+    // "Shipping not available for state: X" error, or the address
+    // slipping through with an unmatched state entirely). Reject up front
+    // instead of saving addresses that can never actually be delivered to.
+    const shippingSettings = await ShippingCost.findOne();
+    const validStates = (shippingSettings?.shippingRules || []).map((r) =>
+      r.state.trim().toLowerCase(),
+    );
+
+    if (validStates.length > 0) {
+      const invalidAddress = addresses.find(
+        (addr) =>
+          !addr.state || !validStates.includes(addr.state.trim().toLowerCase()),
+      );
+      if (invalidAddress) {
+        res.status(400);
+        throw new Error(
+          `"${invalidAddress.state || "(empty)"}" is not a state we currently deliver to. Please select a valid state.`,
+        );
+      }
+    }
+    // If no shipping rules are configured at all yet, skip this check —
+    // there's nothing to validate against, and blocking address saves
+    // entirely in that case would be worse than letting them through.
 
     user.addresses = addresses;
   }
