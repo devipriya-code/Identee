@@ -4,6 +4,9 @@ import { THEME } from "../../theme/theme";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+const GOLD_GRADIENT = `linear-gradient(135deg, #D4AF6A 0%, #C9973F 45%, #9C6F23 100%)`;
+const NAVY = "#15130F"; // swap this for a real navy hex if you want it closer to the sample
+
 function formatDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-IN", {
@@ -33,8 +36,6 @@ function getImageUrl(path) {
   return `${BACKEND_URL}/${path.replace(/^\/+/, "")}`;
 }
 
-// Wrapped in forwardRef so InvoicePreviewPage can hand this DOM node
-// straight to html2pdf() / window.print() without any extra plumbing.
 const InvoiceDocument = forwardRef(({ invoice }, ref) => {
   if (!invoice) return null;
 
@@ -52,46 +53,77 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
         color: "#15130F",
         fontFamily: "'Inter', sans-serif",
         boxSizing: "border-box",
-        padding: "0",
+        padding: 0,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* ── Header band ── */}
+      <div style={{ height: 6, background: GOLD_GRADIENT }} />
+
+      {/* ── Header ── */}
       <div
         style={{
-          background: "#2A2620",
-          padding: "36px 48px",
+          padding: "32px 48px 28px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          borderBottom: `3px solid ${THEME.gold}`,
+          borderBottom: "1px solid #EEE7D6",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <img
             src={logo}
             alt="IDENTEE"
-            style={{ height: 56, objectFit: "contain" }}
+            style={{ height: 58, objectFit: "contain" }}
           />
           <div>
             <p
               style={{
                 margin: 0,
                 fontSize: 10,
-                letterSpacing: "0.14em",
-                color: THEME.gold,
+                letterSpacing: "0.16em",
+                color: NAVY,
                 fontWeight: 700,
               }}
             >
               YOUR STYLE. YOUR STORY. YOUR IDENTITY.
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "#D8D2C4" }}>
+            <p style={{ margin: "6px 0 0", fontSize: 10.5, color: "#5B564C" }}>
               12/48, Lakshmi Nagar, 1st Street, Near Post Office, Tirupur -
               641602
             </p>
-            <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#D8D2C4" }}>
-              identee.co.in &nbsp;·&nbsp; info@identee.co.in &nbsp;·&nbsp; +91
-              88700 08311 &nbsp;·&nbsp; @identee.co.in
-            </p>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                marginTop: 6,
+                flexWrap: "wrap",
+              }}
+            >
+              <a
+                href="https://identee.co.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={contactLinkStyle}
+              >
+                <GlobeIcon /> identee.co.in
+              </a>
+              <a href="mailto:info@identee.co.in" style={contactLinkStyle}>
+                <MailIcon /> info@identee.co.in
+              </a>
+              <a href="tel:+918870008311" style={contactLinkStyle}>
+                <PhoneIcon /> +91 88700 08311
+              </a>
+              <a
+                href="https://instagram.com/identee.co.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={contactLinkStyle}
+              >
+                <InstaIcon /> @identee.co.in
+              </a>
+            </div>
           </div>
         </div>
 
@@ -99,31 +131,31 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
           <p
             style={{
               margin: 0,
-              fontSize: 22,
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              color: "#FFFFFF",
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: "0.1em",
+              color: "#15130F",
             }}
           >
             INVOICE
           </p>
           <p
             style={{
-              margin: "6px 0 0",
+              margin: "8px 0 0",
               fontSize: 12,
-              color: THEME.gold,
+              color: "#9C6F23",
               fontWeight: 700,
             }}
           >
             {invoice.invoiceNumber}
           </p>
-          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#D8D2C4" }}>
+          <p style={{ margin: "2px 0 0", fontSize: 11, color: "#8A857A" }}>
             {formatDate(invoice.invoiceDate)}
           </p>
         </div>
       </div>
 
-      <div style={{ padding: "32px 48px" }}>
+      <div style={{ padding: "32px 48px", flexGrow: 1 }}>
         {/* ── Customer / Order meta ── */}
         <div
           style={{
@@ -131,6 +163,10 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
             gridTemplateColumns: "1fr 1fr 1fr",
             gap: 24,
             marginBottom: 32,
+            padding: "18px 20px",
+            background: "#FAF7EE",
+            borderRadius: 10,
+            border: "1px solid #EEE7D6",
           }}
         >
           <div>
@@ -179,7 +215,7 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
           }}
         >
           <thead>
-            <tr style={{ background: "#0B0B0C", color: "#FFFFFF" }}>
+            <tr style={{ background: GOLD_GRADIENT, color: "#FFFFFF" }}>
               <th style={thStyle}>Item</th>
               <th style={thStyle}>Variant / Colour</th>
               <th style={thStyle}>Size</th>
@@ -191,7 +227,13 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
           </thead>
           <tbody>
             {(invoice.orderItems || []).map((item, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #ECE4D2" }}>
+              <tr
+                key={i}
+                style={{
+                  borderBottom: "1px solid #EEE7D6",
+                  background: i % 2 === 1 ? "#FCFAF3" : "#FFFFFF",
+                }}
+              >
                 <td style={tdStyle}>
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 10 }}
@@ -221,11 +263,7 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
                   ₹{item.unitPrice}
                 </td>
                 <td
-                  style={{
-                    ...tdStyle,
-                    textAlign: "right",
-                    color: THEME.goldDeep,
-                  }}
+                  style={{ ...tdStyle, textAlign: "right", color: "#9C6F23" }}
                 >
                   {item.discountAmount > 0 ? `− ₹${item.discountAmount}` : "—"}
                 </td>
@@ -238,8 +276,22 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
         </table>
 
         {/* ── Summary ── */}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <div style={{ width: 280 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: 32,
+          }}
+        >
+          <div
+            style={{
+              width: 300,
+              border: "1px solid #EEE7D6",
+              borderRadius: 10,
+              padding: "16px 18px",
+              background: "#FAF7EE",
+            }}
+          >
             <SummaryRow label="Subtotal" value={pricing.subtotal} />
             <SummaryRow label="CGST (2.5%)" value={pricing.cgstPrice} />
             <SummaryRow label="SGST (2.5%)" value={pricing.sgstPrice} />
@@ -256,48 +308,100 @@ const InvoiceDocument = forwardRef(({ invoice }, ref) => {
                 pricing.shippingPrice === 0 ? "Free" : pricing.shippingPrice
               }
             />
-            <div style={{ borderTop: `2px solid #0B0B0C`, margin: "8px 0" }} />
+            <div
+              style={{ borderTop: "1.5px dashed #C9973F", margin: "10px 0" }}
+            />
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: 16,
-                fontWeight: 700,
+                fontSize: 17,
+                fontWeight: 800,
               }}
             >
               <span>Grand Total</span>
-              <span style={{ color: THEME.goldDeep }}>
-                ₹{pricing.totalPrice}
-              </span>
+              <span style={{ color: "#9C6F23" }}>₹{pricing.totalPrice}</span>
             </div>
+          </div>
+        </div>
+
+        {/* ── Payment Info + Signature ──
+            NOTE: placeholder fields below — swap these with your real
+            account/UPI details once you send them over. */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            paddingTop: 12,
+            borderTop: "1px solid #EEE7D6",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                ...labelStyle,
+                color: "#9C6F23",
+                fontSize: 11,
+                marginBottom: 8,
+              }}
+            >
+              Payment Info
+            </p>
+            <p style={valueStyle}>Account No. XXXXXXXXXXXX</p>
+            <p style={valueStyle}>IFSC XXXXXXXXX</p>
+            <p style={valueStyle}>A/H Name IDENTEE</p>
+            <p style={valueStyle}>UPI XXXXXXXXXX</p>
+          </div>
+
+          <div style={{ textAlign: "center" }}>
+            <div
+              style={{
+                height: 40,
+                borderBottom: "1px solid #9C9890",
+                width: 160,
+                marginBottom: 6,
+              }}
+            />
+            <p style={{ margin: 0, fontSize: 11, color: "#8A857A" }}>
+              Authorised Sign
+            </p>
           </div>
         </div>
       </div>
 
-      {/* ── Footer ── */}
-      <div
-        style={{
-          marginTop: 40,
-          padding: "24px 48px",
-          borderTop: `1px solid #ECE4D2`,
-          textAlign: "center",
-        }}
-      >
-        <p
-          style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#0B0B0C" }}
-        >
-          Thank you for shopping with IDENTEE.
-        </p>
-        <p
+      {/* ── Footer — full-bleed band, pinned to the bottom, matches header bg ── */}
+      <div>
+        <div style={{ height: 3, background: GOLD_GRADIENT }} />
+        <div
           style={{
-            margin: "4px 0 0",
-            fontSize: 11,
-            color: THEME.gold,
-            letterSpacing: "0.06em",
+            padding: "26px 48px",
+            textAlign: "center",
+            background: "#FFFFFF",
+            borderTop: "1px solid #EEE7D6",
           }}
         >
-          YOUR STYLE. YOUR STORY. YOUR IDENTITY.
-        </p>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 14,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "#9C6F23",
+            }}
+          >
+          THANK YOU FOR SHOPPING WITH IDENTEE
+          </p>
+          <p style={{ margin: "6px 0 0", fontSize: 11, color: "#5B564C" }}>
+            <a
+              href="https://identee.co.in"
+              style={{ color: "#5B564C", textDecoration: "none" }}
+            >
+              identee.co.in
+            </a>
+            &nbsp;|&nbsp; Tirupur, Tamil Nadu
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -314,11 +418,87 @@ function SummaryRow({ label, value, negative }) {
       }}
     >
       <span style={{ color: "#71695B" }}>{label}</span>
-      <span style={{ color: negative ? THEME.gold : "#15130F" }}>
+      <span style={{ color: negative ? "#9C6F23" : "#15130F" }}>
         {negative ? "− " : ""}
         {typeof value === "number" ? `₹${value}` : value}
       </span>
     </div>
+  );
+}
+
+const contactLinkStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 10.5,
+  color: "#5B564C",
+  textDecoration: "none",
+};
+
+function GlobeIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="#9C6F23" strokeWidth="1.6" />
+      <path
+        d="M3 12h18M12 3c2.5 2.5 3.8 5.8 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.8-3.8-9S9.5 5.5 12 3z"
+        stroke="#9C6F23"
+        strokeWidth="1.4"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+        stroke="#9C6F23"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M3.5 6.5L12 13l8.5-6.5"
+        stroke="#9C6F23"
+        strokeWidth="1.6"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6.6 10.8c1.4 2.7 3.9 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1.1-.3 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1v3.4c0 .6-.4 1-1 1C10.7 21 3 13.3 3 4.7c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1L6.6 10.8z"
+        stroke="#9C6F23"
+        strokeWidth="1.4"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+function InstaIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+      <rect
+        x="3"
+        y="3"
+        width="18"
+        height="18"
+        rx="5"
+        stroke="#9C6F23"
+        strokeWidth="1.6"
+      />
+      <circle cx="12" cy="12" r="4" stroke="#9C6F23" strokeWidth="1.6" />
+      <circle cx="17.2" cy="6.8" r="1.1" fill="#9C6F23" />
+    </svg>
   );
 }
 
