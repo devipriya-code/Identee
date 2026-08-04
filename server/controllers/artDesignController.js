@@ -146,14 +146,6 @@ export const bulkUploadArtDesigns = asyncHandler(async (req, res) => {
       if (isNaN(price)) throw new Error("price is missing/invalid");
       if (!imageFileName) throw new Error("image filename is missing");
 
-      // ✅ Match category by name (must already exist)
-      const category = await ArtCategory.findOne({ name: categoryName });
-      if (!category) {
-        throw new Error(
-          `Category "${categoryName}" not found — create it first`,
-        );
-      }
-
       // ✅ Find the image in the zip by basename
       const basename = path.basename(imageFileName);
       const entry = imageEntryMap[basename];
@@ -162,6 +154,17 @@ export const bulkUploadArtDesigns = asyncHandler(async (req, res) => {
       }
 
       const imageUrl = saveEntryToDisk(entry, "uploads/art-designs");
+
+      // ✅ Auto-create category if it doesn't exist yet
+      //    (uses this design's image as the category thumbnail —
+      //     admin can change the thumbnail later from Art Categories page)
+      let category = await ArtCategory.findOne({ name: categoryName });
+      if (!category) {
+        category = await ArtCategory.create({
+          name: categoryName,
+          thumbnail: imageUrl,
+        });
+      }
 
       await ArtDesign.create({
         category: category._id,

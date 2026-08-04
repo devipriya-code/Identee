@@ -125,15 +125,43 @@ export default function ArtBulkUploadPage() {
       </p>
       <p
         style={{
-          margin: "0 0 28px",
+          margin: "0 0 16px",
           fontSize: 13,
           color: C.gold,
           maxWidth: 620,
         }}
       >
-        ⚠️ Categories must already exist — create them first from Art Categories
-        page. The "category" column matches by exact name.
+        ℹ️ If a category doesn't exist yet, it will be auto-created using the
+        design's image as its thumbnail.
       </p>
+
+      <a
+        href="/templates/Art_Design_Bulk_Upload_Template.xlsx"
+        download
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "9px 18px",
+          borderRadius: 8,
+          border: `1px solid ${C.gold}`,
+          background: "transparent",
+          color: C.gold,
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: "none",
+          marginBottom: 28,
+        }}
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" width={14} height={14}>
+          <path
+            fillRule="evenodd"
+            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM9 3a1 1 0 012 0v8.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 11.586V3z"
+            clipRule="evenodd"
+          />
+        </svg>
+        Download Excel Template
+      </a>
 
       {/* ── Dropzone ── */}
       <div
