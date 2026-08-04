@@ -13,6 +13,8 @@ import {
   markOrderAsCompleted,
   markOrderAsReturned,
   assignOrderToDeliveryPerson,
+  getAllInvoices,
+  emailInvoiceToCustomer,
   generateInvoice,
   incomebycity,
   getTransactions,
@@ -32,12 +34,7 @@ import {
   isDelivery,
 } from "../middleware/authMiddleware.js";
 
-// ============================================================
-// ✅ RULE: All fixed-path routes MUST come before /:id.
-// "/:id" matches ANY single path segment for its HTTP method,
-// so every other single-segment GET route has to be registered
-// above it or it becomes unreachable.
-// ============================================================
+
 
 router.route("/delivery").get(protect, isDelivery, getOrdersForDeliveryPerson);
 router.route("/status-count").get(protect, adminOrSeller, getOrderStatusCounts);
@@ -50,7 +47,7 @@ router
   .post(protect, addorderitems)
   .get(protect, adminOrSeller, GetOrders);
 
-// ── Delivery person routes (fixed paths) ──
+
 router.route("/delivery/accept/:id").put(protect, isDelivery, acceptOrder);
 router.route("/delivery/reject/:id").put(protect, isDelivery, rejectOrder);
 router
@@ -60,16 +57,22 @@ router
   .route("/delivery/return/:id")
   .put(protect, isDelivery, markOrderAsReturned);
 
-// ── Admin routes (fixed paths) ──
-// ⚠️ Was previously registered AFTER "/:id" (GET), which meant every
-// request to GET /orders/undelivered was silently swallowed by
-// getOrderById(id="undelivered") and crashed with a Mongoose CastError.
+
 router.route("/undelivered").get(protect, adminOrSeller, getUndeliveredOrders);
 
 router
   .route("/admin/orders/assign/:id")
   .put(protect, assignOrderToDeliveryPerson);
+
+
 router.route("/admin/order/:id/invoice").get(protect, generateInvoice);
+
+router.route("/admin/invoices").get(protect, adminOrSeller, getAllInvoices);
+
+router
+  .route("/admin/order/:id/invoice/email")
+  .post(protect, adminOrSeller, emailInvoiceToCustomer);
+
 router.route("/admin/incomebycity").get(protect, adminOrSeller, incomebycity);
 router
   .route("/admin/incomebypincode")
@@ -79,12 +82,7 @@ router
   .route("/billinginvoice")
   .post(protect, adminOrSeller, createBillingInvoice);
 
-// ⚠️ RENAMED from "/:invoiceNumber" — that shape was identical to "/:id"
-// below, so whichever route was registered first would silently swallow
-// every request meant for the other one, no matter how they were ordered.
-// Giving it a distinct "/invoice/" prefix removes the ambiguity entirely.
-// NOTE: if your frontend calls GET /api/orders/:invoiceNumber directly,
-// update it to GET /api/orders/invoice/:invoiceNumber to match.
+
 router
   .route("/invoice/:invoiceNumber")
   .get(protect, adminOrSeller, getBillingInvoiceByNumber);
@@ -92,9 +90,7 @@ router
 router.route("/razorpay").post(protect, createRazorpayOrder);
 router.route("/razorpay/verify").post(protect, verifyRazorpayPayment);
 
-// ============================================================
-// ✅ Wildcard /:id routes — ALWAYS LAST
-// ============================================================
+
 router.route("/:id/pay").put(protect, updateOrderToPaid);
 router
   .route("/:id/deliver")

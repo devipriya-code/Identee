@@ -9,7 +9,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import ShippingCost from "../models/shippingcostModel.js";
 import Counter from "../models/counterModel.js";
-
+import { generateInvoicePdfBuffer } from "../utils/generateInvoicePdf.js";
 // @desc Create new order
 // @route POST /api/orders
 // @access Private
@@ -366,62 +366,188 @@ const assignOrderToDeliveryPerson = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Generate Invoice
-// @route   GET /api/orders/:id/invoice
+// @desc    Generate (or fetch existing) formal invoice for an order.
+// Idempotent — if order.invoiceDetails already exists, it's returned as-is
+// instead of minting a new invoice number. This is what powers the admin
+// "Generate Invoice" button and the Invoices module: clicking it again
+// never creates a duplicate.
+// @route   GET /api/orders/admin/order/:id/invoice
 // @access  Private/Admin
 const generateInvoice = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate("user", "name email")
-    .populate("orderItems.product", "hsnCode");
+    .populate(
+      "orderItems.product",
+      "hsnCode brandname oldPrice discount productdetails",
+    );
 
   if (!order) {
     res.status(404);
     throw new Error("Order not found");
   }
 
-  const orderItemsWithHsn = order.orderItems.map((item) => ({
-    ...item.toObject(),
-    hsnCode: item.product?.hsnCode || "6109",
-  }));
+  // ✅ Already generated — return it, never duplicate.
+  if (order.invoiceDetails) {
+    return res.json(order.invoiceDetails);
+  }
 
-  const invoice = {
+  // Separate numbering series (IDT-YYYY-NNNNNN) from order.invoiceNumber
+  // (VF-YYYY-NNNN), which is already assigned automatically at order
+  // creation time and used elsewhere in the admin (e.g. the Shipping
+  // page's "Order" column). This is the formal, customer-facing invoice
+  // number, minted only once — here — the first time an invoice is
+  // actually generated for this order.
+  const year = new Date().getFullYear();
+  const counter = await Counter.findByIdAndUpdate(
+    `invoice-${year}`,
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true },
+  );
+  const invoiceNumber = `IDT-${year}-${String(counter.seq).padStart(6, "0")}`;
+
+  const orderItems = order.orderItems.map((item) => {
+    const product = item.product;
+    const unitPrice =
+      item.qty > 0
+        ? Math.round((item.price / item.qty) * 100) / 100
+        : item.price;
+    const mrp = product?.oldPrice > 0 ? product.oldPrice : unitPrice;
+    const discountAmount = Math.max((mrp - unitPrice) * item.qty, 0);
+
+    return {
+      name: item.name,
+      image: item.image,
+      size: item.size,
+      color: product?.productdetails?.color || "",
+      variant: product?.productdetails?.type || "",
+      hsnCode: product?.hsnCode || "6109",
+      qty: item.qty,
+      unitPrice,
+      mrp,
+      discountAmount: Math.round(discountAmount * 100) / 100,
+      lineTotal: item.price,
+    };
+  });
+
+  const shipping = order.shippingAddress || {};
+  const customerName =
+    order.user?.name ||
+    [shipping.firstName, shipping.lastName].filter(Boolean).join(" ") ||
+    "N/A";
+
+  const invoiceDetails = {
+    invoiceNumber,
+    invoiceDate: new Date(),
     orderId: order._id,
-    invoiceNumber: order.invoiceNumber,
-    user: {
-      name: order.user?.name || "N/A",
-      email: order.user?.email || "N/A",
+    orderNumber:
+      order.invoiceNumber || order._id.toString().slice(-8).toUpperCase(),
+    customer: {
+      name: customerName,
+      email: order.user?.email || shipping.email || "N/A",
+      phone: shipping.phoneNumber || shipping.secondaryPhone || "N/A",
     },
-    orderItems: orderItemsWithHsn,
-    shippingAddress: order.shippingAddress,
-    paymentMethod: order.paymentMethod,
-    coupon: order.coupon
-      ? {
-          code: order.coupon.code,
-          percentage: order.coupon.percentage,
-          discountAmount: order.coupon.discountAmount,
-        }
-      : null,
+    // This system captures a single delivery address per order — billing
+    // and shipping are the same until a separate billing-address field
+    // exists, so both sections of the invoice reuse it.
+    billingAddress: shipping,
+    shippingAddress: shipping,
+    orderItems,
     pricing: {
+      subtotal: order.orderItems.reduce((sum, i) => sum + i.price, 0),
       cgstPrice: order.cgstPrice,
       sgstPrice: order.sgstPrice,
       taxPrice: order.taxPrice,
       shippingPrice: order.shippingPrice,
+      discountAmount: order.coupon?.discountAmount || 0,
       totalPrice: order.totalPrice,
     },
-    paymentStatus: {
-      isPaid: order.isPaid,
-      paidAt: order.paidAt,
-    },
-    deliveryStatus: {
-      isDelivered: order.isDelivered,
-      deliveredAt: order.deliveredAt,
-    },
+    coupon: order.coupon || null,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.isPaid ? "Paid" : "Unpaid",
+    orderStatus: order.orderStatus,
     createdAt: order.createdAt,
   };
 
-  res.json(invoice);
+  order.invoiceDetails = invoiceDetails;
+  await order.save();
+
+  res.json(invoiceDetails);
 });
 
+// @desc    List every order that has a generated invoice — powers the
+// admin "Invoices" list page.
+// @route   GET /api/orders/admin/invoices
+// @access  Private/Admin
+const getAllInvoices = asyncHandler(async (req, res) => {
+  const orders = await Order.find({ invoiceDetails: { $ne: null } })
+    .select(
+      "invoiceDetails invoiceNumber totalPrice isPaid orderStatus createdAt user",
+    )
+    .populate("user", "name email")
+    .sort({ createdAt: -1 });
+
+  const invoices = orders.map((o) => ({
+    orderId: o._id,
+    invoiceNumber: o.invoiceDetails?.invoiceNumber,
+    invoiceDate: o.invoiceDetails?.invoiceDate,
+    customerName: o.user?.name || o.invoiceDetails?.customer?.name || "N/A",
+    customerEmail: o.user?.email || o.invoiceDetails?.customer?.email || "N/A",
+    totalPrice: o.totalPrice,
+    isPaid: o.isPaid,
+    orderStatus: o.orderStatus,
+  }));
+
+  res.json(invoices);
+});
+
+// @desc    Email the generated invoice to the customer on file for the order.
+// @route   POST /api/orders/admin/order/:id/invoice/email
+// @access  Private/Admin
+const emailInvoiceToCustomer = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id).populate(
+    "user",
+    "name email",
+  );
+
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+  if (!order.invoiceDetails) {
+    res.status(400);
+    throw new Error("Generate the invoice before emailing it");
+  }
+
+  const recipientEmail =
+    order.user?.email || order.invoiceDetails.customer?.email;
+  if (!recipientEmail || recipientEmail === "N/A") {
+    res.status(400);
+    throw new Error("This order has no customer email on file");
+  }
+
+  try {
+    // Render the SAME template as the admin's InvoiceDocument, as a PDF.
+    const pdfBuffer = await generateInvoicePdfBuffer(order.invoiceDetails);
+
+    await sendEmail({
+      email: recipientEmail,
+      status: "INVOICE",
+      invoice: order.invoiceDetails,
+      attachments: [
+        {
+          filename: `${order.invoiceDetails.invoiceNumber}.pdf`,
+          content: pdfBuffer,
+        },
+      ],
+    });
+    res.json({ message: `Invoice emailed to ${recipientEmail}` });
+  } catch (err) {
+    console.error("❌ Invoice email failed:", err);
+    res.status(500).json({
+      message: "Couldn't send automatically — use the mailto fallback instead.",
+    });
+  }
+});
 // @desc  getlocations
 // @route GET /api/incomebycity
 // @access Private/Admin
@@ -511,7 +637,46 @@ const createRazorpayOrder = async (req, res) => {
 
     let subtotal = 0;
 
-    if (req.body.buyNowProductId) {
+  if (req.body.buyNowCustomizationId) {
+      // A customized garment — no real Product document exists for it.
+      // Price = garment type's base price + the real current price of
+      // every Art design placed on it (re-looked-up here, never trusted
+      // from the client, so a tampered client price can't undercharge).
+      const qty = Number(req.body.qty) > 0 ? Number(req.body.qty) : 1;
+      const customization = await Customization.findById(
+        req.body.buyNowCustomizationId,
+      );
+      if (!customization) {
+        return res.status(404).json({ message: "Customization not found" });
+      }
+
+      const garment = await GarmentType.findOne({
+        key: customization.garmentType,
+      });
+      const basePrice = garment?.basePrice || 0;
+
+      const artDesignIds = customization.elements
+        .filter((el) => el.artDesignId)
+        .map((el) => el.artDesignId);
+
+      let addOnTotal = 0;
+      if (artDesignIds.length > 0) {
+        const artDesigns = await ArtDesign.find({
+          _id: { $in: artDesignIds },
+        });
+        const priceMap = Object.fromEntries(
+          artDesigns.map((d) => [d._id.toString(), d.price]),
+        );
+        addOnTotal = customization.elements.reduce(
+          (sum, el) =>
+            sum +
+            (el.artDesignId ? priceMap[el.artDesignId.toString()] || 0 : 0),
+          0,
+        );
+      }
+
+      subtotal = parseFloat(((basePrice + addOnTotal) * qty).toFixed(2));
+    } else if (req.body.buyNowProductId) {
       const qty = Number(req.body.qty) > 0 ? Number(req.body.qty) : 1;
       const product = await Product.findById(req.body.buyNowProductId);
       if (!product) {
@@ -568,12 +733,12 @@ const createRazorpayOrder = async (req, res) => {
 
     let shippingAmount = parseFloat(stateRule.cost.toFixed(2));
     if (
+      !stateRule.alwaysCharge &&
       shippingSettings.freeShippingAbove &&
       subtotal >= shippingSettings.freeShippingAbove
     ) {
       shippingAmount = 0;
     }
-
     let discountAmount = 0;
     let couponSnapshot = null;
 
@@ -913,6 +1078,8 @@ export {
   markOrderAsReturned,
   assignOrderToDeliveryPerson,
   generateInvoice,
+  getAllInvoices,
+  emailInvoiceToCustomer,
   incomebycity,
   getTransactions,
   StripePayment,

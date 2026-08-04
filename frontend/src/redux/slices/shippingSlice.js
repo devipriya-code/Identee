@@ -38,10 +38,14 @@ export const addState = createAsyncThunk(
 
 export const updateState = createAsyncThunk(
   "shipping/updateState",
-  async ({ id, cost }, thunkAPI) => {
+  async ({ id, cost, alwaysCharge }, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token;
-      return await shippingService.updateState(id, cost, token);
+      return await shippingService.updateState(
+        id,
+        { cost, alwaysCharge },
+        token,
+      );
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message,
@@ -78,9 +82,6 @@ export const updateFreeShipping = createAsyncThunk(
   },
 );
 
-// All five endpoints return the full ShippingCost document, so every
-// fulfilled case just re-applies it to state — one source of truth,
-// no risk of the UI drifting out of sync with what's actually in the DB.
 const applySettings = (state, payload) => {
   state.freeShippingAbove = payload.freeShippingAbove ?? 0;
   state.shippingRules = payload.shippingRules ?? [];

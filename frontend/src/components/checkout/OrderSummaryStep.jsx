@@ -7,8 +7,6 @@ const EMPTY_CART_ITEMS = [];
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-// Product images are stored as relative paths (e.g. "uploads/xyz.jpg").
-// This resolves them against the backend origin instead of the frontend's.
 function getImageUrl(path) {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;
@@ -28,8 +26,24 @@ function formatAddress(addr) {
     .join(", ");
 }
 
+const qtyBtnStyle = {
+  width: 26,
+  height: 26,
+  borderRadius: 6,
+  border: `1px solid ${THEME.border}`,
+  background: THEME.surface,
+  fontWeight: 700,
+  fontSize: 14,
+  color: THEME.text,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
 // items: optional override — array of { _id, product, size, qty, price }
-// If not passed, falls back to the redux cart (normal checkout flow).
+// (Buy Now flow, editable via onItemsChange). If not passed, falls back
+// to the redux cart (normal cart checkout — quantity is edited on the
+// Cart page itself, so no +/- controls render here for that flow).
 export default function OrderSummaryStep({
   shippingAddress,
   onChangeAddress,
@@ -38,12 +52,14 @@ export default function OrderSummaryStep({
   onBack,
   onContinue,
   items: itemsProp,
+  onItemsChange,
 }) {
   const cartItems = useSelector(
     (state) => state.cartWishlist?.cartItems || EMPTY_CART_ITEMS,
   );
   const { user } = useSelector((state) => state.auth);
 
+  const isEditable = Boolean(itemsProp && onItemsChange);
   const items = itemsProp || cartItems;
 
   const [couponInput, setCouponInput] = useState(coupon?.code || "");
@@ -58,6 +74,34 @@ export default function OrderSummaryStep({
   const mrpDiscount = Math.max(mrpTotal - subtotal, 0);
   const couponDiscount = coupon?.discountAmount || 0;
   const estimatedTotal = Math.max(subtotal - couponDiscount, 0);
+
+  // Finds how much stock is left for this item's size, so +/- can't push
+  // qty past what's actually available.
+  const getMaxStock = (item) => {
+    const stockBySize = item.product?.productdetails?.stockBySize || [];
+    const entry = stockBySize.find((s) => s.size === item.size);
+    return entry ? entry.stock : 99;
+  };
+
+  const updateQty = (itemId, delta) => {
+    if (!isEditable) return;
+    const next = itemsProp
+      .map((it) => {
+        if (it._id !== itemId) return it;
+        const unitPrice =
+          it.product?.price || (it.qty > 0 ? it.price / it.qty : 0);
+        const maxStock = getMaxStock(it);
+        const newQty = Math.min(Math.max(it.qty + delta, 1), maxStock);
+        return { ...it, qty: newQty, price: unitPrice * newQty };
+      })
+      .filter(Boolean);
+    onItemsChange(next);
+  };
+
+  const removeItem = (itemId) => {
+    if (!isEditable || itemsProp.length <= 1) return;
+    onItemsChange(itemsProp.filter((it) => it._id !== itemId));
+  };
 
   const applyCoupon = async () => {
     if (!couponInput.trim()) return;
@@ -188,85 +232,175 @@ export default function OrderSummaryStep({
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {items.map((item, i) => (
-                <div
-                  key={item._id || i}
-                  style={{
-                    display: "flex",
-                    gap: 14,
-                    alignItems: "center",
-                    paddingBottom: 14,
-                    borderBottom:
-                      i < items.length - 1
-                        ? `1px solid ${THEME.border}`
-                        : "none",
-                  }}
-                >
-                  <img
-                    src={getImageUrl(item.product?.images?.[0])}
-                    alt={item.product?.brandname}
+              {items.map((item, i) => {
+                const maxStock = getMaxStock(item);
+                return (
+                  <div
+                    key={item._id || i}
                     style={{
-                      width: 64,
-                      height: 64,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      border: `1px solid ${THEME.border}`,
-                      background: THEME.surface2,
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      paddingBottom: 14,
+                      borderBottom:
+                        i < items.length - 1
+                          ? `1px solid ${THEME.border}`
+                          : "none",
                     }}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src =
-                        "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23f1ede2'/%3E%3C/svg%3E";
-                    }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <p
+                  >
+                    <img
+                      src={getImageUrl(item.product?.images?.[0])}
+                      alt={item.product?.brandname}
                       style={{
-                        margin: 0,
-                        fontWeight: 600,
-                        fontSize: 14,
-                        color: THEME.text,
-                        fontFamily: THEME.fontBody,
+                        width: 64,
+                        height: 64,
+                        objectFit: "cover",
+                        borderRadius: 8,
+                        border: `1px solid ${THEME.border}`,
+                        background: THEME.surface2,
                       }}
-                    >
-                      {item.product?.brandname}
-                    </p>
-                    <p
-                      style={{
-                        margin: "2px 0 0",
-                        fontSize: 12,
-                        color: THEME.textMuted,
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src =
+                          "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23f1ede2'/%3E%3C/svg%3E";
                       }}
-                    >
-                      Size: {item.size} · Qty: {item.qty}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    {item.product?.oldPrice > item.price / item.qty && (
+                    />
+                    <div style={{ flex: 1 }}>
                       <p
                         style={{
                           margin: 0,
-                          fontSize: 11,
-                          color: THEME.textMuted,
-                          textDecoration: "line-through",
+                          fontWeight: 600,
+                          fontSize: 14,
+                          color: THEME.text,
+                          fontFamily: THEME.fontBody,
                         }}
                       >
-                        ₹{item.product.oldPrice * item.qty}
+                        {item.product?.brandname}
                       </p>
-                    )}
-                    <p
-                      style={{
-                        margin: 0,
-                        fontWeight: 700,
-                        color: THEME.goldDeep,
-                        fontFamily: THEME.fontBody,
-                      }}
-                    >
-                      ₹{item.price}
-                    </p>
+
+                      {isEditable ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            marginTop: 6,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 12,
+                              color: THEME.textMuted,
+                              fontFamily: THEME.fontBody,
+                            }}
+                          >
+                            Size: {item.size}
+                          </span>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <button
+                              type="button"
+                              disabled={item.qty <= 1}
+                              onClick={() => updateQty(item._id, -1)}
+                              style={{
+                                ...qtyBtnStyle,
+                                cursor:
+                                  item.qty <= 1 ? "not-allowed" : "pointer",
+                                opacity: item.qty <= 1 ? 0.5 : 1,
+                              }}
+                            >
+                              −
+                            </button>
+                            <span
+                              style={{
+                                minWidth: 18,
+                                textAlign: "center",
+                                fontWeight: 700,
+                                fontSize: 13,
+                                color: THEME.text,
+                              }}
+                            >
+                              {item.qty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={item.qty >= maxStock}
+                              onClick={() => updateQty(item._id, 1)}
+                              style={{
+                                ...qtyBtnStyle,
+                                cursor:
+                                  item.qty >= maxStock
+                                    ? "not-allowed"
+                                    : "pointer",
+                                opacity: item.qty >= maxStock ? 0.5 : 1,
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                          {items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item._id)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: THEME.danger,
+                                fontSize: 12,
+                                cursor: "pointer",
+                                textDecoration: "underline",
+                                padding: 0,
+                                marginLeft: 4,
+                              }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p
+                          style={{
+                            margin: "2px 0 0",
+                            fontSize: 12,
+                            color: THEME.textMuted,
+                          }}
+                        >
+                          Size: {item.size} · Qty: {item.qty}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      {item.product?.oldPrice > item.price / item.qty && (
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: 11,
+                            color: THEME.textMuted,
+                            textDecoration: "line-through",
+                          }}
+                        >
+                          ₹{item.product.oldPrice * item.qty}
+                        </p>
+                      )}
+                      <p
+                        style={{
+                          margin: 0,
+                          fontWeight: 700,
+                          color: THEME.goldDeep,
+                          fontFamily: THEME.fontBody,
+                        }}
+                      >
+                        ₹{item.price}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

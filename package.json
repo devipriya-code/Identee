@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "html2pdf.js": "^0.14.0",
     "react-toastify": "^11.1.0"
   }
 }

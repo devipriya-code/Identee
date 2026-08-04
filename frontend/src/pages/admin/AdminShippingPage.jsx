@@ -12,39 +12,6 @@ import {
 import { fetchAllOrders } from "../../redux/slices/orderSlice";
 import { THEME, labelStyle, inputStyle } from "../../theme/theme";
 
-const STATE_SUGGESTIONS = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Delhi",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Puducherry",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-];
-
 const STATUS_COLORS = {
   CREATED: { bg: "#2B2B3020", text: "#8A877F" },
   CONFIRMED: { bg: "#C9A24B20", text: "#F0D585" },
@@ -127,7 +94,7 @@ function EditableCostCell({ rule, onSave, disabled }) {
             toast.error("Enter a valid cost");
             return;
           }
-          onSave(rule._id, Number(value));
+          onSave(rule._id, Number(value), rule.alwaysCharge);
           setEditing(false);
         }}
         style={{
@@ -165,6 +132,46 @@ function EditableCostCell({ rule, onSave, disabled }) {
   );
 }
 
+function AlwaysChargeToggle({ rule, onToggle, disabled }) {
+  const active = Boolean(rule.alwaysCharge);
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onToggle(rule._id, rule.cost, !active)}
+      title={
+        active
+          ? "This state always charges shipping, even above the free threshold. Click to allow free shipping."
+          : "This state gets free shipping above the threshold. Click to always charge it."
+      }
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        background: active ? THEME.goldBg : THEME.surface2,
+        border: `1px solid ${active ? THEME.goldBorder : THEME.border}`,
+        borderRadius: 999,
+        padding: "4px 10px",
+        fontSize: 11,
+        fontWeight: 700,
+        color: active ? THEME.goldDeep : THEME.textMuted,
+        cursor: disabled ? "not-allowed" : "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: active ? THEME.gold : THEME.border,
+        }}
+      />
+      {active ? "Always charged" : "Free above threshold"}
+    </button>
+  );
+}
+
 function StatusPill({ status }) {
   const colors = STATUS_COLORS[status] || STATUS_COLORS.CREATED;
   return (
@@ -193,6 +200,7 @@ export default function AdminShippingPage() {
 
   const [newState, setNewState] = useState("");
   const [newCost, setNewCost] = useState("");
+  const [newAlwaysCharge, setNewAlwaysCharge] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const [freeShipInput, setFreeShipInput] = useState("");
@@ -232,11 +240,16 @@ export default function AdminShippingPage() {
     setAdding(true);
     try {
       await dispatch(
-        addState({ state: stateName, cost: Number(newCost) }),
+        addState({
+          state: stateName,
+          cost: Number(newCost),
+          alwaysCharge: newAlwaysCharge,
+        }),
       ).unwrap();
       toast.success(`Added shipping rule for ${stateName}`);
       setNewState("");
       setNewCost("");
+      setNewAlwaysCharge(false);
     } catch (err) {
       toast.error(err || "Failed to add state");
     } finally {
@@ -244,12 +257,25 @@ export default function AdminShippingPage() {
     }
   };
 
-  const handleUpdateCost = async (id, cost) => {
+  const handleUpdateCost = async (id, cost, alwaysCharge) => {
     try {
-      await dispatch(updateState({ id, cost })).unwrap();
+      await dispatch(updateState({ id, cost, alwaysCharge })).unwrap();
       toast.success("Shipping cost updated");
     } catch (err) {
       toast.error(err || "Failed to update cost");
+    }
+  };
+
+  const handleToggleAlwaysCharge = async (id, cost, alwaysCharge) => {
+    try {
+      await dispatch(updateState({ id, cost, alwaysCharge })).unwrap();
+      toast.success(
+        alwaysCharge
+          ? "This state will always charge shipping now"
+          : "This state can now get free shipping above the threshold",
+      );
+    } catch (err) {
+      toast.error(err || "Failed to update state");
     }
   };
 
@@ -330,7 +356,8 @@ export default function AdminShippingPage() {
       >
         Set a delivery cost per state. Checkout automatically charges whatever
         rate matches the customer's shipping address — orders above the free
-        shipping threshold ship for free regardless of state.
+        shipping threshold ship for free, unless that state is marked "Always
+        charged".
       </p>
 
       {isError && (
@@ -349,10 +376,6 @@ export default function AdminShippingPage() {
         </div>
       )}
 
-      {/* ── Top row: Free shipping threshold + Add state, side by side on
-           wide screens, stacked on narrow ones. Uses a responsive grid
-           instead of a fixed maxWidth so it fills the available space
-           without leaving a huge blank gutter on wide monitors. ── */}
       <div className="shipping-top-grid">
         <div
           style={{
@@ -376,8 +399,9 @@ export default function AdminShippingPage() {
           <p
             style={{ margin: "0 0 14px", fontSize: 12, color: THEME.textMuted }}
           >
-            Orders with a subtotal at or above this amount ship free, regardless
-            of state. Set to 0 to disable.
+            Orders with a subtotal at or above this amount ship free, unless the
+            destination state is marked "Always charged" below. Set to 0 to
+            disable entirely.
           </p>
           <div
             style={{
@@ -448,17 +472,11 @@ export default function AdminShippingPage() {
             <div style={{ flex: "1 1 160px", minWidth: 140 }}>
               <label style={labelStyle}>State</label>
               <input
-                list="state-suggestions"
                 value={newState}
                 onChange={(e) => setNewState(e.target.value)}
                 placeholder="e.g. Tamil Nadu"
                 style={{ ...inputStyle, marginTop: 5, width: "100%" }}
               />
-              <datalist id="state-suggestions">
-                {STATE_SUGGESTIONS.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
             </div>
             <div style={{ flex: "0 1 110px", minWidth: 90 }}>
               <label style={labelStyle}>Cost (₹)</label>
@@ -490,11 +508,33 @@ export default function AdminShippingPage() {
             >
               {adding ? "Adding…" : "+ Add"}
             </button>
+
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                color: THEME.text,
+                cursor: "pointer",
+                width: "100%",
+                marginTop: 4,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={newAlwaysCharge}
+                onChange={(e) => setNewAlwaysCharge(e.target.checked)}
+                style={{ accentColor: THEME.gold }}
+              />
+              Always charge this state's shipping fee (skip free-shipping
+              threshold)
+            </label>
           </form>
         </div>
       </div>
 
-      {/* ── States table + revenue side panel, side by side on wide screens ── */}
       <div className="shipping-mid-grid">
         <div
           style={{
@@ -524,6 +564,7 @@ export default function AdminShippingPage() {
                 <tr style={{ background: THEME.surface2, textAlign: "left" }}>
                   <th style={thStyle}>State</th>
                   <th style={thStyle}>Shipping Cost</th>
+                  <th style={thStyle}>Free Shipping Rule</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
@@ -538,6 +579,13 @@ export default function AdminShippingPage() {
                       <EditableCostCell
                         rule={rule}
                         onSave={handleUpdateCost}
+                        disabled={isLoading}
+                      />
+                    </td>
+                    <td style={tdStyle}>
+                      <AlwaysChargeToggle
+                        rule={rule}
+                        onToggle={handleToggleAlwaysCharge}
                         disabled={isLoading}
                       />
                     </td>
@@ -618,7 +666,6 @@ export default function AdminShippingPage() {
         )}
       </div>
 
-      {/* ── Orders & shipping details ── */}
       <div style={{ marginTop: 40 }}>
         <div
           style={{

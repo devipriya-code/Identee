@@ -8,14 +8,46 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendEmail = async ({ email, status, order }) => {
+const sendEmail = async ({ email, status, order, invoice, attachments }) => {
+  status = status.toUpperCase();
+
+  // INVOICE emails carry their own PDF and don't need the order-status
+  // product table — handle them separately so we don't touch
+  // order.orderItems.product (which isn't populated on this call path).
+  if (status === "INVOICE") {
+    const mailOptions = {
+      from: `"IDENTEE" <${process.env.EMAIL_USER}>`,
+      to: email,
+      cc: process.env.ADMIN_EMAIL,
+      subject: `Your IDENTEE Invoice ${invoice?.invoiceNumber || ""}`,
+      html: `
+        <div style="font-family:Arial, sans-serif; max-width:600px; margin:auto;">
+          <h2 style="color:#8A6F2E;">Your Invoice is Ready</h2>
+          <p>Hi ${invoice?.customer?.name || "there"},</p>
+          <p>
+            Please find attached the invoice
+            <strong>${invoice?.invoiceNumber || ""}</strong>
+            for order <strong>${invoice?.orderNumber || ""}</strong>,
+            totalling <strong>₹${invoice?.pricing?.totalPrice ?? ""}</strong>.
+          </p>
+          <p style="color:gray; font-size:12px;">
+            Thank you for shopping with IDENTEE ❤️
+          </p>
+        </div>
+      `,
+      attachments: attachments || [],
+    };
+
+    await transporter.sendMail(mailOptions);
+    return;
+  }
+
   console.log("📨 sendEmail entered");
   console.log("📧 Email:", email);
   console.log("📌 Status:", status);
   if (!order || !order.orderItems || order.orderItems.length === 0) {
     throw new Error("Invalid order data for email");
   }
-  status = status.toUpperCase();
 
   let subject = "";
 
@@ -74,7 +106,7 @@ const sendEmail = async ({ email, status, order }) => {
   );
 
   const mailOptions = {
-    from: `"Viyavar" <${process.env.EMAIL_USER}>`,
+    from: `"IDENTEE" <${process.env.EMAIL_USER}>`,
     to: email,
     cc: process.env.ADMIN_EMAIL,
     subject,

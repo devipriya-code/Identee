@@ -65,7 +65,34 @@ export default function Account() {
   const [editingAddress, setEditingAddress] = useState(null); // index or "new"
   const [addressForm, setAddressForm] = useState(emptyAddress);
 
+  // Live shipping rules — feeds the State <select> below so a saved address
+  // can never contain a state string that doesn't exactly match what's
+  // configured in /admin/shipping. This is the same source of truth checkout's
+  // AddressStep uses, so an address saved here is guaranteed deliverable.
+  const [shippingRules, setShippingRules] = useState([]);
+  const [rulesLoading, setRulesLoading] = useState(true);
+
   const authToken = user?.token;
+
+  // ── Load shipping rules on mount ─────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${BACKEND_URL}/api/shipping/getshippingcost`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setShippingRules(
+          Array.isArray(data.shippingRules) ? data.shippingRules : [],
+        );
+      })
+      .catch((err) => console.error("Failed to load shipping states:", err))
+      .finally(() => {
+        if (!cancelled) setRulesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ── Load profile from backend on mount ─────────────────────────
   useEffect(() => {
@@ -710,16 +737,44 @@ export default function Account() {
                     style={inputStyle}
                   />
                 </Field>
+
                 <Field label="State">
-                  <input
-                    value={addressForm.state}
-                    onChange={(e) =>
-                      setAddressForm((f) => ({ ...f, state: e.target.value }))
-                    }
-                    placeholder="e.g. Tamil Nadu"
-                    style={inputStyle}
-                  />
+                  {rulesLoading ? (
+                    <input
+                      value="Loading states…"
+                      disabled
+                      style={{ ...inputStyle, color: "#9CA3AF" }}
+                    />
+                  ) : shippingRules.length > 0 ? (
+                    <select
+                      value={addressForm.state}
+                      onChange={(e) =>
+                        setAddressForm((f) => ({ ...f, state: e.target.value }))
+                      }
+                      style={inputStyle}
+                    >
+                      <option value="">Select state…</option>
+                      {shippingRules.map((rule) => (
+                        <option key={rule._id || rule.state} value={rule.state}>
+                          {rule.state} (₹{rule.cost} delivery)
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    // Fallback only if no shipping rules exist yet in the
+                    // admin panel — orders will still be rejected at checkout
+                    // until an admin configures at least one state.
+                    <input
+                      value={addressForm.state}
+                      onChange={(e) =>
+                        setAddressForm((f) => ({ ...f, state: e.target.value }))
+                      }
+                      placeholder="e.g. Tamil Nadu"
+                      style={inputStyle}
+                    />
+                  )}
                 </Field>
+
                 <Field label="PIN Code">
                   <input
                     value={addressForm.pin}
@@ -864,4 +919,3 @@ const linkBtnStyle = {
   textDecoration: "underline",
   cursor: "pointer",
 };
-                                                                                                                                       
