@@ -100,7 +100,12 @@ export default function PaymentStep({
           {
             shippingAddress,
             couponCode: coupon?.code || null,
-            buyNowProductId: buyNow?.productId || null,
+            buyNowProductId: buyNow?.isCustomization
+              ? null
+              : buyNow?.productId || null,
+            buyNowCustomizationId: buyNow?.isCustomization
+              ? buyNow.productId
+              : null,
             qty: buyNow?.qty || null,
           },
           user.token,

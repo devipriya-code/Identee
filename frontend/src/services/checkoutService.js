@@ -19,12 +19,18 @@ const validateCoupon = async (couponCode, token) => {
 // Creates the Razorpay order — backend computes subtotal, CGST/SGST,
 // shipping cost (from shippingAddress.state), and coupon discount.
 const createRazorpayOrder = async (
-  { shippingAddress, couponCode, buyNowProductId, qty },
+  { shippingAddress, couponCode, buyNowProductId, buyNowCustomizationId, qty },
   token,
 ) => {
   const response = await axios.post(
     `${API_URL}/orders/razorpay`,
-    { shippingAddress, couponCode, buyNowProductId, qty },
+    {
+      shippingAddress,
+      couponCode,
+      buyNowProductId,
+      buyNowCustomizationId,
+      qty,
+    },
     authConfig(token),
   );
   return response.data;

@@ -1,6 +1,5 @@
 // models/customizationModel.js
 
-
 import mongoose from "mongoose";
 
 const elementSchema = new mongoose.Schema(
@@ -48,6 +47,8 @@ const elementSchema = new mongoose.Schema(
     height: { type: Number }, // % of canvas height (mainly used by image elements)
     rotation: { type: Number, default: 0 }, // degrees
     zIndex: { type: Number, default: 0 },
+
+    artDesignId: { type: mongoose.Schema.Types.ObjectId, ref: "ArtDesign" },
   },
   { _id: false },
 );

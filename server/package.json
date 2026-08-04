@@ -14,11 +14,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@imgly/background-removal-node": "^1.4.5",
     "@paypal/react-paypal-js": "^8.8.2",
     "@react-pdf/renderer": "^4.3.0",
     "@stripe/react-stripe-js": "^3.1.1",
     "@stripe/stripe-js": "^5.7.0",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.5.18",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "chalk": "^5.4.1",

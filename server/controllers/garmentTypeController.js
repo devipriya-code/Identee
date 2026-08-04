@@ -11,13 +11,18 @@ function slugify(str) {
 
 // GET /api/garment-types
 export const getGarmentTypes = asyncHandler(async (req, res) => {
-  const items = await GarmentType.find({ isActive: true }).sort({ createdAt: 1 });
+  const items = await GarmentType.find({ isActive: true }).sort({
+    createdAt: 1,
+  });
   res.json(items);
 });
 
 // GET /api/garment-types/:key
 export const getGarmentTypeByKey = asyncHandler(async (req, res) => {
-  const item = await GarmentType.findOne({ key: req.params.key, isActive: true });
+  const item = await GarmentType.findOne({
+    key: req.params.key,
+    isActive: true,
+  });
   if (!item) {
     res.status(404);
     throw new Error("Garment type not found");
@@ -27,7 +32,7 @@ export const getGarmentTypeByKey = asyncHandler(async (req, res) => {
 
 // POST /api/garment-types
 export const createGarmentType = asyncHandler(async (req, res) => {
-  const { label, category } = req.body;
+  const { label, category, basePrice } = req.body;
   if (!label || !category) {
     res.status(400);
     throw new Error("label and category are required");
@@ -40,13 +45,19 @@ export const createGarmentType = asyncHandler(async (req, res) => {
     throw new Error("A garment type with this name already exists");
   }
 
-  const item = await GarmentType.create({ key, label, category, colors: [] });
+  const item = await GarmentType.create({
+    key,
+    label,
+    category,
+    basePrice: Number(basePrice) || 0,
+    colors: [],
+  });
   res.status(201).json(item);
 });
 
 // PUT /api/garment-types/:id  — edit label/category
 export const updateGarmentType = asyncHandler(async (req, res) => {
-  const { label, category } = req.body;
+  const { label, category, basePrice } = req.body;
   const item = await GarmentType.findById(req.params.id);
   if (!item) {
     res.status(404);
@@ -54,6 +65,7 @@ export const updateGarmentType = asyncHandler(async (req, res) => {
   }
   if (label) item.label = label;
   if (category) item.category = category;
+  if (basePrice !== undefined) item.basePrice = Number(basePrice);
   await item.save();
   res.json(item);
 });

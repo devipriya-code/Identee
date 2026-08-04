@@ -966,6 +966,7 @@ const uploadProducts = asyncHandler(async (req, res) => {
         ageRange: row.ageRange || "Adult",
         fabric: row.fabric || "Cotton",
         color: row.color || "",
+        garmentStyle: row.garmentStyle || "Round Neck",
         sizes,
         stockBySize,
       },

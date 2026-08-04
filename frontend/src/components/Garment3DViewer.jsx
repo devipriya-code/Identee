@@ -58,7 +58,11 @@ async function drawElementsToCanvas(elements, backendUrl) {
       ctx.font = `${el.bold ? "700" : "400"} ${el.italic ? "italic" : ""} ${fontSizePx}px "${el.fontFamily}", serif`;
       ctx.fillStyle = el.color || "#000";
       ctx.textAlign =
-        el.align === "center" ? "center" : el.align === "right" ? "right" : "left";
+        el.align === "center"
+          ? "center"
+          : el.align === "right"
+            ? "right"
+            : "left";
       ctx.textBaseline = "middle";
       const textX =
         el.align === "center" ? 0 : el.align === "right" ? w / 2 : -w / 2;
@@ -70,7 +74,14 @@ async function drawElementsToCanvas(elements, backendUrl) {
   return canvas;
 }
 
-function ShirtModel({ color, frontCanvas, backCanvas, modelPath }) {
+function ShirtModel({
+  color,
+  frontCanvas,
+  backCanvas,
+  rightCanvas,
+  leftCanvas,
+  modelPath,
+}) {
   const { nodes } = useGLTF(modelPath);
 
   const frontTexture = useMemo(() => {
@@ -87,6 +98,20 @@ function ShirtModel({ color, frontCanvas, backCanvas, modelPath }) {
     return tex;
   }, [backCanvas]);
 
+  const rightTexture = useMemo(() => {
+    if (!rightCanvas) return null;
+    const tex = new THREE.CanvasTexture(rightCanvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, [rightCanvas]);
+
+  const leftTexture = useMemo(() => {
+    if (!leftCanvas) return null;
+    const tex = new THREE.CanvasTexture(leftCanvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, [leftCanvas]);
+
   // Works regardless of the exact mesh node name inside the .glb —
   // just grabs the first mesh it finds.
   const meshNode = useMemo(() => {
@@ -94,14 +119,58 @@ function ShirtModel({ color, frontCanvas, backCanvas, modelPath }) {
     return nodes[key];
   }, [nodes]);
 
-  if (!meshNode) return null;
+  // Measure the model's actual bounding box so decal positions/scale
+  // adapt to THIS model's real dimensions instead of guessed numbers —
+  // guessed numbers only "happen" to land on the surface for some
+  // models and land off-surface (invisible) for others, which is why
+  // right/left were missing entirely.
+  const bounds = useMemo(() => {
+    if (!meshNode) return null;
+    meshNode.geometry.computeBoundingBox();
+    return meshNode.geometry.boundingBox;
+  }, [meshNode]);
+
+  if (!meshNode || !bounds) return null;
+
+  console.log("DEBUG bounds:", {
+    sizeX: bounds.max.x - bounds.min.x,
+    sizeY: bounds.max.y - bounds.min.y,
+    sizeZ: bounds.max.z - bounds.min.z,
+  });
+  console.log(
+    "DEBUG rightTexture:",
+    !!rightTexture,
+    "leftTexture:",
+    !!leftTexture,
+  );
+
+  const sizeX = bounds.max.x - bounds.min.x;
+  const sizeY = bounds.max.y - bounds.min.y;
+  const sizeZ = bounds.max.z - bounds.min.z;
+  const centerX = (bounds.max.x + bounds.min.x) / 2;
+  const centerY = bounds.min.y + sizeY * 0.62; // chest height — a bit above vertical center
+  const centerZ = (bounds.max.z + bounds.min.z) / 2;
+
+  // Nudge just inside the surface (0.97 of the way to the edge) so the
+  // Decal projector reliably lands ON the mesh instead of floating past it.
+  const frontZ = centerZ + (sizeZ / 2) * 0.97;
+  const backZ = centerZ - (sizeZ / 2) * 0.97;
+  const rightX = centerX + (sizeX / 2) * 0.97;
+  const leftX = centerX - (sizeX / 2) * 0.97;
+
+  const frontBackScale = Math.min(sizeX, sizeY) * 0.55;
+  const sideScale = Math.min(sizeZ, sizeY) * 0.45;
 
   return (
     <mesh geometry={meshNode.geometry} castShadow receiveShadow dispose={null}>
       <meshStandardMaterial color={color} roughness={1} metalness={0} />
 
       {frontTexture && (
-        <Decal position={[0, 0.05, 0.15]} rotation={[0, 0, 0]} scale={0.35}>
+        <Decal
+          position={[centerX, centerY, frontZ]}
+          rotation={[0, 0, 0]}
+          scale={frontBackScale}
+        >
           <meshStandardMaterial
             map={frontTexture}
             transparent
@@ -110,11 +179,44 @@ function ShirtModel({ color, frontCanvas, backCanvas, modelPath }) {
           />
         </Decal>
       )}
-
       {backTexture && (
-        <Decal position={[0, 0.05, -0.15]} rotation={[0, Math.PI, 0]} scale={0.35}>
+        <Decal
+          position={[centerX, centerY, backZ]}
+          rotation={[0, Math.PI, 0]}
+          scale={frontBackScale}
+        >
           <meshStandardMaterial
             map={backTexture}
+            transparent
+            polygonOffset
+            polygonOffsetFactor={-1}
+          />
+        </Decal>
+      )}
+
+      {rightTexture && (
+        <Decal
+          position={[rightX, centerY, centerZ]}
+          rotation={[0, Math.PI / 2, 0]}
+          scale={sideScale}
+        >
+          <meshStandardMaterial
+            map={rightTexture}
+            transparent
+            polygonOffset
+            polygonOffsetFactor={-1}
+          />
+        </Decal>
+      )}
+
+      {leftTexture && (
+        <Decal
+          position={[leftX, centerY, centerZ]}
+          rotation={[0, -Math.PI / 2, 0]}
+          scale={sideScale}
+        >
+          <meshStandardMaterial
+            map={leftTexture}
             transparent
             polygonOffset
             polygonOffsetFactor={-1}
@@ -128,12 +230,16 @@ function ShirtModel({ color, frontCanvas, backCanvas, modelPath }) {
 export default function Garment3DViewer({
   frontElements,
   backElements,
+  rightElements,
+  leftElements,
   color = "#1B1B1B",
   modelPath,
   backendUrl,
 }) {
   const [frontCanvas, setFrontCanvas] = useState(null);
   const [backCanvas, setBackCanvas] = useState(null);
+  const [rightCanvas, setRightCanvas] = useState(null);
+  const [leftCanvas, setLeftCanvas] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +261,26 @@ export default function Garment3DViewer({
     };
   }, [backElements, backendUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
+    drawElementsToCanvas(rightElements, backendUrl).then((c) => {
+      if (!cancelled) setRightCanvas(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rightElements, backendUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    drawElementsToCanvas(leftElements, backendUrl).then((c) => {
+      if (!cancelled) setLeftCanvas(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [leftElements, backendUrl]);
+
   return (
     <Canvas camera={{ position: [0, 0, 2.4], fov: 30 }} shadows>
       <ambientLight intensity={0.7} />
@@ -165,6 +291,8 @@ export default function Garment3DViewer({
           color={color}
           frontCanvas={frontCanvas}
           backCanvas={backCanvas}
+          rightCanvas={rightCanvas}
+          leftCanvas={leftCanvas}
           modelPath={modelPath}
         />
       </Suspense>

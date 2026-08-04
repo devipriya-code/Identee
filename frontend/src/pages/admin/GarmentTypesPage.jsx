@@ -4,6 +4,7 @@ import {
   fetchGarmentTypes,
   createGarmentType,
   deleteGarmentType,
+  updateGarmentBasePrice,
 } from "../../redux/slices/garmentTypeSlice";
 
 const C = {
@@ -21,6 +22,9 @@ export default function GarmentTypesPage() {
   const { items, isLoading } = useSelector((s) => s.garmentType);
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState("");
+  const [basePrice, setBasePrice] = useState("");
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [priceDraft, setPriceDraft] = useState("");
 
   useEffect(() => {
     dispatch(fetchGarmentTypes());
@@ -30,10 +34,15 @@ export default function GarmentTypesPage() {
     e.preventDefault();
     if (!label.trim() || !category.trim()) return;
     dispatch(
-      createGarmentType({ label: label.trim(), category: category.trim() }),
+      createGarmentType({
+        label: label.trim(),
+        category: category.trim(),
+        basePrice: basePrice || 0,
+      }),
     );
     setLabel("");
     setCategory("");
+    setBasePrice("");
   };
 
   return (
@@ -85,6 +94,13 @@ export default function GarmentTypesPage() {
           placeholder="Category name (match Category Banner exactly)"
           style={{ ...inputStyle, minWidth: 320 }}
         />
+        <input
+          type="number"
+          value={basePrice}
+          onChange={(e) => setBasePrice(e.target.value)}
+          placeholder="Base price (₹)"
+          style={{ ...inputStyle, width: 140 }}
+        />
         <button type="submit" style={btnStyle}>
           Add Garment Type
         </button>
@@ -104,28 +120,107 @@ export default function GarmentTypesPage() {
               border: `1px solid ${C.border}`,
               borderRadius: 10,
               padding: "14px 18px",
+              gap: 12,
             }}
           >
             <div>
               <p style={{ margin: 0, fontWeight: 700 }}>{g.label}</p>
               <p style={{ margin: "2px 0 0", fontSize: 12, color: C.muted }}>
-                key: {g.key} · category: {g.category}
+                key: {g.key} · category: {g.category} · base price: ₹
+                {g.basePrice || 0}
               </p>
             </div>
-            <button
-              onClick={() => dispatch(deleteGarmentType(g._id))}
-              style={{
-                border: `1px solid ${C.danger}`,
-                background: "none",
-                color: C.danger,
-                borderRadius: 8,
-                padding: "6px 12px",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              Delete
-            </button>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {editingPriceId === g._id ? (
+                <>
+                  <input
+                    type="number"
+                    value={priceDraft}
+                    onChange={(e) => setPriceDraft(e.target.value)}
+                    placeholder="Base price"
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: `1px solid ${C.border}`,
+                      background: C.bg,
+                      color: C.ink,
+                      fontSize: 12,
+                      width: 110,
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      dispatch(
+                        updateGarmentBasePrice({
+                          id: g._id,
+                          basePrice: priceDraft || 0,
+                        }),
+                      );
+                      setEditingPriceId(null);
+                    }}
+                    style={{
+                      border: "none",
+                      background: C.gold,
+                      color: "#0B0B0C",
+                      borderRadius: 6,
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingPriceId(null)}
+                    style={{
+                      border: `1px solid ${C.border}`,
+                      background: "none",
+                      color: C.muted,
+                      borderRadius: 6,
+                      padding: "6px 12px",
+                      cursor: "pointer",
+                      fontSize: 12,
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    setEditingPriceId(g._id);
+                    setPriceDraft(g.basePrice || 0);
+                  }}
+                  style={{
+                    border: `1px solid ${C.gold}`,
+                    background: "none",
+                    color: C.gold,
+                    borderRadius: 8,
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  Edit Price
+                </button>
+              )}
+              <button
+                onClick={() => dispatch(deleteGarmentType(g._id))}
+                style={{
+                  border: `1px solid ${C.danger}`,
+                  background: "none",
+                  color: C.danger,
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
