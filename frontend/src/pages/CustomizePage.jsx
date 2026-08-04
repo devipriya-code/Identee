@@ -757,7 +757,22 @@ export default function CustomizePage() {
       saveCustomization({ garmentType: type, color: color.slug, elements }),
     );
     if (saveCustomization.fulfilled.match(result)) {
-      setTimeout(() => navigate("/cart"), 1200);
+      const customizationId = result.payload._id;
+      const totalPrice = (garment.basePrice || 0) + artAddOnTotal;
+      setTimeout(() => {
+        navigate(`/buy-now/${customizationId}`, {
+          state: {
+            product: {
+              _id: customizationId,
+              brandname: `${garment.label} — Custom Design`,
+              images: [],
+              price: totalPrice,
+            },
+            size: "Custom",
+            qty: 1,
+          },
+        });
+      }, 800);
     }
   };
 
@@ -1117,11 +1132,9 @@ export default function CustomizePage() {
                 }}
               />
             )}
-
             {viewMode === "flat" &&
               renderSideElements(visibleElements, 1, true)}
           </div>
-
           {viewMode === "3d" && (
             <p style={{ fontSize: 12, color: C.muted, marginTop: 10 }}>
               Click and drag left/right to spin the garment

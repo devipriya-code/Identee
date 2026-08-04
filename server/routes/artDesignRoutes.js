@@ -7,7 +7,10 @@ import {
   getAllArtDesignsAdmin,
   createArtDesign,
   deleteArtDesign,
+  bulkUploadArtDesigns,
 } from "../controllers/artDesignController.js";
+import zipUpload from "../multer/zipUpload.js";
+import { protect, adminOrSeller } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -18,13 +21,26 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, `artdesign-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
+    cb(
+      null,
+      `artdesign-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`,
+    );
   },
 });
 const upload = multer({ storage });
 
 router.get("/", getArtDesigns);
 router.get("/all", getAllArtDesignsAdmin);
+
+// ⚠️ Static path — must come before any future "/:id" route
+router.post(
+  "/bulk-upload",
+  protect,
+  adminOrSeller,
+  zipUpload.single("file"),
+  bulkUploadArtDesigns,
+);
+
 router.post("/", upload.single("image"), createArtDesign);
 router.delete("/:id", deleteArtDesign);
 

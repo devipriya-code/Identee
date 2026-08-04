@@ -13,13 +13,13 @@ const colorSchema = new mongoose.Schema(
 
 const garmentTypeSchema = new mongoose.Schema(
   {
-    key: { type: String, required: true, unique: true, trim: true }, // "hoodie"
-    label: { type: String, required: true, trim: true },             // "Hoodie"
-    category: { type: String, required: true, trim: true },          // must match CategoryBanner.category exactly
+    key: { type: String, required: true, unique: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    category: { type: String, required: true, trim: true },
+    basePrice: { type: Number, required: true, default: 0 }, // 🆕 e.g. 599
     colors: { type: [colorSchema], default: [] },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
 );
-
 export default mongoose.model("GarmentType", garmentTypeSchema);

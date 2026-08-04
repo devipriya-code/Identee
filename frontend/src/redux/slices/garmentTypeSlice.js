@@ -1,7 +1,12 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import garmentTypeService from "../../services/garmentTypeService";
 
-const initialState = { items: [], isLoading: false, isError: false, message: "" };
+const initialState = {
+  items: [],
+  isLoading: false,
+  isError: false,
+  message: "",
+};
 
 export const fetchGarmentTypes = createAsyncThunk(
   "garmentType/fetchAll",
@@ -9,18 +14,39 @@ export const fetchGarmentTypes = createAsyncThunk(
     try {
       return await garmentTypeService.getGarmentTypes();
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
 
 export const createGarmentType = createAsyncThunk(
   "garmentType/create",
-  async ({ label, category }, thunkAPI) => {
+  async ({ label, category, basePrice }, thunkAPI) => {
     try {
-      return await garmentTypeService.createGarmentType(label, category);
+      return await garmentTypeService.createGarmentType(
+        label,
+        category,
+        basePrice,
+      );
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
+    }
+  },
+);
+
+export const updateGarmentBasePrice = createAsyncThunk(
+  "garmentType/updateBasePrice",
+  async ({ id, basePrice }, thunkAPI) => {
+    try {
+      return await garmentTypeService.updateGarmentBasePrice(id, basePrice);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -31,7 +57,9 @@ export const addGarmentColor = createAsyncThunk(
     try {
       return await garmentTypeService.addColor(id, name, hex);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -42,7 +70,9 @@ export const removeGarmentColor = createAsyncThunk(
     try {
       return await garmentTypeService.removeColor(id, slug);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -54,7 +84,9 @@ export const deleteGarmentType = createAsyncThunk(
       await garmentTypeService.deleteGarmentType(id);
       return id;
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -73,7 +105,9 @@ const garmentTypeSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchGarmentTypes.pending, (state) => { state.isLoading = true; })
+      .addCase(fetchGarmentTypes.pending, (state) => {
+        state.isLoading = true;
+      })
       .addCase(fetchGarmentTypes.fulfilled, (state, action) => {
         state.isLoading = false;
         state.items = action.payload;
@@ -85,6 +119,11 @@ const garmentTypeSlice = createSlice({
       })
       .addCase(createGarmentType.fulfilled, (state, action) => {
         state.items = [...state.items, action.payload];
+      })
+      .addCase(updateGarmentBasePrice.fulfilled, (state, action) => {
+        state.items = state.items.map((i) =>
+          i._id === action.payload._id ? action.payload : i,
+        );
       })
       .addCase(addGarmentColor.fulfilled, (state, action) => {
         state.items = upsert(state.items, action.payload);
