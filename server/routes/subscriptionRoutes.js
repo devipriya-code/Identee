@@ -6,6 +6,7 @@ import {
   toggleSubscriptionStatus,
   getActiveSubscription,
   deleteSubscription,
+  getSubscribers,
 } from "../controllers/subscriptionController.js";
 import {
   createSubscriptionOrder,
@@ -17,6 +18,8 @@ const router = express.Router();
 
 // ✅ Static routes FIRST — before any /:id routes
 router.get("/active", getActiveSubscription);
+router.get("/subscribers", protect, adminOnly, getSubscribers);
+
 router.post("/confirm", protect, confirmSubscriptionPayment);
 
 // ✅ Then base CRUD
@@ -24,6 +27,7 @@ router
   .route("/")
   .get(protect, adminOnly, getSubscriptions)
   .post(protect, adminOnly, createSubscription);
+
 
 // ✅ Parameterized routes LAST
 router.post("/order/:id", protect, createSubscriptionOrder);

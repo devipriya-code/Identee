@@ -34,6 +34,9 @@ import Account from "./pages/Account";
 import ChooseProductPage from "./pages/ChooseProductPage";
 import ChooseColorPage from "./pages/ChooseColorPage";
 import AdminShippingPage from "./pages/admin/AdminShippingPage";
+import OffersPage from "./pages/admin/OffersPage";
+import SubscriptionPlansPage from "./pages/admin/SubscriptionPlansPage";
+import SubscribersPage from "./pages/admin/SubscribersPage";
 
 // ── NEW: Checkout flow ──────────────────────────────────────────────────
 import CheckoutPage from "./pages/CheckoutPage";
@@ -285,6 +288,7 @@ export default function App() {
           <Route path="users/:id/edit" element={<AdminEditUserPage />} />
           <Route path="sellers" element={<SellersPage />} />
           <Route path="shipping" element={<AdminShippingPage />} />
+          <Route path="/admin/offers" element={<OffersPage />} />
           <Route
             path="/admin/bulk-upload"
             element={<ProductBulkUploadPage />}
@@ -295,6 +299,11 @@ export default function App() {
           />
           <Route path="invoices" element={<AdminInvoicesPage />} />
           <Route path="invoices/:orderId" element={<InvoicePreviewPage />} />
+          <Route
+            path="/admin/subscriptions"
+            element={<SubscriptionPlansPage />}
+          />
+          <Route path="/admin/subscribers" element={<SubscribersPage />} />
         </Route>
 
         {/* Seller routes */}

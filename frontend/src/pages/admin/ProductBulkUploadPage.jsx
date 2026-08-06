@@ -112,11 +112,45 @@ export default function ProductBulkUploadPage() {
       >
         Bulk Upload Products
       </h1>
-      <p style={{ margin: "0 0 28px", fontSize: 14, color: C.muted, maxWidth: 620 }}>
-        Upload a single .zip containing one Excel file (products.xlsx) and
-        the product images referenced in it. Each row creates one product
-        variant.
+      <p
+        style={{
+          margin: "0 0 16px",
+          fontSize: 14,
+          color: C.muted,
+          maxWidth: 620,
+        }}
+      >
+        Upload a single .zip containing one Excel file (products.xlsx) and the
+        product images referenced in it. Each row creates one product variant.
       </p>
+
+      <a
+        href="/templates/Product_Bulk_Upload_Template.xlsx"
+        download
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "9px 18px",
+          borderRadius: 8,
+          border: `1px solid ${C.gold}`,
+          background: "transparent",
+          color: C.gold,
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: "none",
+          marginBottom: 28,
+        }}
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" width={14} height={14}>
+          <path
+            fillRule="evenodd"
+            d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM9 3a1 1 0 012 0v8.586l2.293-2.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 11.586V3z"
+            clipRule="evenodd"
+          />
+        </svg>
+        Download Excel Template
+      </a>
 
       {/* ── Dropzone ── */}
       <div
@@ -166,7 +200,14 @@ export default function ProductBulkUploadPage() {
 
         {file ? (
           <>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: C.ink }}>
+            <p
+              style={{
+                margin: "0 0 4px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: C.ink,
+              }}
+            >
               {file.name}
             </p>
             <p style={{ margin: 0, fontSize: 12, color: C.muted }}>
@@ -175,7 +216,14 @@ export default function ProductBulkUploadPage() {
           </>
         ) : (
           <>
-            <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: C.ink }}>
+            <p
+              style={{
+                margin: "0 0 4px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: C.ink,
+              }}
+            >
               Drop your .zip here, or click to browse
             </p>
             <p style={{ margin: 0, fontSize: 12, color: C.muted }}>
@@ -271,7 +319,14 @@ export default function ProductBulkUploadPage() {
               marginBottom: 16,
             }}
           >
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: C.success }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14,
+                fontWeight: 600,
+                color: C.success,
+              }}
+            >
               ✓ {result.message}
             </p>
             <p style={{ margin: "6px 0 0", fontSize: 13, color: C.muted }}>
@@ -289,7 +344,14 @@ export default function ProductBulkUploadPage() {
                 padding: "16px 20px",
               }}
             >
-              <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: C.ink }}>
+              <p
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: C.ink,
+                }}
+              >
                 Skipped SKUs (already existed)
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -325,7 +387,14 @@ export default function ProductBulkUploadPage() {
           padding: "18px 20px",
         }}
       >
-        <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600, color: C.gold }}>
+        <p
+          style={{
+            margin: "0 0 10px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: C.gold,
+          }}
+        >
           Excel column reference
         </p>
         <p style={{ margin: 0, fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
