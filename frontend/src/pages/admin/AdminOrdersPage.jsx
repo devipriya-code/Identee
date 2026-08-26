@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAllOrders } from "../../redux/slices/orderSlice";
+import { toast } from "react-toastify";
+import {
+  fetchAllOrders,
+  updateOrderStatus,
+} from "../../redux/slices/orderSlice";
 import { THEME, labelStyle } from "../../theme/theme";
 
 const STATUS_COLORS = {
@@ -13,6 +17,8 @@ const STATUS_COLORS = {
   RETURN_APPROVED: { bg: "#F5970020", text: "#FCD34D" },
   RETURN_COMPLETED: { bg: "#EF444420", text: "#FCA5A5" },
 };
+
+const STATUS_OPTIONS = Object.keys(STATUS_COLORS);
 
 function StatusPill({ status }) {
   const colors = STATUS_COLORS[status] || STATUS_COLORS.CREATED;
@@ -33,17 +39,134 @@ function StatusPill({ status }) {
   );
 }
 
+// ✅ NEW — inline, per-row status changer. Shows the current status as a
+// pill; clicking it swaps in a <select> so admin can move the order
+// forward (e.g. CONFIRMED → PACKED → OUT_FOR_DELIVERY → DELIVERED).
+// This is what makes "DELIVERED" actually reachable — previously the
+// only status dropdown on this page was the *filter* at the top, which
+// never wrote anything back to the order.
+function StatusEditor({ order, updating, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(order.orderStatus);
+
+  useEffect(() => {
+    setValue(order.orderStatus);
+  }, [order.orderStatus]);
+
+  if (!editing) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <StatusPill status={order.orderStatus} />
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          disabled={updating}
+          style={{
+            background: "none",
+            border: "none",
+            color: THEME.gold,
+            cursor: updating ? "not-allowed" : "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            textDecoration: "underline",
+            padding: 0,
+          }}
+        >
+          {updating ? "Saving…" : "Change"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <select
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        style={{
+          padding: "5px 8px",
+          borderRadius: 6,
+          border: `1px solid ${THEME.border}`,
+          background: THEME.surface2,
+          color: THEME.text,
+          fontSize: 12,
+        }}
+        autoFocus
+      >
+        {STATUS_OPTIONS.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => {
+          if (value === order.orderStatus) {
+            setEditing(false);
+            return;
+          }
+          onChange(order._id, value);
+          setEditing(false);
+        }}
+        style={{
+          background: THEME.gold,
+          border: "none",
+          borderRadius: 6,
+          padding: "5px 10px",
+          fontSize: 11,
+          fontWeight: 700,
+          color: "#0B0B0C",
+          cursor: "pointer",
+        }}
+      >
+        Save
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setValue(order.orderStatus);
+          setEditing(false);
+        }}
+        style={{
+          background: "none",
+          border: `1px solid ${THEME.border}`,
+          borderRadius: 6,
+          padding: "5px 10px",
+          fontSize: 11,
+          color: THEME.textMuted,
+          cursor: "pointer",
+        }}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { allOrders, allOrdersLoading, allOrdersError } = useSelector(
-    (s) => s.orders,
-  );
+  const { allOrders, allOrdersLoading, allOrdersError, updatingStatusId } =
+    useSelector((s) => s.orders);
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
     dispatch(fetchAllOrders());
   }, [dispatch]);
+
+  const handleStatusChange = async (id, status) => {
+    try {
+      await dispatch(updateOrderStatus({ id, status })).unwrap();
+      toast.success(
+        status === "DELIVERED"
+          ? "Order marked as delivered — customer can now write a review"
+          : `Order status updated to ${status}`,
+      );
+    } catch (err) {
+      toast.error(err || "Failed to update order status");
+    }
+  };
 
   const sorted = [...(allOrders || [])].sort(
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
@@ -97,7 +220,7 @@ export default function AdminOrdersPage() {
           }}
         >
           <option value="">All statuses</option>
-          {Object.keys(STATUS_COLORS).map((s) => (
+          {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
@@ -189,7 +312,11 @@ export default function AdminOrdersPage() {
                     {order.isPaid ? "Paid" : "Unpaid"}
                   </td>
                   <td style={{ padding: "12px 16px" }}>
-                    <StatusPill status={order.orderStatus} />
+                    <StatusEditor
+                      order={order}
+                      updating={updatingStatusId === order._id}
+                      onChange={handleStatusChange}
+                    />
                   </td>
                   <td
                     style={{

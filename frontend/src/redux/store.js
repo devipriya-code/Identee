@@ -12,6 +12,8 @@ import garmentTypeReducer from "./slices/garmentTypeSlice";
 import artCategoryReducer from "./slices/artCategorySlice";
 import artDesignReducer from "./slices/artDesignSlice";
 import shippingReducer from "./slices/shippingSlice";
+import settingReducer from "./slices/settingSlice";
+import notificationReducer from "./slices/notificationSlice";
 
 export const store = configureStore({
   reducer: {
@@ -28,6 +30,8 @@ export const store = configureStore({
     cartWishlist: cartWishlistReducer,
     garmentImage: garmentImageReducer,
     garmentType: garmentTypeReducer,
+    settings: settingReducer,
+    notifications: notificationReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

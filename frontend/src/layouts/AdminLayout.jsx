@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "../components/AdminSidebar";
 import AdminTopbar from "../components/AdminTopbar";
+import NotificationBell from "../components/NotificationBell";
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -23,6 +24,7 @@ export default function AdminLayout() {
       >
         <AdminTopbar />
         <div style={{ padding: 24 }}>
+          <NotificationBell />
           <Outlet />
         </div>
       </main>

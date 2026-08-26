@@ -1,9 +1,10 @@
 // pages/admin/AdminDashboard.jsx
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getProducts } from "../../redux/slices/productSlice";
 import { THEME } from "../../theme/theme";
+import reviewService from "../../services/reviewServices";
 
 const QUICK_LINKS = [
   {
@@ -23,6 +24,12 @@ const QUICK_LINKS = [
     title: "Orders",
     desc: "Track and fulfil customer orders",
     icon: "▭",
+  },
+  {
+    to: "/admin/reviews",
+    title: "Reviews",
+    desc: "Moderate and respond to customer reviews",
+    icon: "★",
   },
   {
     to: "/admin/transactions",
@@ -102,9 +109,19 @@ export default function AdminDashboard() {
   const { products, isLoading } = useSelector((state) => state.product);
   const { user } = useSelector((state) => state.auth);
 
+  const [pendingReviews, setPendingReviews] = useState(null);
+
   useEffect(() => {
     dispatch(getProducts());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!user?.token) return;
+    reviewService
+      .getPendingReviewsCount(user.token)
+      .then((data) => setPendingReviews(data.pending))
+      .catch(() => setPendingReviews(null));
+  }, [user?.token]);
 
   const productCount = Array.isArray(products) ? products.length : 0;
 
@@ -158,6 +175,11 @@ export default function AdminDashboard() {
           sub="Live in catalogue"
         />
         <StatCard label="Orders" value="—" sub="Wire orders API to populate" />
+        <StatCard
+          label="Pending Reviews"
+          value={pendingReviews === null ? "…" : pendingReviews}
+          sub={pendingReviews > 0 ? "Needs moderation" : "All caught up"}
+        />
         <StatCard
           label="Sellers"
           value="—"
@@ -228,6 +250,27 @@ export default function AdminDashboard() {
               }}
             >
               {q.icon}
+              {q.to === "/admin/reviews" && pendingReviews > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    transform: "translate(14px, -14px)",
+                    background: "#c0392b",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    minWidth: 16,
+                    height: 16,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 4px",
+                  }}
+                >
+                  {pendingReviews}
+                </span>
+              )}
             </span>
             <div>
               <p

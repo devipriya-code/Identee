@@ -7,10 +7,90 @@ import XLSX from "xlsx";
 import path from "path";
 import Product from "../models/productModel.js";
 import ProductGroup from "../models/productgroupModel.js";
+import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 import reviewnotificatioEmail from "../utils/reviewnotificationEmail.js";
 import fs from "fs";
 import { applySubscriptionPrice } from "../utils/applySubscriptionPrice.js";
+import GarmentColorImage from "../models/garmentColorImageModel.js";
+import GarmentType from "../models/garmentTypeModel.js";
+import {
+  garmentStyleToKey,
+  colorNameToSlug,
+} from "../utils/customizerMapping.js";
+
+// ── helper: recompute rating/numReviews from APPROVED reviews only ──
+const recalculateProductRating = (product) => {
+  const approved = product.reviews.filter((r) => r.status === "APPROVED");
+  product.numReviews = approved.length;
+  product.rating =
+    approved.length > 0
+      ? approved.reduce((acc, r) => acc + r.rating, 0) / approved.length
+      : 0;
+};
+
+// ── helper: does this product's garmentStyle+color have customizer
+// photos set up yet? Computed server-side so the frontend doesn't
+// need to fetch the entire garmentTypes + garmentImages collections
+// just to answer one yes/no question per product page load.
+const computeCustomizerAvailability = async (product) => {
+  const garmentKey = garmentStyleToKey(product.productdetails?.garmentStyle);
+  if (!garmentKey) {
+    return {
+      customizerAvailable: false,
+      customizerGarmentKey: null,
+      customizerColorSlug: null,
+    };
+  }
+
+  const colorSlug = colorNameToSlug(product.productdetails?.color);
+
+  const hasPhotos = await GarmentColorImage.exists({
+    garmentType: garmentKey,
+    colorSlug,
+  });
+
+  return {
+    customizerAvailable: !!hasPhotos,
+    customizerGarmentKey: garmentKey,
+    customizerColorSlug: colorSlug,
+  };
+};
+
+// identically for reviews. ──
+const buildPublicReviewData = (product) => {
+  const approvedReviews = (product.reviews || []).filter(
+    (r) => r.status === "APPROVED",
+  );
+
+  const ratingBreakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  approvedReviews.forEach((r) => {
+    if (ratingBreakdown[r.rating] !== undefined) ratingBreakdown[r.rating]++;
+  });
+
+  // Never leak rejectionReason / internal fields on public responses
+  const publicReviews = approvedReviews.map((r) => ({
+    _id: r._id,
+    user: r.user,
+    name: r.name,
+    rating: r.rating,
+    comment: r.comment,
+    photos: r.photos,
+    recommend: r.recommend,
+    isVerifiedPurchase: r.isVerifiedPurchase,
+    isFeatured: r.isFeatured,
+    adminResponse: r.adminResponse?.text ? r.adminResponse : null,
+    helpful: r.helpful,
+    notHelpful: r.notHelpful,
+    createdAt: r.createdAt,
+  }));
+
+  return {
+    publicReviews,
+    ratingBreakdown,
+    numReviews: approvedReviews.length,
+  };
+};
 
 // @desc Fetch all products
 // @route GET /api/products
@@ -130,43 +210,54 @@ const getProducts = asyncHandler(async (req, res) => {
   res.json(finalProducts);
 });
 
-// @desc Fetch single  product
-// @route GET /api/products/:id
-// @access Public
 // @desc    Fetch single product
 // @route   GET /api/products/:id
 // @access  Public
+// Only shows APPROVED reviews publicly, adds a rating breakdown.
 const getProductById = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id)
-    .populate({
-      path: "reviews.user",
-      select: "name profilePicture",
-    })
-    .lean(); // plain JS object
+    .populate({ path: "reviews.user", select: "name profilePicture" })
+    .lean();
 
   if (!product) {
     res.status(404);
     throw new Error("Product not found");
   }
 
-  // ✅ Filter only approved reviews
-  const approvedReviews = product.reviews.filter((r) => r.approved === true);
+  const { publicReviews, ratingBreakdown, numReviews } =
+    buildPublicReviewData(product);
+  const customizerInfo = await computeCustomizerAvailability(product);
 
-  // ✅ Apply subscription price
   const pricedProduct = applySubscriptionPrice(product, req.user);
-
-  // ✅ Attach approved reviews
-  pricedProduct.reviews = approvedReviews;
+  pricedProduct.reviews = publicReviews;
+  pricedProduct.ratingBreakdown = ratingBreakdown;
+  pricedProduct.numReviews = numReviews;
+  Object.assign(pricedProduct, customizerInfo);
 
   res.json(pricedProduct);
 });
 
+// @desc Create new Review
+// @route POST /api/products/:id/reviews
+// @access Private
+// Requires orderId, verifies purchase + DELIVERED status, blocks duplicate
+// review per order/product, always starts as PENDING.
 const createProductReview = asyncHandler(async (req, res) => {
-  const { rating, comment } = req.body;
+  const { rating, comment, orderId, recommend } = req.body;
 
-  if (!rating || !comment) {
+  if (!orderId) {
     res.status(400);
-    throw new Error("Rating and comment required");
+    throw new Error("orderId is required to submit a review");
+  }
+
+  const numRating = Number(rating);
+  if (!numRating || numRating < 1 || numRating > 5) {
+    res.status(400);
+    throw new Error("Rating must be between 1 and 5");
+  }
+  if (!comment || !comment.trim() || comment.trim().length < 3) {
+    res.status(400);
+    throw new Error("Review text is required");
   }
 
   const product = await Product.findById(req.params.id);
@@ -175,7 +266,39 @@ const createProductReview = asyncHandler(async (req, res) => {
     throw new Error("Product not found");
   }
 
-  // ✅ PHOTOS OPTIONAL
+  const order = await Order.findById(orderId);
+  if (!order) {
+    res.status(404);
+    throw new Error("Order not found");
+  }
+  if (order.user.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error("This order does not belong to you");
+  }
+  if (order.orderStatus !== "DELIVERED") {
+    res.status(400);
+    throw new Error("You can only review products from delivered orders");
+  }
+
+  const purchasedItem = order.orderItems.find(
+    (item) => item.product.toString() === product._id.toString(),
+  );
+  if (!purchasedItem) {
+    res.status(403);
+    throw new Error("You can only review products you have purchased");
+  }
+
+  const alreadyReviewed = product.reviews.find(
+    (r) =>
+      r.user.toString() === req.user._id.toString() &&
+      r.orderId &&
+      r.orderId.toString() === orderId,
+  );
+  if (alreadyReviewed) {
+    res.status(400);
+    throw new Error("You have already reviewed this product for this order");
+  }
+
   let photos = [];
   if (req.files && req.files.length > 0) {
     photos = req.files.map((file) => file.path);
@@ -183,23 +306,28 @@ const createProductReview = asyncHandler(async (req, res) => {
 
   const review = {
     name: req.user.name,
-    rating: Number(rating),
-    comment,
-    photos, // [] if no images
+    profilePicture: req.user.profilePicture || "",
+    rating: numRating,
+    comment: comment.trim(),
+    photos,
     user: req.user._id,
-    approved: false,
+    orderId,
+    recommend:
+      recommend === undefined
+        ? true
+        : recommend === "true" || recommend === true,
+    isVerifiedPurchase: true,
+    status: "PENDING",
   };
 
   product.reviews.push(review);
-
-  product.numReviews = product.reviews.length;
-  product.rating =
-    product.reviews.reduce((acc, r) => acc + r.rating, 0) /
-    product.reviews.length;
-
+  // Deliberately NOT calling recalculateProductRating here — pending
+  // reviews must not move the public average until an admin approves them.
   await product.save();
 
-  res.status(201).json({ message: "Review added successfully" });
+  res
+    .status(201)
+    .json({ message: "Review submitted and awaiting admin approval" });
 });
 
 // Alternative: If you want a separate endpoint for variants
@@ -251,95 +379,6 @@ const getProductBySku = asyncHandler(async (req, res) => {
 // @desc Add product to cart
 // @route POST /api/products/:id/addtocart
 // @access Private
-// const addToCart = asyncHandler(async (req, res) => {
-//   const userId = req.user._id;
-//   const { qty = 1, size, action = "add", cartItemId } = req.body; // default qty=1
-
-//   if (cartItemId && !existingCartItem) {
-//     return res.status(404).json({ message: "Cart item not found" });
-//   }
-
-//   if (!size) return res.status(400).json({ message: "Size is required" });
-//   if (qty < 0) return res.status(400).json({ message: "Invalid quantity" });
-
-//   const product = await Product.findById(req.params.id);
-//   if (!product) return res.status(404).json({ message: "Product not found" });
-
-//   const user = await User.findById(userId);
-//   if (!user) return res.status(404).json({ message: "User not found" });
-
-//   user.cartItems = user.cartItems || [];
-
-//   const sizeStock = product.productdetails?.stockBySize?.find(
-//     (s) => s.size === size
-//   );
-
-//   if (!sizeStock)
-//     return res.status(400).json({ message: "Size not available" });
-
-//   let existingCartItem = null;
-
-//   // 1️⃣ If cartItemId exists → update THAT item (size change case)
-//   if (cartItemId) {
-//     existingCartItem = user.cartItems.id(cartItemId);
-//   }
-
-//   // 2️⃣ Else → normal add/find by product + size
-//   if (!existingCartItem) {
-//     existingCartItem = user.cartItems.find(
-//       (item) =>
-//         item.product.toString() === product._id.toString() && item.size === size
-//     );
-//   }
-
-//   if (existingCartItem && qty === 0) {
-//     user.cartItems = user.cartItems.filter(
-//       (item) => item._id.toString() !== existingCartItem._id.toString()
-//     );
-//   } else if (existingCartItem) {
-//     const pricedProduct = applySubscriptionPrice(product.toObject(), user);
-
-//     // update size & qty safely
-//     existingCartItem.size = size;
-
-//     if (action === "set") {
-//       existingCartItem.qty = qty;
-//     } else {
-//       existingCartItem.qty += 1;
-//     }
-
-//     // stock check
-//     if (existingCartItem.qty > sizeStock.stock) {
-//       return res.status(400).json({ message: "Not enough stock available" });
-//     }
-
-//     // recalc price
-//     existingCartItem.price =
-//       existingCartItem.qty * pricedProduct.subscriptionPrice;
-//   } else {
-//     const pricedProduct = applySubscriptionPrice(product.toObject(), user);
-
-//     user.cartItems.push({
-//       product: product._id,
-//       qty,
-//       size,
-//       price: qty * pricedProduct.subscriptionPrice, // ✅ CORRECT
-//     });
-//   }
-
-//   await user.save();
-
-//   // const updatedUser = await User.findById(userId).populate("cartItems.product");
-
-//   const updatedUser = await User.findById(userId).populate({
-//     path: "cartItems.product",
-//     select:
-//       "name brandname images oldPrice isSubscriptionApplied subscriptionDiscountPercent productdetails",
-//   });
-
-//   res.status(200).json({ cartItems: updatedUser.cartItems });
-// });
-
 const addToCart = asyncHandler(async (req, res) => {
   try {
     const userId = req.user._id;
@@ -474,36 +513,6 @@ const getCart = asyncHandler(async (req, res) => {
 
   res.status(200).json({ cartItems });
 });
-
-// @desc detlete cart product
-// @route delete /api/products/deletecart
-// @access Private
-
-// const deleteCartItem = asyncHandler(async (req, res) => {
-//   const userId = req.user._id; // Logged-in user's ID
-//   const { cartItemId } = req.params; // Cart item ID to delete
-
-//   console.log("Cart Item ID from request:", cartItemId);
-
-//   // Use MongoDB's $pull operator to remove the item by its `_id`
-//   const updatedUser = await User.findByIdAndUpdate(
-//     userId,
-//     {
-//       $pull: { cartItems: { _id: cartItemId } }, // Match by cart item `_id`
-//     },
-//     { new: true } // Return the updated document
-//   ).populate("cartItems.product"); // Populate product details after update
-
-//   if (!updatedUser) {
-//     res.status(404);
-//     throw new Error("User not found");
-//   }
-
-//   console.log("Updated Cart Items:", updatedUser.cartItems);
-
-//   // Send the updated cart back to the client
-//   res.status(200).json(updatedUser);
-// });
 
 // @desc Delete cart product
 // @route DELETE /api/products/deletecart/:cartItemId
@@ -696,14 +705,9 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc Mark review as Helpful / Not Helpful
-// @route PUT /api/products/:id/review/helpful
-// @access Private
-
 // @desc Update a product
 // @route PUT /api/products/:id
 // @access Private/Admin
-
 const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -757,9 +761,9 @@ const updateProduct = asyncHandler(async (req, res) => {
   res.json(updatedProduct);
 });
 
-// @desc Create a bulk product
-// @route Post /api/products
-// @access Private/Admin
+// @desc Mark review as Helpful / Not Helpful
+// @route PUT /api/products/:productId/review/:reviewId/helpful
+// @access Private
 export const markReviewHelpful = async (req, res) => {
   const { productId, reviewId } = req.params;
 
@@ -797,6 +801,9 @@ export const markReviewNotHelpful = async (req, res) => {
   res.json({ message: "Marked as not helpful" });
 };
 
+// @desc Bulk upload products via ZIP (Excel + images)
+// @route POST /api/products/upload
+// @access Private/Admin
 const uploadProducts = asyncHandler(async (req, res) => {
   if (!req.file) {
     res.status(400);
@@ -997,217 +1004,125 @@ const uploadProducts = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc Create new Review
-// @route PUT /api/products/:id/reviews
-// @access Private
-// const createproductreview = asyncHandler(async (req, res) => {
-//   console.log("Incoming Review Request:", req.body);
-//   const { rating, comment } = req.body;
-
-//   // ✅ Fetch existing product instead of creating a new one
-//   const product = await Product.findById(req.params.id);
-
-//   if (!product) {
-//     return res.status(404).json({ message: "Product not found" });
-//   }
-
-//   const alreadyReviewed = product.reviews.find(
-//     (r) => r.user.toString() === req.user._id.toString()
-//   );
-//   if (alreadyReviewed) {
-//     res.status(400);
-//     throw new Error("Product already reviewed");
-//   }
-
-//   const review = {
-//     name: req.user.name,
-//     rating: Number(rating),
-//     comment,
-//     user: req.user._id,
-//     approved: false,
-//     profilePicture: req.user.profilePicture,
-//   };
-
-//   product.reviews.push(review);
-//   product.numReviews = product.reviews.length;
-//   product.rating =
-//     product.reviews.reduce((acc, item) => item.rating + acc, 0) /
-//     product.reviews.length;
-
-//   await product.save();
-
-//   /* ================= MAIL SECTION ================= */
-
-//   try {
-//     console.log("➡️ Sending admin mail...");
-
-//     await reviewnotificatioEmail({
-//       to: process.env.ADMIN_EMAIL,
-//       subject: "📝 New Product Review Submitted",
-//       text: `
-// Product: ${product.brandname}
-// Reviewer: ${req.user.name}
-// Rating: ${rating}
-// Comment: ${comment}
-//     `,
-//     });
-
-//     console.log("✅ Admin mail sent");
-
-//     console.log("➡️ Fetching sellers...");
-//     const sellers = await User.find({
-//       isSeller: true,
-//       email: { $exists: true, $ne: "" },
-//     });
-//     console.log("🧾 SELLERS FOUND COUNT:", sellers.length);
-
-//     if (sellers.length === 0) {
-//       console.log("❌ SELLER NOT FOUND");
-//     }
-
-//     for (const seller of sellers) {
-//       console.log("📧 Sending mail to seller:", seller.email);
-
-//       await reviewnotificatioEmail({
-//         to: seller.email,
-//         subject: "📝 New Product Review Submitted",
-//         text: `
-// Product: ${product.brandname}
-// Rating: ${rating}
-// Comment: ${comment}
-//       `,
-//       });
-//     }
-
-//     console.log("✅ Seller mail section completed");
-//   } catch (err) {
-//     console.error("❌ MAIL ERROR:", err);
-//   }
-
-//   /* ================= END MAIL ================= */
-
-//   // 🔥 SEND RESPONSE ONLY AFTER ALL LOGIC
-//   res.status(201).json({ message: "Review added & notifications sent" });
-// });
-
-// const createproductreview = asyncHandler(async (req, res) => {
-//   console.log("Incoming Review Request:", req.body);
-
-//   const { rating, comment } = req.body;
-//   const product = await Product.findById(req.params.id);
-
-//   if (!product) {
-//     return res.status(404).json({ message: "Product not found" });
-//   }
-
-//   const alreadyReviewed = product.reviews.find(
-//     (r) => r.user.toString() === req.user._id.toString()
-//   );
-
-//   if (alreadyReviewed) {
-//     res.status(400);
-//     throw new Error("Product Already Reviewed");
-//   }
-
-//   const review = {
-//     name: req.user.name,
-//     rating: Number(rating),
-//     comment,
-//     user: req.user._id,
-//     approved: false,
-//   };
-
-//   product.reviews.push(review);
-//   product.numReviews = product.reviews.length;
-//   product.rating =
-//     product.reviews.reduce((acc, item) => item.rating + acc, 0) /
-//     product.reviews.length;
-
-//   await product.save();
-
-//   // ⭐ Email notification to admin
-//   const adminEmail = process.env.ADMIN_EMAIL;
-
-//   const emailMessage = `
-//     <h2>New Review Submitted</h2>
-//     <p>A new review has been submitted and needs your approval.</p>
-//     <h3>Review Details</h3>
-//     <p><strong>User:</strong> ${req.user.name}</p>
-//     <p><strong>Rating:</strong> ${rating}</p>
-//     <p><strong>Comment:</strong> ${comment}</p>
-//     <p><strong>Product:</strong> ${product.brandname}</p>
-//     <br/>
-//     <a href="https://your-admin-panel-url.com/reviews">Click here to approve reviews</a>
-//   `;
-
-//   await sendEmail(
-//     adminEmail,
-//     "New Product Review Awaiting Approval",
-//     emailMessage
-//   );
-
-//   res.status(201).json({ message: "Review added & admin notified" });
-// });
-
 // @desc Approve Review
-// @route PUT /api/products/approve review
-// @access Private
-
+// @route PUT /api/products/:id/reviews/:reviewId/approve
+// @access Private/Admin
 const approveReview = asyncHandler(async (req, res) => {
-  console.log(
-    "🔍 Approving Review - Product ID:",
-    req.params.id,
-    "Review ID:",
-    req.params.reviewId,
-  );
-
   const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: "Product not found" });
 
-  if (!product) {
-    console.error("❌ ERROR: Product not found");
-    return res.status(404).json({ message: "Product not found" });
-  }
+  const review = product.reviews.id(req.params.reviewId);
+  if (!review) return res.status(404).json({ message: "Review not found" });
 
-  const review = product.reviews.find(
-    (r) => r._id.toString() === req.params.reviewId,
-  );
+  review.status = "APPROVED";
+  review.rejectionReason = "";
+  recalculateProductRating(product);
 
-  if (!review) {
-    console.error("❌ ERROR: Review not found inside product");
-    return res.status(404).json({ message: "Review not found" });
-  }
-
-  review.approved = true; // ✅ Mark review as approved
-
-  try {
-    console.log("✅ Before Saving:", product.reviews);
-
-    await product.save();
-
-    console.log("✅ After Saving:", product.reviews);
-    res.json({ message: "Review approved" });
-  } catch (error) {
-    console.error("❌ ERROR Saving Review:", error);
-    res.status(500).json({ message: "Error saving approved review" });
-  }
+  await product.save();
+  res.json({ message: "Review approved", review });
 });
 
-// @desc Pending Review
-// @route get /api/products/pending review
-// @access Private
+// @desc Reject Review
+// @route PUT /api/products/:id/reviews/:reviewId/reject
+// @access Private/Admin
+const rejectReview = asyncHandler(async (req, res) => {
+  const { reason } = req.body; // one of the rejectionReason enum values, optional
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: "Product not found" });
+
+  const review = product.reviews.id(req.params.reviewId);
+  if (!review) return res.status(404).json({ message: "Review not found" });
+
+  review.status = "REJECTED";
+  review.rejectionReason = reason || "OTHER";
+  review.isFeatured = false;
+  recalculateProductRating(product);
+
+  await product.save();
+  res.json({ message: "Review rejected", review });
+});
+
+// @desc Revert an APPROVED review back to PENDING
+// @route PUT /api/products/:id/reviews/:reviewId/unapprove
+// @access Private/Admin
+const unapproveReview = asyncHandler(async (req, res) => {
+  const { id: productId, reviewId } = req.params;
+
+  const product = await Product.findById(productId);
+  if (!product) return res.status(404).json({ message: "Product not found" });
+
+  const review = product.reviews.id(reviewId);
+  if (!review) return res.status(404).json({ message: "Review not found" });
+
+  review.status = "PENDING";
+  review.isFeatured = false;
+  recalculateProductRating(product);
+
+  await product.save();
+  res.json({ message: "Review moved back to pending", review });
+});
+
+// @desc Toggle a review's "featured" flag (only APPROVED reviews)
+// @route PUT /api/products/:id/reviews/:reviewId/feature
+// @access Private/Admin
+const toggleFeaturedReview = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: "Product not found" });
+
+  const review = product.reviews.id(req.params.reviewId);
+  if (!review) return res.status(404).json({ message: "Review not found" });
+
+  if (review.status !== "APPROVED") {
+    res.status(400);
+    throw new Error("Only approved reviews can be featured");
+  }
+
+  review.isFeatured = !review.isFeatured;
+  await product.save();
+  res.json({
+    message: review.isFeatured ? "Marked as featured" : "Removed from featured",
+    review,
+  });
+});
+
+// @desc Admin reply to a review
+// @route PUT /api/products/:id/reviews/:reviewId/respond
+// @access Private/Admin
+const respondToReview = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) {
+    res.status(400);
+    throw new Error("Response text is required");
+  }
+
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: "Product not found" });
+
+  const review = product.reviews.id(req.params.reviewId);
+  if (!review) return res.status(404).json({ message: "Review not found" });
+
+  review.adminResponse = {
+    text: text.trim(),
+    respondedAt: new Date(),
+    respondedBy: req.user._id,
+  };
+
+  await product.save();
+  res.json({ message: "Response added", review });
+});
+
+// @desc Pending Reviews (admin queue)
+// @route GET /api/products/reviews/pending
+// @access Private/Admin
 const getPendingReviews = asyncHandler(async (req, res) => {
-  const products = await Product.find({ "reviews.approved": false })
-    .populate({
-      path: "reviews.user",
-      select: "name profilePicture",
-    })
+  const products = await Product.find({ "reviews.status": "PENDING" })
+    .populate({ path: "reviews.user", select: "name profilePicture" })
     .select("reviews brandname images");
 
   const pendingReviews = [];
-
   products.forEach((product) => {
     product.reviews.forEach((review) => {
-      if (!review.approved) {
+      if (review.status === "PENDING") {
         pendingReviews.push({
           _id: review._id,
           productId: product._id,
@@ -1222,6 +1137,8 @@ const getPendingReviews = asyncHandler(async (req, res) => {
           rating: review.rating,
           comment: review.comment,
           photos: review.photos || [],
+          isVerifiedPurchase: review.isVerifiedPurchase,
+          orderId: review.orderId,
           createdAt: review.createdAt,
         });
       }
@@ -1231,39 +1148,190 @@ const getPendingReviews = asyncHandler(async (req, res) => {
   res.json(pendingReviews);
 });
 
+// @desc Count of pending reviews (for the admin sidebar badge)
+// @route GET /api/products/reviews/pending/count
+// @access Private/Admin
+const getPendingReviewsCount = asyncHandler(async (req, res) => {
+  const products = await Product.find({ "reviews.status": "PENDING" }).select(
+    "reviews",
+  );
+  let count = 0;
+  products.forEach((p) =>
+    p.reviews.forEach((r) => {
+      if (r.status === "PENDING") count++;
+    }),
+  );
+  res.json({ pending: count });
+});
+
+// @desc Get all reviews (admin table: stats + filters + search)
+// @route GET /api/products/reviews/all?status=&rating=&productId=&search=
+// @access Private/Admin
+const getAllReviews = asyncHandler(async (req, res) => {
+  const { status, rating, productId, search } = req.query;
+
+  const products = await Product.find()
+    .populate({ path: "reviews.user", select: "name profilePicture" })
+    .select("reviews brandname images");
+
+  let allReviews = [];
+  const stats = { total: 0, pending: 0, approved: 0, rejected: 0 };
+
+  products.forEach((product) => {
+    product.reviews.forEach((review) => {
+      stats.total += 1;
+      if (review.status === "PENDING") stats.pending += 1;
+      if (review.status === "APPROVED") stats.approved += 1;
+      if (review.status === "REJECTED") stats.rejected += 1;
+
+      allReviews.push({
+        _id: review._id,
+        status: review.status,
+        isFeatured: review.isFeatured,
+        isVerifiedPurchase: review.isVerifiedPurchase,
+        orderId: review.orderId,
+        productId: product._id,
+        product: {
+          name: product.brandname,
+          image: product.images?.[0] || null,
+        },
+        user: {
+          name: review.user?.name || review.name,
+          avatar: review.user?.profilePicture || null,
+        },
+        rating: review.rating,
+        comment: review.comment,
+        photos: review.photos || [],
+        recommend: review.recommend,
+        rejectionReason: review.rejectionReason,
+        adminResponse: review.adminResponse,
+        createdAt: review.createdAt,
+      });
+    });
+  });
+
+  if (status && status !== "all") {
+    allReviews = allReviews.filter((r) => r.status === status.toUpperCase());
+  }
+  if (rating) {
+    allReviews = allReviews.filter((r) => r.rating === Number(rating));
+  }
+  if (productId) {
+    allReviews = allReviews.filter((r) => r.productId.toString() === productId);
+  }
+  if (search) {
+    const q = search.toLowerCase();
+    allReviews = allReviews.filter(
+      (r) =>
+        r.comment?.toLowerCase().includes(q) ||
+        r.user?.name?.toLowerCase().includes(q) ||
+        r.product?.name?.toLowerCase().includes(q),
+    );
+  }
+
+  allReviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  res.json({ stats, reviews: allReviews });
+});
+
+// @desc Featured reviews (public, e.g. homepage "Customer Love" section)
+// @route GET /api/products/reviews/featured
+// @access Public
+const getFeaturedReviews = asyncHandler(async (req, res) => {
+  const products = await Product.find({ "reviews.isFeatured": true })
+    .select("reviews brandname images")
+    .populate({ path: "reviews.user", select: "name profilePicture" });
+
+  const featured = [];
+  products.forEach((product) => {
+    product.reviews.forEach((review) => {
+      if (review.isFeatured && review.status === "APPROVED") {
+        featured.push({
+          _id: review._id,
+          productId: product._id,
+          product: {
+            name: product.brandname,
+            image: product.images?.[0] || null,
+          },
+          user: {
+            name: review.user?.name || review.name,
+            avatar: review.user?.profilePicture || null,
+          },
+          rating: review.rating,
+          comment: review.comment,
+          photos: review.photos || [],
+          adminResponse: review.adminResponse?.text
+            ? review.adminResponse
+            : null,
+          createdAt: review.createdAt,
+        });
+      }
+    });
+  });
+
+  res.json(featured);
+});
+
+// @desc Check which items in an order are eligible for a review
+// @route GET /api/products/reviews/eligibility/:orderId
+// @access Private
+// Powers the "Write a Review" button per item in My Orders.
+const getReviewEligibility = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+
+  const order = await Order.findById(orderId).populate(
+    "orderItems.product",
+    "reviews brandname images",
+  );
+
+  if (!order) return res.status(404).json({ message: "Order not found" });
+  if (order.user.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not your order" });
+  }
+
+  const items = order.orderItems.map((item) => {
+    const product = item.product;
+    const existingReview = product?.reviews?.find(
+      (r) =>
+        r.user.toString() === req.user._id.toString() &&
+        r.orderId &&
+        r.orderId.toString() === orderId,
+    );
+
+    return {
+      productId: product?._id,
+      productName: item.name,
+      image: item.image,
+      size: item.size,
+      canReview: order.orderStatus === "DELIVERED" && !existingReview,
+      alreadyReviewed: !!existingReview,
+      reviewStatus: existingReview?.status || null,
+    };
+  });
+
+  res.json({ orderId: order._id, orderStatus: order.orderStatus, items });
+});
+
 // Alternative: Delete review by review ID only (searches across all products)
+// Rating recalc is approved-only via recalculateProductRating.
 const deleteReviewById = async (req, res) => {
-  console.log("Backend received reviewId:", req.params.reviewId);
   try {
     const { reviewId } = req.params;
-    console.log("🚀 deleteReviewById called with reviewId:", reviewId);
 
-    // Find the product that contains this review
     const product = await Product.findOne({ "reviews._id": reviewId });
-    console.log("🔍 Product found for review:", product ? product._id : null);
-
     if (!product) {
       return res
         .status(404)
         .json({ message: "Review not found in any product" });
     }
 
-    // Remove the review
     product.reviews = product.reviews.filter(
       (r) => r._id.toString() !== reviewId,
     );
 
-    // Recalculate rating
-    product.numReviews = product.reviews.length;
-    product.rating =
-      product.reviews.length > 0
-        ? product.reviews.reduce((acc, r) => acc + r.rating, 0) /
-          product.reviews.length
-        : 0;
+    recalculateProductRating(product);
 
     await product.save();
-
-    console.log("✅ Review deleted successfully");
     res.json({ success: true, message: "Review deleted" });
   } catch (error) {
     console.error("❌ deleteReviewById error:", error);
@@ -1272,20 +1340,47 @@ const deleteReviewById = async (req, res) => {
 };
 
 // controllers/productController.js
-
+// @desc    Fetch a product + its color variants + group info
+// @route   GET /api/products/:id/full
+// @access  Public
+// Used by SingleProductPage.jsx. Applies the same approved-only review
+// filtering / rating breakdown as getProductById, since this is the
+// endpoint the product detail page actually calls.
 const getProductFullById = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).lean();
+  const product = await Product.findById(req.params.id)
+    .populate({ path: "reviews.user", select: "name profilePicture" })
+    .lean();
   if (!product) return res.status(404).json({ message: "Product not found" });
 
   const variants = await Product.find({
     productGroupId: product.productGroupId,
   }).lean();
-
   const group = await ProductGroup.findById(product.productGroupId).lean();
 
+  const { publicReviews, ratingBreakdown, numReviews } =
+    buildPublicReviewData(product);
+  const customizerInfo = await computeCustomizerAvailability(product);
+
+  const pricedProduct = applySubscriptionPrice(product, req.user);
+  pricedProduct.reviews = publicReviews;
+  pricedProduct.ratingBreakdown = ratingBreakdown;
+  pricedProduct.numReviews = numReviews;
+  Object.assign(pricedProduct, customizerInfo);
+
+  // Computed per-variant so switching color on the product page still
+  // resolves customizer availability correctly for whichever color is
+  // active, not just the color the page was originally loaded with.
+  const pricedVariants = await Promise.all(
+    variants.map(async (v) => {
+      const priced = applySubscriptionPrice(v, req.user);
+      const info = await computeCustomizerAvailability(v);
+      return Object.assign(priced, info);
+    }),
+  );
+
   res.json({
-    product: applySubscriptionPrice(product, req.user),
-    variants: variants.map((v) => applySubscriptionPrice(v, req.user)),
+    product: pricedProduct,
+    variants: pricedVariants,
     group,
   });
 });
@@ -1518,9 +1613,9 @@ const getProductGroup = asyncHandler(async (req, res) => {
     variants: products,
   });
 });
-// ─── DROP-IN REPLACEMENT for updateVariant in productControler.js ───────────
+// ─── updateVariant ───────────────────────────────────────────────
 //
-// BUGS FIXED:
+// BUGS FIXED (kept from prior patch):
 //  1. product.images[index] existence check blocked adding images at new indexes
 //  2. imageIndexes not normalised to array for single-file uploads
 //  3. Added server-side guard: never save blob: or data: URIs to DB
@@ -1580,72 +1675,7 @@ const updateVariant = asyncHandler(async (req, res) => {
   const updated = await product.save();
   res.json(updated);
 });
-// @desc Unapprove Review
-// @route PUT /api/products/:id/reviews/:reviewId/unapprove
-// @access Private/Admin
 
-// controllers/reviewController.js
-// @desc Unapprove Review
-// @route PUT /api/products/:id/reviews/:reviewId/unapprove
-// @access Private/Admin
-const unapproveReview = asyncHandler(async (req, res) => {
-  const { id: productId, reviewId } = req.params;
-
-  const product = await Product.findById(productId);
-  if (!product) {
-    return res.status(404).json({ message: "Product not found" });
-  }
-
-  const review = product.reviews.id(reviewId);
-  if (!review) {
-    return res.status(404).json({ message: "Review not found" });
-  }
-
-  review.approved = false; // ✅ Unapprove the review
-
-  await product.save();
-
-  res.json({ message: "Review unapproved successfully", review });
-});
-// @desc Get all reviews (admin)
-// @route GET /api/products/reviews/all
-// @access Private/Admin
-// @desc Get all reviews (pending + approved)
-// @route GET /api/products/all-reviews
-// @access Private/Admin
-const getAllReviews = asyncHandler(async (req, res) => {
-  const products = await Product.find()
-    .populate({ path: "reviews.user", select: "name profilePicture" })
-    .select("reviews brandname images");
-
-  const allReviews = [];
-
-  products.forEach((product) => {
-    product.reviews.forEach((review) => {
-      allReviews.push({
-        _id: review._id,
-        approved: review.approved,
-        productId: product._id,
-        product: {
-          name: product.brandname,
-          image: product.images?.[0] || null,
-        },
-        user: {
-          name: review.user?.name || review.name,
-          avatar: review.user?.profilePicture || null,
-        },
-        rating: review.rating,
-        comment: review.comment,
-        photos: review.photos || [],
-        createdAt: review.createdAt,
-      });
-    });
-  });
-
-  console.log("🔹 All reviews from backend:", allReviews.length);
-
-  res.json(allReviews);
-});
 const getCategories = asyncHandler(async (req, res) => {
   const { gender } = req.query;
   const filter = gender ? { "productdetails.gender": gender } : {};
@@ -1665,6 +1695,7 @@ const getCategories = asyncHandler(async (req, res) => {
 
   res.json(map);
 });
+
 export {
   getProducts,
   deleteProduct,
@@ -1676,7 +1707,15 @@ export {
   deleteCartItem,
   getProductById,
   approveReview,
+  rejectReview,
+  unapproveReview,
+  toggleFeaturedReview,
+  respondToReview,
   getPendingReviews,
+  getPendingReviewsCount,
+  getAllReviews,
+  getFeaturedReviews,
+  getReviewEligibility,
   deleteReviewById,
   getProductBySku,
   getProductVariants,
@@ -1688,7 +1727,5 @@ export {
   getProductGroup,
   updateVariant,
   createProductReview,
-  unapproveReview,
-  getAllReviews,
   getCategories,
 };

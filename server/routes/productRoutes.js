@@ -14,7 +14,15 @@ import {
   deleteCartItem,
   getProductById,
   approveReview,
+  rejectReview, 
+  unapproveReview,
+  toggleFeaturedReview, 
+  respondToReview, 
   getPendingReviews,
+  getPendingReviewsCount, 
+  getAllReviews,
+  getFeaturedReviews, 
+  getReviewEligibility, 
   deleteReviewById,
   getProductBySku,
   updateGroupCommonFields,
@@ -27,8 +35,6 @@ import {
   getProductGroup,
   updateVariant,
   createProductReview,
-  unapproveReview,
-  getAllReviews,
 } from "../controllers/productControler.js";
 
 import {
@@ -48,7 +54,15 @@ router.get("/sku/:sku", optionalAuth, getProductBySku);
 
 // ── 2. Review routes (static paths) ──
 router.get("/reviews/pending", protect, adminOrSeller, getPendingReviews);
+router.get(
+  "/reviews/pending-count",
+  protect,
+  adminOrSeller,
+  getPendingReviewsCount,
+); // ✅ NEW — sidebar badge
 router.get("/reviews/all", protect, adminOrSeller, getAllReviews);
+router.get("/reviews/featured", getFeaturedReviews); // ✅ NEW — public, homepage
+router.get("/reviews/eligibility/:orderId", protect, getReviewEligibility); // ✅ NEW — My Orders
 router.delete("/reviews/:reviewId", protect, adminOrSeller, deleteReviewById);
 
 // ── 3. Cart ──
@@ -121,11 +135,29 @@ router.put(
   approveReview,
 );
 router.put(
+  "/:id/reviews/:reviewId/reject",
+  protect,
+  adminOrSeller,
+  rejectReview,
+); // ✅ NEW
+router.put(
   "/:id/reviews/:reviewId/unapprove",
   protect,
   adminOrSeller,
   unapproveReview,
 );
+router.put(
+  "/:id/reviews/:reviewId/feature",
+  protect,
+  adminOrSeller,
+  toggleFeaturedReview,
+); // ✅ NEW
+router.put(
+  "/:id/reviews/:reviewId/response",
+  protect,
+  adminOrSeller,
+  respondToReview,
+); // ✅ NEW
 router.put("/:productId/reviews/:reviewId/helpful", protect, markReviewHelpful);
 router.put(
   "/:productId/reviews/:reviewId/not-helpful",

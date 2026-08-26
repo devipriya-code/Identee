@@ -1,16 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchGarmentTypes } from "../redux/slices/garmentTypeSlice";
-import { fetchAllGarmentImages } from "../redux/slices/garmentImageSlice";
-
-function slugify(str) {
-  return (str || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+import ProductReviews from "../components/ProductReviews";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -73,25 +64,22 @@ const qtyBtnStyle = {
   justifyContent: "center",
 };
 
+// Mirrors customizerCatalogController.js's slugify exactly, so the
+// key/color built here always matches a real /api/customizer/styles
+// entry — every product qualifies, no curated map, no restriction.
+function slugify(str = "") {
+  return str.toLowerCase().trim().replace(/\s+/g, "-");
+}
+
 export default function SingleProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
-  const { items: garmentTypes } = useSelector((s) => s.garmentType);
-  const { items: garmentImages } = useSelector((s) => s.garmentImage);
-
-  useEffect(() => {
-    dispatch(fetchGarmentTypes());
-    dispatch(fetchAllGarmentImages());
-  }, [dispatch]);
 
   const { data, isLoading, error } = useSWRProduct(id);
 
   const [activeVariantId, setActiveVariantId] = useState(id);
-  // Single selected size + a shared qty stepper for that size —
-  // matches the standard "pick a size, then a qty" pattern (like Flipkart's
-  // cart line-item Qty dropdown) instead of a stepper per size.
   const [selectedSize, setSelectedSize] = useState(null);
   const [qty, setQty] = useState(1);
   const [mainImageIdx, setMainImageIdx] = useState(0);
@@ -103,7 +91,6 @@ export default function SingleProductPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
 
-  // Re-sync if the user lands here fresh with a different :id
   useEffect(() => {
     setActiveVariantId(id);
     setSelectedSize(null);
@@ -117,7 +104,6 @@ export default function SingleProductPage() {
     [variants, activeVariantId, data],
   );
 
-  // Favorite status check — must run before any early return (Rules of Hooks)
   useEffect(() => {
     if (!user || !activeVariant?._id) return;
     const authToken = user?.token;
@@ -160,6 +146,15 @@ export default function SingleProductPage() {
   const selectedStock = selectedSize ? stockMap[selectedSize] || 0 : 0;
   const totalSelectedQty = selectedSize ? qty : 0;
 
+  // Customizer is now gated ONLY on stock — not on any garment-photo /
+  // curated-mapping availability check. Every product with stock in any
+  // size can be customized.
+  const hasAnyStock = availableSizes.some((s) => (stockMap[s] || 0) > 0);
+  const customizerStyle = slugify(
+    activeVariant.productdetails?.garmentStyle || "",
+  );
+  const customizerColor = slugify(activeVariant.productdetails?.color || "");
+
   const handleSelectSize = (size) => {
     const stock = stockMap[size] || 0;
     if (stock <= 0) return;
@@ -188,38 +183,23 @@ export default function SingleProductPage() {
     navigate(`/product/${variantId}`, { replace: true });
   };
 
-  // ── Customize button handler ──────────────────────────────────
+  // Only stock blocks customization now. The style/color slug is built
+  // client-side (same slugify as customizerCatalogController.js) so it
+  // always resolves to a real /api/customizer/styles/:style/colors/:slug
+  // entry — no dependency on the separate, more restrictive
+  // garmentStyleToKey/colorNameToSlug mapping used elsewhere in the app.
   const handleCustomize = () => {
-    const garmentStyle = activeVariant.productdetails?.garmentStyle;
-    const matchedGarment = garmentTypes.find(
-      (g) => g.category === garmentStyle,
-    );
-
-    if (!matchedGarment) {
+    if (!hasAnyStock) {
       setCartMsg({
         type: "error",
-        text: "This product style isn't available in the customizer yet.",
+        text: "This product is currently out of stock.",
       });
       return;
     }
-
-    const colorSlug = slugify(activeVariant.productdetails?.color);
-    const hasPhotos = garmentImages.some(
-      (d) => d.garmentType === matchedGarment.key && d.colorSlug === colorSlug,
-    );
-
-    if (!hasPhotos) {
-      setCartMsg({
-        type: "error",
-        text: "This color isn't set up in the customizer yet.",
-      });
-      return;
-    }
-
-    navigate(`/customize/${matchedGarment.key}?color=${colorSlug}`);
+    navigate(`/customize/${customizerStyle}?color=${customizerColor}`);
   };
 
-  const LENS_SIZE = 160; // px, matches lens box width/height below
+  const LENS_SIZE = 160;
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -270,7 +250,6 @@ export default function SingleProductPage() {
     }
   };
 
-  // ── Buy Now — sends the one selected size + qty ───────────────────
   const handleBuyNow = () => {
     if (!selectedSize || qty <= 0) {
       setCartMsg({ type: "error", text: "Please select a size." });
@@ -288,7 +267,6 @@ export default function SingleProductPage() {
     });
   };
 
-  // ── Add to Cart — one call for the selected size/qty ──────────────
   const handleAddToCart = async () => {
     if (!selectedSize || qty <= 0) {
       setCartMsg({ type: "error", text: "Please select a size." });
@@ -314,9 +292,6 @@ export default function SingleProductPage() {
             "Content-Type": "application/json",
             ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
           },
-          // action: "set" — the stepper already shows the exact quantity
-          // the customer wants for this size, so we set it directly
-          // rather than incrementing on top of whatever was there.
           body: JSON.stringify({ qty, size: selectedSize, action: "set" }),
         },
       );
@@ -594,7 +569,7 @@ export default function SingleProductPage() {
             }}
           />
 
-          {/* Size — pick one size, chip-style, like the color swatches above */}
+          {/* Size */}
           <p style={sectionLabelStyle}>SELECT SIZE</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {SIZE_ORDER.map((size) => {
@@ -683,8 +658,6 @@ export default function SingleProductPage() {
             }}
           />
 
-          {/* Size chart — button + window.open instead of <a>, since the
-              VS Code paste bug on this project strips opening `<a` tags */}
           {activeVariant.sizeChart && (
             <button
               type="button"
@@ -748,22 +721,28 @@ export default function SingleProductPage() {
               {isFavorite ? "♥" : "♡"}
             </button>
 
+            {/* Gated on stock only — every in-stock product can be
+                customized. customizerStyle/customizerColor are built
+                client-side to match customizerCatalogController.js's
+                slugify exactly. */}
             <button
               onClick={handleCustomize}
+              disabled={!hasAnyStock}
+              title={!hasAnyStock ? "Out of stock" : undefined}
               style={{
                 flex: 1,
                 padding: "14px 0",
                 borderRadius: 999,
-                background: "#1A2A4A",
+                background: hasAnyStock ? "#1A2A4A" : "#B7BDC9",
                 color: "#fff",
                 border: "none",
                 fontSize: 14,
                 fontWeight: 700,
                 letterSpacing: "0.04em",
-                cursor: "pointer",
+                cursor: hasAnyStock ? "pointer" : "not-allowed",
               }}
             >
-              CUSTOMIZE
+              {hasAnyStock ? "CUSTOMIZE" : "COMING SOON"}
             </button>
             <button
               onClick={handleAddToCart}
@@ -824,6 +803,9 @@ export default function SingleProductPage() {
           </p>
         </div>
       </div>
+
+      {/* ── Reviews ──────────────────────────────────────────── */}
+      <ProductReviews product={activeVariant} />
 
       <style>{`
         @media (max-width: 860px) {
