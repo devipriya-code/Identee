@@ -10,6 +10,7 @@ import crypto from "crypto";
 import ShippingCost from "../models/shippingcostModel.js";
 import Counter from "../models/counterModel.js";
 import { generateInvoicePdfBuffer } from "../utils/generateInvoicePdf.js";
+import { createNotification } from "./notificationController.js";
 // @desc Create new order
 // @route POST /api/orders
 // @access Private

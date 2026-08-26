@@ -28,6 +28,13 @@ const storage = multer.diskStorage({
       relDir = "uploads/profiles";
     } else if (file.fieldname === "bannerImage") {
       relDir = "uploads/banners/images";
+    } else if (
+      file.fieldname === "images" &&
+      req.originalUrl.includes("/reviews")
+    ) {
+      // ✅ Review photos → their own folder, kept separate from product
+      // catalog images even though they share the "images" field name.
+      relDir = "uploads/reviews";
     } else if (file.fieldname === "images") {
       // ✅ ALL product images → products/images regardless of mimetype
       relDir = "uploads/products/images";
@@ -37,6 +44,9 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === "design") {
       // ✅ customization designs (uploaded logos/artwork) → uploads/designs
       relDir = "uploads/designs";
+    } else if (file.fieldname === "settingsAsset") {
+      // ✅ Settings assets (store logo, favicon) → uploads/settings
+      relDir = "uploads/settings";
     } else if (
       file.fieldname === "image" &&
       (req.originalUrl.includes("/api/banners") ||
@@ -129,7 +139,9 @@ const rewritePaths = (req, res, next) => {
 ========================== */
 export const uploadSingleImage = [upload.single("image"), rewritePaths];
 export const uploadSingleVideo = [upload.single("video"), rewritePaths];
-export const uploadReviewImages = [upload.array("photos", 3), rewritePaths];
+
+export const uploadReviewImages = [upload.array("images", 5), rewritePaths];
+
 export const uploadProfileImage = [
   upload.single("profilePicture"),
   rewritePaths,
@@ -148,3 +160,9 @@ export const uploadProductFiles = [
 ];
 
 export const uploadDesignFile = [upload.single("design"), rewritePaths];
+
+// ✅ For Settings module — store logo / favicon uploads
+export const uploadSettingsAsset = [
+  upload.single("settingsAsset"),
+  rewritePaths,
+];

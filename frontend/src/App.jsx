@@ -53,6 +53,10 @@ import InvoicePreviewPage from "./pages/admin/InvoicePreviewPage";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import ProductBulkUploadPage from "./pages/admin/ProductBulkUploadPage";
 import ArtBulkUploadPage from "./pages/admin/ArtBulkUploadPage";
+// ✅ NEW: Review moderation admin page
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
+// ✅ NEW: Settings module
+import SettingsLayout from "./pages/admin/settings/SettingsLayout";
 
 const OrdersPage = () => (
   <PlaceholderAdminPage
@@ -272,6 +276,7 @@ export default function App() {
           }
         >
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="settings" element={<SettingsLayout />} />
           <Route path="upload-product" element={<ProductUploadPage />} />
           <Route path="products" element={<ProductListPage />} />
           <Route path="offer-banner" element={<OfferBannerPage />} />
@@ -304,6 +309,8 @@ export default function App() {
             element={<SubscriptionPlansPage />}
           />
           <Route path="/admin/subscribers" element={<SubscribersPage />} />
+          {/* ✅ NEW: Review moderation */}
+          <Route path="reviews" element={<AdminReviewsPage />} />
         </Route>
 
         {/* Seller routes */}

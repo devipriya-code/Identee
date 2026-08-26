@@ -6,10 +6,17 @@ const reviewSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
     },
+    // the order this review is tied to. Required going forward; used both
+    // to verify purchase and to block duplicate reviews for the same
+    // product from the same order.
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+    },
     name: { type: String, required: true },
     profilePicture: { type: String, default: "" },
-    rating: { type: Number, required: true },
-    comment: { type: String, required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, required: true, trim: true, minlength: 3 },
 
     photos: [
       {
@@ -22,12 +29,51 @@ const reviewSchema = mongoose.Schema(
       required: true,
       ref: "User",
     },
-    approved: { type: Boolean, default: false },
+
+    // "I recommend this product" checkbox
+    recommend: { type: Boolean, default: true },
+
+    // true whenever orderId was validated against a DELIVERED order
+    isVerifiedPurchase: { type: Boolean, default: false },
+
+    // replaces the old `approved: Boolean` field
+    status: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING",
+    },
+
+    // internal only — never sent on public product-page responses
+    rejectionReason: {
+      type: String,
+      enum: [
+        "SPAM",
+        "OFFENSIVE_LANGUAGE",
+        "FAKE_REVIEW",
+        "IRRELEVANT",
+        "DUPLICATE",
+        "OTHER",
+        "",
+      ],
+      default: "",
+    },
+
+    isFeatured: { type: Boolean, default: false },
+
+    adminResponse: {
+      text: { type: String, default: "" },
+      respondedAt: { type: Date },
+      respondedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    },
+
     helpful: { type: Number, default: 0 },
     notHelpful: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
+
+// speeds up the "already reviewed this order?" duplicate check
+reviewSchema.index({ user: 1, orderId: 1 });
 
 const bannerSchema = mongoose.Schema(
   {

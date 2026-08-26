@@ -94,6 +94,22 @@ export const updateProduct = createAsyncThunk(
   },
 );
 
+
+// re-upload it. Hits productService.updateProductVariant, which calls
+// PUT /api/products/group/variant/:id (updateVariant controller).
+export const updateProductVariant = createAsyncThunk(
+  "products/updateVariant",
+  async ({ id, formData }, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+      return await productService.updateProductVariant(id, formData, token);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      return thunkAPI.rejectWithValue(message);
+    }
+  },
+);
+
 export const deleteProduct = createAsyncThunk(
   "products/delete",
   async (id, thunkAPI) => {
@@ -196,6 +212,25 @@ const productSlice = createSlice({
         );
       })
       .addCase(updateProduct.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // UPDATE VARIANT — separate isLoading path from createProduct's,
+      // but same "patch this one product in the list" pattern as
+      // updateProduct.fulfilled above.
+      .addCase(updateProductVariant.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateProductVariant.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.products = state.products.map((item) =>
+          item._id === action.payload._id ? action.payload : item,
+        );
+      })
+      .addCase(updateProductVariant.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

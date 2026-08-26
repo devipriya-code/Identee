@@ -26,5 +26,25 @@ const getAllOrders = async (token) => {
   return data;
 };
 
-const orderService = { createOrder, getMyOrders, getOrderById, getAllOrders };
+// ✅ NEW — Admin: update an order's status (CREATED, CONFIRMED, PACKED,
+// OUT_FOR_DELIVERY, DELIVERED, RETURN_APPROVED, RETURN_COMPLETED).
+// Hits PUT /orders/:id/updateorderstatus (existing backend route/controller —
+// updateOrderStatus in orderControler.js).
+const updateOrderStatus = async (id, status, token) => {
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  const { data } = await api.put(
+    `/orders/${id}/updateorderstatus`,
+    { status },
+    config,
+  );
+  return data;
+};
+
+const orderService = {
+  createOrder,
+  getMyOrders,
+  getOrderById,
+  getAllOrders,
+  updateOrderStatus, // ✅ NEW
+};
 export default orderService;

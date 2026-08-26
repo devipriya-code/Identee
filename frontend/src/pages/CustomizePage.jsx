@@ -7,9 +7,7 @@ import {
 } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchGarmentTypes } from "../redux/slices/garmentTypeSlice";
-
 import { getShowcase } from "../redux/slices/categoryBannerSlice";
-
 import {
   uploadDesignImage,
   saveCustomization,
@@ -36,13 +34,6 @@ const C = {
   shadow: "0 4px 16px rgba(28,26,20,0.06)",
   shadowLift: "0 8px 24px rgba(28,26,20,0.10)",
 };
-
-// Matches the "CHOOSE FONT" grid on yourdesignstore.in — these are all
-// real Google Fonts families. To render them accurately (instead of
-// falling back to the browser's default serif), add this to your
-// index.html <head>:
-//   <link rel="preconnect" href="https://fonts.googleapis.com">
-//   <link href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=UnifrakturCook&family=Trocchi&family=Trirong&family=Varela+Round&family=Walter+Turncoat&family=Vampiro+One&family=Ubuntu+Condensed&family=Yantramanav&family=Rosarivo&family=Underdog&family=Yatra+One&family=Varela&family=Uncial+Antiqua&family=Ubuntu&family=Vollkorn&family=Vibur&family=Trochut&family=Yrsa&family=Tinos&display=swap" rel="stylesheet">
 const FONT_OPTIONS = [
   "Yeseva One",
   "UnifrakturCook",
@@ -176,7 +167,7 @@ export default function CustomizePage() {
   const { items: artCategories } = useSelector((s) => s.artCategory);
   const { items: artDesigns } = useSelector((s) => s.artDesign);
 
-  const garment = garmentTypes.find((g) => g.key === type);
+  const garment = garmentTypes.find((g) => g.key === type); // from GarmentType (admin "Garment Types" page)
   const colorDoc = garmentImages.find(
     (d) => d.garmentType === type && d.colorSlug === colorSlug,
   );

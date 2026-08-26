@@ -23,10 +23,12 @@ import garmentColorImageRoutes from "./routes/garmentColorImageRoutes.js";
 import garmentTypeRoutes from "./routes/garmentTypeRoutes.js";
 import artCategoryRoutes from "./routes/artCategoryRoutes.js";
 import artDesignRoutes from "./routes/artDesignRoutes.js";
+import settingRoutes from "./routes/settingRoutes.js";
+import { checkMaintenanceMode } from "./middleware/maintenanceMiddleware.js";
 import cors from "cors";
 import "./utils/subscriptionCron.js";
 import "./utils/razorpayInstance.js";
-
+import notificationRoutes from "./routes/notificationRoutes.js";
 connectDB();
 const app = express();
 app.use(
@@ -47,6 +49,8 @@ app.options("*", cors());
 app.use(express.json({ limit: "500mb" }));
 app.use(express.urlencoded({ limit: "500mb", extended: true }));
 
+app.use(checkMaintenanceMode);
+
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
@@ -55,6 +59,7 @@ app.get("/", (req, res) => {
   res.send("Backend is running!");
 });
 app.use("/api/products", productRoutes);
+app.use("/api/settings", settingRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -74,7 +79,7 @@ app.use("/api/garment-images", garmentColorImageRoutes);
 app.use("/api/garment-types", garmentTypeRoutes);
 app.use("/api/art-categories", artCategoryRoutes);
 app.use("/api/art-designs", artDesignRoutes);
-
+app.use("/api/notifications", notificationRoutes);
 app.get("/api/config/paypal", (req, res) =>
   res.send(process.env.PAYPAL_CLIENT_ID),
 );

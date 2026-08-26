@@ -1,28 +1,8 @@
 // controllers/customizerCatalogController.js
-//
-// Powers the 3-step customizer flow (Choose Pattern -> Choose Color ->
-// Customize) using REAL Product documents instead of a static frontend
-// catalog file.
-//
-//   "Pattern" = productdetails.garmentStyle
-//               (e.g. "round-neck-tshirt", "oversized", "hoodie",
-//                "sweatshirt", "polo", "v-neck")
-//   "Color"   = productdetails.color (e.g. "Black", "White")
-//
-// ASSUMPTION: your productSchema already requires
-// productdetails.garmentStyle — these endpoints group your existing
-// catalog by that field. If the garmentStyle values in your DB don't
-// yet match the 6 patterns from yourdesignstore.in, tag new/edited
-// products with those exact strings (admin upload form / bulk sheet)
-// and they'll show up here automatically — nothing else needs touching.
 
 import asyncHandler from "express-async-handler";
 import Product from "../models/productModel.js";
 
-// Fallback swatch colors for common color names — used so "Choose
-// Color" cards always render a visible swatch even though
-// productdetails.color is stored as a plain name, not a hex value.
-// Extend this map if your catalog uses color names not listed here.
 const COLOR_HEX_MAP = {
   black: "#15130F",
   white: "#FFFFFF",

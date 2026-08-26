@@ -54,11 +54,25 @@ export const fetchAllOrders = createAsyncThunk(
         err.response?.data?.message || err.message,
       );
     }
-  
   },
 );
 
-
+// ✅ NEW — Admin: update an order's status. Returns { id, status } so the
+// reducer can patch just that one order in allOrders without a full refetch.
+export const updateOrderStatus = createAsyncThunk(
+  "orders/updateOrderStatus",
+  async ({ id, status }, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.user.token;
+      await orderService.updateOrderStatus(id, status, token);
+      return { id, status };
+    } catch (err) {
+      return thunkAPI.rejectWithValue(
+        err.response?.data?.message || err.message,
+      );
+    }
+  },
+);
 
 const orderSlice = createSlice({
   name: "orders",
@@ -66,11 +80,13 @@ const orderSlice = createSlice({
     orders: [],
     allOrders: [],
     allOrdersLoading: false,
+    allOrdersError: null,
     currentOrder: null,
     placedOrder: null,
     loading: false,
     placing: false,
     error: null,
+    updatingStatusId: null, // ✅ NEW — order._id currently being updated, for per-row disable/spinner
   },
   reducers: {
     clearPlacedOrder: (state) => {
@@ -118,8 +134,10 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-       .addCase(fetchAllOrders.pending, (state) => {
+      // fetchAllOrders
+      .addCase(fetchAllOrders.pending, (state) => {
         state.allOrdersLoading = true;
+        state.allOrdersError = null;
       })
       .addCase(fetchAllOrders.fulfilled, (state, action) => {
         state.allOrdersLoading = false;
@@ -127,7 +145,21 @@ const orderSlice = createSlice({
       })
       .addCase(fetchAllOrders.rejected, (state, action) => {
         state.allOrdersLoading = false;
-        state.error = action.payload;
+        state.allOrdersError = action.payload;
+      })
+      // ✅ NEW — updateOrderStatus
+      .addCase(updateOrderStatus.pending, (state, action) => {
+        state.updatingStatusId = action.meta.arg.id;
+      })
+      .addCase(updateOrderStatus.fulfilled, (state, action) => {
+        state.updatingStatusId = null;
+        const { id, status } = action.payload;
+        const order = state.allOrders.find((o) => o._id === id);
+        if (order) order.orderStatus = status;
+      })
+      .addCase(updateOrderStatus.rejected, (state, action) => {
+        state.updatingStatusId = null;
+        state.allOrdersError = action.payload;
       });
   },
 });

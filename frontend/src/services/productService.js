@@ -47,6 +47,21 @@ const updateProduct = async (id, productData, token) => {
   return response.data;
 };
 
+// UPDATE A SINGLE VARIANT — price, discount, color, sizes, stockBySize
+// (and optionally images via FormData). Hits the existing
+// group/variant/:id route (updateVariant controller) — this is what
+// powers restocking/editing an already-uploaded product without having
+// to re-upload it from scratch.
+const updateProductVariant = async (id, formData, token) => {
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  const response = await axios.put(
+    `${API_URL}/group/variant/${id}`,
+    formData,
+    config,
+  );
+  return response.data;
+};
+
 // DELETE PRODUCT
 const deleteProduct = async (id, token) => {
   const config = { headers: { Authorization: `Bearer ${token}` } };
@@ -61,6 +76,7 @@ const productService = {
   getProductById,
   createProduct,
   updateProduct,
+  updateProductVariant,
   deleteProduct,
 };
 
