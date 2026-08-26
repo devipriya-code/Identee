@@ -1,11 +1,20 @@
 import { async } from "regenerator-runtime";
 import Product from "../models/productModel.js";
 import OfferBanner from "../models/offerBannerModel.js";
+import VideoBanner from "../models/videoBannerModel.js";
 
 import asyncHandler from "express-async-handler";
 import path from "path";
 import fs from "fs";
 import mongoose from "mongoose";
+
+const VALID_VIDEO_SECTIONS = [
+  "hero",
+  "styleOutlookMain",
+  "styleOutlookSide1",
+  "styleOutlookSide2",
+  "designYourOwn",
+];
 
 // @desc Create add banners
 // @route POST /api/banners
@@ -135,129 +144,96 @@ const getBanners = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc Create addvideobanners
-// @route POST /api/videobanners
+/* ------------------------------------------------------------------ */
+/*  VIDEO BANNERS — now standalone, section-based, no product link.    */
+/*  Sections: "hero" | "styleOutlook" | "designYourOwn"                */
+/*  Exactly one video allowed per section (re-uploading replaces it).  */
+/* ------------------------------------------------------------------ */
+
+// @desc Add or replace the video banner for a given section
+// @route POST /api/addvideobanner
 // @access Private / Admin
 const addvideobanner = asyncHandler(async (req, res) => {
-  console.log("🎥 Received Upload Request");
-  console.log("Request Body:", req.body);
-  console.log("Uploaded File:", req.file);
-
-  const { productId } = req.body;
+  const { section } = req.body;
 
   if (!req.file) {
     return res.status(400).json({ message: "No video uploaded." });
   }
 
-  // 🚫 GLOBAL SINGLE VIDEO CHECK
-  const existingVideo = await Product.findOne({
-    "VideoBanner.0": { $exists: true },
-  });
-
-  if (existingVideo) {
+  if (!section || !VALID_VIDEO_SECTIONS.includes(section)) {
     return res.status(400).json({
-      message: "Only one video banner is allowed in the entire system.",
+      message: `Invalid or missing section. Must be one of: ${VALID_VIDEO_SECTIONS.join(", ")}`,
     });
   }
 
-  // ✅ Check product exists
-  const product = await Product.findById(productId);
-  if (!product) {
-    return res.status(404).json({ message: "Product not found" });
+  const newVideoUrl = `/uploads/banners/videos/${req.file.filename}`;
+
+  // A video for this section already exists → replace it (delete old file)
+  const existing = await VideoBanner.findOne({ section });
+
+  if (existing) {
+    const relativePath = existing.videoUrl.replace(/^https?:\/\/[^/]+/, "");
+    const oldFilePath = path.join(process.cwd(), relativePath);
+    if (fs.existsSync(oldFilePath)) {
+      fs.unlinkSync(oldFilePath);
+    }
+
+    existing.videoUrl = newVideoUrl;
+    await existing.save();
+
+    return res.status(200).json({
+      message: "Video banner updated successfully",
+      videoBanner: existing,
+    });
   }
 
-  // ✅ Create video banner
-  const videoBanner = {
-    _id: new mongoose.Types.ObjectId(),
-    videoUrl: `/uploads/banners/videos/${req.file.filename}`,
-    uploadedAt: new Date(),
-  };
-
-  product.VideoBanner.push(videoBanner);
-  await product.save();
-
-  console.log("✅ Video Banner Added Successfully:", videoBanner);
+  // No video yet for this section → create new
+  const videoBanner = await VideoBanner.create({
+    section,
+    videoUrl: newVideoUrl,
+  });
 
   res.status(201).json({
     message: "Video banner added successfully",
     videoBanner,
   });
 });
-// @desc getvideoBanners
-// @route get /api/videobanners
-// @access Private
+
+// @desc Get all video banners (one per section, however many exist)
+// @route GET /api/getvideobanner
+// @access Public
 const getvideobanner = asyncHandler(async (req, res) => {
-  // ✅ Find product that has a video banner
-  const productWithVideo = await Product.findOne(
-    { "VideoBanner.0": { $exists: true } },
-    { VideoBanner: 1 },
-  );
-
-  if (!productWithVideo) {
-    return res.json([]); // No video uploaded yet
-  }
-
-  res.json(productWithVideo.VideoBanner);
+  const videoBanners = await VideoBanner.find({});
+  res.json(videoBanners);
 });
 
-// @desc deletevideoBanner
-// @route delete /api/videobanners/:id
+// @desc Delete a video banner by its _id
+// @route DELETE /api/deletevideobanner/:videoId
 // @access Private/admin
-
 const deletevideobanner = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
 
-  // 1️⃣ Find product containing this video
-  const product = await Product.findOne({
-    "VideoBanner._id": videoId,
-  });
-
-  if (!product) {
-    return res.status(404).json({ message: "Video not found" });
-  }
-
-  // 2️⃣ Find video object
-  const video = product.VideoBanner.find((v) => v._id.toString() === videoId);
+  const video = await VideoBanner.findById(videoId);
 
   if (!video) {
     return res.status(404).json({ message: "Video not found" });
   }
 
-  // 3️⃣ Convert URL → local file path
-  // URL: http://localhost:3001/uploads/banners/videos/xxx.mp4
+  // Delete file from server
   const relativePath = video.videoUrl.replace(/^https?:\/\/[^/]+/, "");
-
   const filePath = path.join(process.cwd(), relativePath);
 
-  // 4️⃣ Delete file from server
   fs.unlink(filePath, (err) => {
     if (err) {
       console.error("Video file delete failed:", err.message);
     }
   });
 
-  // 5️⃣ Remove from DB
-  product.VideoBanner = product.VideoBanner.filter(
-    (v) => v._id.toString() !== videoId,
-  );
-
-  await product.save();
+  await video.deleteOne();
 
   res.json({ message: "Video banner deleted successfully" });
 });
 
-// @desc getallvideoBanners
-// @route get /api/allvideobanners
-// @access Private
-const getUserVideoBanners = asyncHandler(async (req, res) => {
-  // Find all products and extract video banners
-  const products = await Product.find({}, "VideoBanner");
-
-  // Flatten all video banners into a single array
-  const allVideoBanners = products.flatMap((product) => product.VideoBanner);
-
-  res.json(allVideoBanners);
-});
 export const addOfferBanner = asyncHandler(async (req, res) => {
   const { offerText } = req.body;
 
@@ -329,6 +305,4 @@ export {
   addvideobanner,
   getvideobanner,
   deletevideobanner,
-  getUserVideoBanners,
-  // activateOfferBanner,
 };

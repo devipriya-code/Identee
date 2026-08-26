@@ -385,7 +385,7 @@ function CategoryBannerGrid({ items, navigate }) {
 /* ------------------------------------------------------------------ */
 /*  STYLE OUTLOOK — big video + two side videos, editorial layout      */
 /* ------------------------------------------------------------------ */
-function StyleOutlookSection() {
+function StyleOutlookSection({ mainVideoSrc, side1VideoSrc, side2VideoSrc }) {
   return (
     <section style={{ background: C.ink, padding: "48px 24px" }}>
       <div style={{ maxWidth: 1280, margin: "0 auto" }}>
@@ -426,19 +426,19 @@ function StyleOutlookSection() {
         </div>
         <div className="identee-style-outlook-grid">
           <div className="identee-style-outlook-main">
-            <video autoPlay muted loop playsInline>
-              <source src={subVideo1} type="video/mp4" />
+            <video key={mainVideoSrc} autoPlay muted loop playsInline>
+              <source src={mainVideoSrc} type="video/mp4" />
             </video>
           </div>
           <div className="identee-style-outlook-side">
             <div className="identee-style-outlook-side-item">
-              <video autoPlay muted loop playsInline>
-                <source src={hoodieVideo} type="video/mp4" />
+              <video key={side1VideoSrc} autoPlay muted loop playsInline>
+                <source src={side1VideoSrc} type="video/mp4" />
               </video>
             </div>
             <div className="identee-style-outlook-side-item">
-              <video autoPlay muted loop playsInline>
-                <source src={polosVideo} type="video/mp4" />
+              <video key={side2VideoSrc} autoPlay muted loop playsInline>
+                <source src={side2VideoSrc} type="video/mp4" />
               </video>
             </div>
           </div>
@@ -749,13 +749,25 @@ export default function Home() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { showcase } = useSelector((s) => s.categoryBanner);
-  const { videoBanner } = useSelector((s) => s.banner);
+  const { videoBanners } = useSelector((s) => s.banner);
 
-  // Use the admin-uploaded hero video if one exists, otherwise fall back
-  // to the bundled local clip so the hero never breaks with no video set.
-  const heroVideoSrc = videoBanner?.videoUrl
-    ? `${BACKEND_URL}${videoBanner.videoUrl}`
-    : homeBannerVideo;
+  // Helper: find the admin-uploaded video for a given section, e.g. "hero"
+  const getSectionVideoUrl = (section) => {
+    const match = (videoBanners || []).find((v) => v.section === section);
+    return match?.videoUrl ? `${BACKEND_URL}${match.videoUrl}` : null;
+  };
+
+  // Each section falls back to its bundled local clip if no admin
+  // video has been uploaded yet for that section.
+  const heroVideoSrc = getSectionVideoUrl("hero") || homeBannerVideo;
+  const styleOutlookMainSrc =
+    getSectionVideoUrl("styleOutlookMain") || subVideo1;
+  const styleOutlookSide1Src =
+    getSectionVideoUrl("styleOutlookSide1") || hoodieVideo;
+  const styleOutlookSide2Src =
+    getSectionVideoUrl("styleOutlookSide2") || polosVideo;
+  const designYourOwnVideoSrc =
+    getSectionVideoUrl("designYourOwn") || customizeVideo;
 
   useEffect(() => {
     dispatch(getShowcase());
@@ -899,6 +911,7 @@ export default function Home() {
         }}
       >
         <video
+          key={heroVideoSrc}
           autoPlay
           muted
           loop
@@ -1089,7 +1102,11 @@ export default function Home() {
       </section>
 
       {/* ================= STYLE OUTLOOK — VIDEO EDITORIAL ================= */}
-      <StyleOutlookSection />
+      <StyleOutlookSection
+        mainVideoSrc={styleOutlookMainSrc}
+        side1VideoSrc={styleOutlookSide1Src}
+        side2VideoSrc={styleOutlookSide2Src}
+      />
 
       {/* ================= DESIGN YOUR OWN — replaces Bulk Order band ================= */}
       <section
@@ -1133,6 +1150,7 @@ export default function Home() {
             }}
           >
             <video
+              key={designYourOwnVideoSrc}
               autoPlay
               muted
               loop
@@ -1144,7 +1162,7 @@ export default function Home() {
                 display: "block",
               }}
             >
-              <source src={customizeVideo} type="video/mp4" />
+              <source src={designYourOwnVideoSrc} type="video/mp4" />
             </video>
           </div>
         </div>
@@ -1204,7 +1222,7 @@ export default function Home() {
               margin: "18px 0 0",
               fontSize: 14.5,
               color: C.ink,
-              maxWidth: 400, 
+              maxWidth: 400,
               lineHeight: 1.65,
               opacity: 0.85,
             }}
