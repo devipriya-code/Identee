@@ -37,7 +37,10 @@ const updateOffer = async (id, data, token) => {
 };
 
 const deleteOffer = async (id, token) => {
-  const res = await axios.delete(`${API_URL}/offerbanner/${id}`, authHeader(token));
+  const res = await axios.delete(
+    `${API_URL}/offerbanner/${id}`,
+    authHeader(token),
+  );
   return res.data;
 };
 
@@ -50,19 +53,32 @@ const activateOffer = async (id, token) => {
   return res.data;
 };
 
-// ── VIDEO BANNER (Home page hero video) ──────────────────────────
+// ── VIDEO BANNER (Home page videos — one per section) ────────────
+// GET returns ALL video banners (all sections) as an array
 const getVideoBanner = async () => {
   const res = await axios.get(`${API_URL}/getvideobanner`);
-  return res.data; // array — backend allows only ONE globally
+  return res.data;
 };
 
+// formData must contain "section" (hero | styleOutlookMain | styleOutlookSide1 |
+// styleOutlookSide2 | designYourOwn) + "video"
 const addVideoBanner = async (formData, token) => {
-  const res = await axios.post(
-    `${API_URL}/addvideobanner`,
-    formData,
-    authHeader(token),
-  );
-  return res.data;
+  try {
+    const res = await axios.post(
+      `${API_URL}/addvideobanner`,
+      formData,
+      authHeader(token),
+    );
+    return res.data;
+  } catch (error) {
+    // Log the FULL server response so the exact reason is visible
+    // in the browser console, not just "400 Bad Request".
+    console.error("addVideoBanner failed:", {
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    throw error;
+  }
 };
 
 const deleteVideoBanner = async (videoId, token) => {

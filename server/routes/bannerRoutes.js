@@ -6,7 +6,6 @@ import {
   addvideobanner,
   getvideobanner,
   deletevideobanner,
-  getUserVideoBanners,
   addOfferBanner,
   getAllOfferBanners,
   getActiveOfferBanner,
@@ -26,6 +25,9 @@ router
   .post(protect, adminOrSeller, uploadSingleImage, addBanner);
 router.route("/banners/:id").delete(protect, adminOrSeller, deleteBanner);
 router.route("/banners").get(getBanners);
+
+// VIDEO BANNERS — section-based (hero / styleOutlook / designYourOwn),
+// no product link anymore. Body must include `section`.
 router
   .route("/addvideobanner")
   .post(protect, adminOrSeller, uploadSingleVideo, addvideobanner);
@@ -33,7 +35,6 @@ router.route("/getvideobanner").get(getvideobanner);
 router
   .route("/deletevideobanner/:videoId")
   .delete(protect, adminOrSeller, deletevideobanner);
-router.route("/getuservideobanners").get(getUserVideoBanners);
 
 // OFFER BANNERS
 router.post("/offerbanner", protect, adminOrSeller, addOfferBanner);

@@ -4,7 +4,7 @@ import bannerService from "../../services/bannerService";
 const initialState = {
   activeOffer: null,
   offers: [],
-  videoBanner: null,
+  videoBanners: [], // one entry per section: { _id, section, videoUrl, ... }
   isLoading: false,
   isError: false,
   isSuccess: false,
@@ -18,7 +18,9 @@ export const getActiveOffer = createAsyncThunk(
     try {
       return await bannerService.getActiveOffer();
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -30,7 +32,9 @@ export const getAllOffers = createAsyncThunk(
       const token = thunkAPI.getState().auth.user.token;
       return await bannerService.getAllOffers(token);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -42,7 +46,9 @@ export const createOffer = createAsyncThunk(
       const token = thunkAPI.getState().auth.user.token;
       return await bannerService.createOffer(offerText, token);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -54,7 +60,9 @@ export const updateOffer = createAsyncThunk(
       const token = thunkAPI.getState().auth.user.token;
       return await bannerService.updateOffer(id, data, token);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -67,7 +75,9 @@ export const deleteOffer = createAsyncThunk(
       await bannerService.deleteOffer(id, token);
       return id;
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -79,23 +89,28 @@ export const activateOffer = createAsyncThunk(
       const token = thunkAPI.getState().auth.user.token;
       return await bannerService.activateOffer(id, token);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
 
-// ── VIDEO BANNER THUNKS ──────────────────────────────────────────
+// ── VIDEO BANNER THUNKS (now section-based: hero / styleOutlook / designYourOwn) ──
 export const getVideoBanner = createAsyncThunk(
   "banner/getVideoBanner",
   async (_, thunkAPI) => {
     try {
       return await bannerService.getVideoBanner();
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
 
+// formData must include "section" (hero | styleOutlook | designYourOwn) and "video"
 export const addVideoBanner = createAsyncThunk(
   "banner/addVideoBanner",
   async (formData, thunkAPI) => {
@@ -103,7 +118,9 @@ export const addVideoBanner = createAsyncThunk(
       const token = thunkAPI.getState().auth.user.token;
       return await bannerService.addVideoBanner(formData, token);
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -116,7 +133,9 @@ export const deleteVideoBanner = createAsyncThunk(
       await bannerService.deleteVideoBanner(videoId, token);
       return videoId;
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message,
+      );
     }
   },
 );
@@ -170,23 +189,32 @@ const bannerSlice = createSlice({
         }));
         state.activeOffer = action.payload;
       })
-      // video banner
+      // video banners — array, one per section
       .addCase(getVideoBanner.fulfilled, (state, action) => {
-        state.videoBanner =
-          Array.isArray(action.payload) && action.payload.length > 0
-            ? action.payload[0]
-            : null;
+        state.videoBanners = Array.isArray(action.payload)
+          ? action.payload
+          : [];
       })
       .addCase(addVideoBanner.fulfilled, (state, action) => {
-        state.videoBanner = action.payload.videoBanner;
         state.isSuccess = true;
+        const updated = action.payload.videoBanner;
+        const idx = state.videoBanners.findIndex(
+          (v) => v.section === updated.section,
+        );
+        if (idx !== -1) {
+          state.videoBanners[idx] = updated;
+        } else {
+          state.videoBanners.push(updated);
+        }
       })
       .addCase(addVideoBanner.rejected, (state, action) => {
         state.isError = true;
         state.message = action.payload;
       })
-      .addCase(deleteVideoBanner.fulfilled, (state) => {
-        state.videoBanner = null;
+      .addCase(deleteVideoBanner.fulfilled, (state, action) => {
+        state.videoBanners = state.videoBanners.filter(
+          (v) => v._id !== action.payload,
+        );
       });
   },
 });
