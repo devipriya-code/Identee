@@ -7,6 +7,7 @@ import {
   saveSettings,
 } from "../../../redux/slices/settingSlice";
 import settingService from "../../../services/settingService";
+import { fetchPublicSettings } from "../../../redux/slices/publicSettingsSlice";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -69,11 +70,27 @@ export default function GeneralSettingsPage() {
 
   const handleSave = async () => {
     try {
-      await dispatch(
+      const result = await dispatch(
         saveSettings({ category: "general", values: form }),
       ).unwrap();
-      toast.success("General settings saved");
+
+      if (result.unknownKeys?.length > 0) {
+        toast.warn(
+          `Saved, but these fields aren't set up yet and were ignored: ${result.unknownKeys.join(", ")}`,
+        );
+      } else if (result.failedKeys?.length > 0) {
+        toast.error(
+          `Some fields failed to save: ${result.failedKeys.join(", ")}`,
+        );
+      } else {
+        toast.success("General settings saved");
+      }
       setDirty(false);
+
+      // Storefront (Navbar/Home/Footer) caches public settings for the whole
+      // tab session via `isLoaded`. Force a refresh now so contact info,
+      // logo, socials etc. update immediately without a hard reload.
+      dispatch(fetchPublicSettings());
     } catch (err) {
       toast.error(err || "Save failed");
     }

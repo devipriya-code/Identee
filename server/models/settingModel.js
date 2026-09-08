@@ -47,9 +47,18 @@ const settingSchema = mongoose.Schema(
 
 // Safety net: a secret-typed setting can never be marked public, even
 // if someone passes isPublic:true by mistake in a bulk update.
-settingSchema.pre("save", function (next) {
+//
+// NOTE: this is a plain synchronous mutation with no async work, so it
+// takes NO `next` parameter and doesn't call next() at all. Declaring
+// it as `function (next) { ...; next(); }` was throwing
+// "TypeError: next is not a function" — Kareem (Mongoose's hook
+// runner) wasn't supplying a real callback for this hook in this
+// Mongoose version, so calling next() crashed every single .save()
+// on this model, which is what was causing PUT /api/settings/bulk to
+// 500 on every request. Mongoose fully supports zero-arg synchronous
+// pre-hooks; this is the correct modern pattern for a hook like this.
+settingSchema.pre("save", function () {
   if (this.type === "secret") this.isPublic = false;
-  next();
 });
 
 const Setting = mongoose.model("Setting", settingSchema);

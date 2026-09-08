@@ -12,11 +12,12 @@ import subVideo8 from "../assets/videos/sub-video8.mp4";
 import subVideo9 from "../assets/videos/suv-video9.mp4";
 import hoodieVideo from "../assets/videos/hoodie.mp4";
 import polosVideo from "../assets/videos/polos.mp4";
+import { fetchPublicSettings } from "../redux/slices/publicSettingsSlice";
 
 /* ------------------------------------------------------------------ */
 /*  PALETTE — white base, yellow accent, black ink (NO dark bg)       */
 /* ------------------------------------------------------------------ */
-const C = {
+const C = { 
   bg: "#FFFFFF", // primary page background
   bgAlt: "#FBF7EE", // soft warm cream for alternating sections
   yellow: "#F4C43C", // primary accent — bands, marquee, highlights
@@ -557,7 +558,20 @@ function InstagramIcon({ size = 18, color = "#fff" }) {
   );
 }
 
-function Footer() {
+function Footer({ settings = {} }) {
+  const email =
+    settings["general.storeEmail"] ||
+    settings["general.supportEmail"] ||
+    "work@yourdesignstore.in";
+  const phone = settings["general.phoneNumber"] || "+91 636 652 6449";
+  const whatsapp = settings["general.whatsappNumber"] || "+91 994 590 0292";
+  const phoneDigits = phone.replace(/\D/g, "");
+  const whatsappDigits = whatsapp.replace(/\D/g, "");
+  const storeName = settings["general.storeName"] || "Identee";
+  const address =
+    settings["general.businessAddress"] || "Coimbatore, Tamil Nadu";
+  const mapQuery = encodeURIComponent(address);
+
   return (
     <footer style={{ background: C.bg }}>
       {/* ---- contact band ---- */}
@@ -583,7 +597,7 @@ function Footer() {
             }}
           >
             <a
-              href="mailto:work@yourdesignstore.in"
+              href={`mailto:${email}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -593,10 +607,10 @@ function Footer() {
                 fontSize: 15,
               }}
             >
-              <MailIcon /> work@yourdesignstore.in
+              <MailIcon /> {email}
             </a>
             <a
-              href="tel:+916366526449"
+              href={`tel:+${phoneDigits}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -606,10 +620,10 @@ function Footer() {
                 fontSize: 15,
               }}
             >
-              <PhoneIcon /> +91 636 652 6449
+              <PhoneIcon /> {phone}
             </a>
             <a
-              href="https://wa.me/919945900292"
+              href={`https://wa.me/${whatsappDigits}`}
               target="_blank"
               rel="noreferrer"
               style={{
@@ -621,7 +635,7 @@ function Footer() {
                 fontSize: 15,
               }}
             >
-              <WhatsAppIcon color={C.ink} /> +91 994 590 0292
+              <WhatsAppIcon color={C.ink} /> {whatsapp}
             </a>
           </div>
         </div>
@@ -687,7 +701,7 @@ function Footer() {
             >
               <iframe
                 title="Store location"
-                src="https://www.google.com/maps?q=Coimbatore,Tamil+Nadu&output=embed"
+                src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
                 width="100%"
                 height="100%"
                 style={{ border: 0, display: "block" }}
@@ -707,7 +721,7 @@ function Footer() {
           color: C.muted,
         }}
       >
-        © {new Date().getFullYear()} Identee. All rights reserved.
+        © {new Date().getFullYear()} {storeName}. All rights reserved.
       </div>
     </footer>
   );
@@ -716,11 +730,21 @@ function Footer() {
 /* ------------------------------------------------------------------ */
 /*  FLOATING SOCIAL — WhatsApp + Instagram, fixed on the left edge     */
 /* ------------------------------------------------------------------ */
-function FloatingSocial() {
+function FloatingSocial({ settings = {} }) {
+  const whatsapp = settings["general.whatsappNumber"] || "+91 994 590 0292";
+  const whatsappDigits = whatsapp.replace(/\D/g, "");
+
+  const instagramRaw = settings["general.instagramUrl"];
+  const instagramHref = instagramRaw
+    ? instagramRaw.startsWith("http")
+      ? instagramRaw
+      : `https://instagram.com/${instagramRaw.replace(/^@/, "")}`
+    : "https://instagram.com";
+
   return (
     <div className="identee-floating-social">
       <a
-        href="https://wa.me/919945900292"
+        href={`https://wa.me/${whatsappDigits}`}
         target="_blank"
         rel="noreferrer"
         className="identee-floating-btn identee-floating-whatsapp"
@@ -729,7 +753,7 @@ function FloatingSocial() {
         <WhatsAppIcon color="#fff" size={22} />
       </a>
       <a
-        href="https://instagram.com"
+        href={instagramHref}
         target="_blank"
         rel="noreferrer"
         className="identee-floating-btn identee-floating-instagram"
@@ -750,6 +774,9 @@ export default function Home() {
   const navigate = useNavigate();
   const { showcase } = useSelector((s) => s.categoryBanner);
   const { videoBanners } = useSelector((s) => s.banner);
+  const { values: publicSettings, isLoaded: settingsLoaded } = useSelector(
+    (s) => s.publicSettings,
+  );
 
   // Helper: find the admin-uploaded video for a given section, e.g. "hero"
   const getSectionVideoUrl = (section) => {
@@ -772,7 +799,8 @@ export default function Home() {
   useEffect(() => {
     dispatch(getShowcase());
     dispatch(getVideoBanner());
-  }, [dispatch]);
+    if (!settingsLoaded) dispatch(fetchPublicSettings());
+  }, [dispatch, settingsLoaded]);
 
   return (
     <div
@@ -898,7 +926,7 @@ export default function Home() {
         }
       `}</style>
 
-      <FloatingSocial />
+      <FloatingSocial settings={publicSettings} />
 
       {/* ================= HERO — full-bleed video background (unchanged) ================= */}
       <section
@@ -1294,7 +1322,7 @@ export default function Home() {
       </section>
 
       {/* ================= FOOTER ================= */}
-      <Footer />
+      <Footer settings={publicSettings} />
     </div>
   );
 }

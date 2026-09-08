@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { THEME, inputStyle, labelStyle } from "../../../theme/theme";
+import { updateProfile } from "../../../redux/slices/authSlice";
 import profileService from "../../../services/profileService";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function ProfileSettingsPage() {
+  const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -49,23 +51,26 @@ export default function ProfileSettingsPage() {
       if (form.dateOfBirth) fd.append("dateOfBirth", form.dateOfBirth);
       if (photoFile) fd.append("profilePicture", photoFile);
 
-      const updated = await profileService.updateProfile(fd, user.token);
-
-      // Keep localStorage in sync so the sidebar avatar/name reflect the
-      // change without requiring a full re-login. Redux state.auth.user
-      // itself isn't patched here since that depends on authSlice, which
-      // isn't in scope for this file — a page refresh will pick up the
-      // localStorage value on next load.
-      const stored = JSON.parse(localStorage.getItem("userInfo") || "{}");
-      localStorage.setItem(
-        "userInfo",
-        JSON.stringify({ ...stored, name: updated.name, email: updated.email }),
-      );
+      // Dispatch the Redux thunk (uses authService.updateProfile under the
+      // hood) instead of calling profileService directly. This updates
+      // state.auth.user — what AdminSidebar/AdminTopbar actually read —
+      // so the name/avatar update everywhere immediately, no reload needed.
+      // authService.updateProfile already writes the full response
+      // (including the fresh token) to localStorage, so nothing else to do.
+      const updated = await dispatch(updateProfile(fd)).unwrap();
 
       toast.success("Profile updated");
       setPhotoFile(null);
+
+      // Reflect the server's authoritative profilePicture path back into
+      // the local form so "currentPhoto" shows the just-saved image.
+      setForm((f) => ({
+        ...f,
+        profilePicture: updated.profilePicture || f.profilePicture,
+        profilePictureUpdatedAt: Date.now(),
+      }));
     } catch (err) {
-      toast.error(err.response?.data?.message || "Update failed");
+      toast.error(err || "Update failed");
     } finally {
       setSaving(false);
     }
@@ -75,7 +80,9 @@ export default function ProfileSettingsPage() {
 
   const currentPhoto =
     photoPreview ||
-    (form.profilePicture ? `${BACKEND_URL}${form.profilePicture}` : "");
+    (form.profilePicture
+      ? `${BACKEND_URL}/${form.profilePicture.replace(/^\//, "")}?v=${form.profilePictureUpdatedAt || Date.now()}`
+      : "");
 
   return (
     <div style={{ maxWidth: 560 }}>

@@ -19,6 +19,16 @@ const updateSettingsBulk = async (category, values, token) => {
   return res.data;
 };
 
+// NEW — persists a single key immediately (used right after an image
+// upload, so the reference is saved to Mongo the instant the file
+// lands on disk, instead of only existing in local component state
+// until the page-level "Save Changes" button is clicked).
+const updateSetting = async (key, value, token) => {
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  const res = await axios.put(`${API_URL}/${key}`, { value }, config);
+  return res.data;
+};
+
 const uploadSettingAsset = async (file, token) => {
   const formData = new FormData();
   formData.append("settingsAsset", file); // must match multer's file.fieldname branch
@@ -31,6 +41,7 @@ const settingService = {
   getPublicSettings,
   getSettings,
   updateSettingsBulk,
+  updateSetting,
   uploadSettingAsset,
 };
 export default settingService;

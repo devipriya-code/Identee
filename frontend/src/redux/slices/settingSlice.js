@@ -29,7 +29,23 @@ export const saveSettings = createAsyncThunk(
   async ({ category, values }, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.user.token;
-      return await settingService.updateSettingsBulk(category, values, token);
+      const res = await settingService.updateSettingsBulk(
+        category,
+        values,
+        token,
+      );
+      // Use the backend's authoritative response (res.values), NOT the
+      // values we sent. Previously this thunk echoed back the sent
+      // payload regardless of whether the backend actually persisted
+      // every key — a key silently skipped server-side (e.g. because
+      // it had no matching Setting document yet) would still show as
+      // "saved" in the UI until the next real fetch proved otherwise.
+      return {
+        category,
+        values: res.values,
+        unknownKeys: res.unknownKeys || [],
+        failedKeys: res.failedKeys || [],
+      };
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message,
