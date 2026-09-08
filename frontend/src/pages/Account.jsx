@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-
+import MyOrdersPage from "./MyOrderPage"; //
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const MENU = [
@@ -189,13 +189,25 @@ export default function Account() {
         setAvatarPreview(`${BACKEND_URL}${updated.profilePicture}`);
       }
       setAvatarFile(null);
+
+      // Keep Navbar's cached user info in sync — it reads from
+      // localStorage and only re-renders on a "storage" event.
+      const stored = JSON.parse(localStorage.getItem("userInfo") || "{}");
+      const nextStored = {
+        ...stored,
+        name: updated?.name ?? form.name,
+        lastName: updated?.lastName ?? form.lastName,
+        email: updated?.email ?? form.email,
+        profilePicture: updated?.profilePicture ?? stored.profilePicture,
+      };
+      localStorage.setItem("userInfo", JSON.stringify(nextStored));
+      window.dispatchEvent(new Event("storage"));
     } catch (err) {
       setMsg({ type: "error", text: err.message || "Something went wrong." });
     } finally {
       setSaving(false);
     }
   };
-
   // ── Address handlers ─────────────────────────────────────────
   const openNewAddress = () => {
     setAddressForm(emptyAddress);
@@ -280,15 +292,38 @@ export default function Account() {
 
   return (
     <div
+      className="account-page-grid"
       style={{
         display: "grid",
-        gridTemplateColumns: "320px 1fr",
+        gridTemplateColumns: "1fr 1fr",
         gap: 24,
         maxWidth: 1100,
         margin: "32px auto",
         padding: "0 16px",
+        alignItems: "start",
       }}
     >
+      <style>{`
+        @media (max-width: 860px) {
+          .account-page-grid {
+            grid-template-columns: 1fr !important;
+            margin: 16px auto !important;
+            padding: 0 12px !important;
+          }
+        }
+        @media (max-width: 600px) {
+          .account-tiers-row { flex-wrap: wrap; gap: 12px !important; }
+          .account-tiers-row > div { flex: 1 1 30% !important; }
+          .account-menu-list {
+            flex-direction: row !important;
+            overflow-x: auto;
+            padding-bottom: 4px;
+          }
+          .account-menu-list button { white-space: nowrap; }
+          .account-content-panel { padding: 18px !important; }
+          .address-action-row { flex-wrap: wrap; }
+        }
+      `}</style>
       {/* ── Left: tiers + menu ── */}
       <div
         style={{
@@ -307,6 +342,7 @@ export default function Account() {
           }}
         >
           <div
+            className="account-tiers-row"
             style={{
               display: "flex",
               justifyContent: "space-around",
@@ -361,6 +397,7 @@ export default function Account() {
         </div>
 
         <div
+          className="account-menu-list"
           style={{
             padding: 10,
             display: "flex",
@@ -421,11 +458,14 @@ export default function Account() {
 
       {/* ── Right: content ── */}
       <div
+        className="account-content-panel"
         style={{
           border: "1px solid #E5E5E5",
           borderRadius: 12,
           background: "#FFFFFF",
           padding: 28,
+          maxHeight: "80vh",
+          overflowY: "auto",
         }}
       >
         {loading && <p style={{ color: "#71695B" }}>Loading…</p>}
@@ -665,7 +705,10 @@ export default function Account() {
                     </p>
                   )}
 
-                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                  <div
+                    className="address-action-row"
+                    style={{ display: "flex", gap: 10, marginTop: 10 }}
+                  >
                     <button
                       onClick={() => openEditAddress(idx)}
                       style={linkBtnStyle}
@@ -859,7 +902,9 @@ export default function Account() {
           </div>
         )}
 
-        {!loading && !["profile", "address"].includes(activeTab) && (
+        {!loading && activeTab === "orders" && <MyOrdersPage />}
+
+        {!loading && !["profile", "address", "orders"].includes(activeTab) && (
           <p style={{ color: "#71695B" }}>
             {MENU.find((m) => m.key === activeTab)?.label} — coming soon.
           </p>

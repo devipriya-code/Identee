@@ -61,11 +61,26 @@ function StatusPill({ status }) {
   );
 }
 
+const TABS = [
+  { key: "all", label: "All Orders", statuses: null },
+  {
+    key: "active",
+    label: "Active Orders",
+    statuses: ["CREATED", "CONFIRMED", "PACKED"],
+  },
+  {
+    key: "dispatched",
+    label: "Dispatched",
+    statuses: ["OUT_FOR_DELIVERY", "DELIVERED"],
+  },
+];
+
 export default function MyOrdersPage() {
   const { user } = useSelector((state) => state.auth);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -80,6 +95,11 @@ export default function MyOrdersPage() {
     };
     fetchOrders();
   }, [user.token]);
+
+  const activeStatuses = TABS.find((t) => t.key === activeTab)?.statuses;
+  const filteredOrders = activeStatuses
+    ? orders.filter((o) => activeStatuses.includes(o.orderStatus))
+    : orders;
 
   return (
     <div
@@ -125,6 +145,31 @@ export default function MyOrdersPage() {
           </p>
         )}
 
+        {!loading && !error && orders.length > 0 && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: 999,
+                  border: `1px solid ${THEME.border}`,
+                  background:
+                    activeTab === tab.key ? THEME.gold : THEME.surface,
+                  color: activeTab === tab.key ? "#0B0B0C" : THEME.textMuted,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  fontFamily: THEME.fontBody,
+                  cursor: "pointer",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!loading && !error && orders.length === 0 && (
           <div
             style={{
@@ -166,8 +211,17 @@ export default function MyOrdersPage() {
           </div>
         )}
 
+        {!loading &&
+          !error &&
+          orders.length > 0 &&
+          filteredOrders.length === 0 && (
+            <p style={{ color: THEME.textMuted, fontFamily: THEME.fontBody }}>
+              No orders in this tab.
+            </p>
+          )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <Link
               key={order._id}
               to={`/order-success/${order._id}`}
