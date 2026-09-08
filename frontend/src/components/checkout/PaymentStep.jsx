@@ -255,6 +255,7 @@ export default function PaymentStep({
 
   return (
     <div
+      className="payment-step-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 300px",
@@ -262,6 +263,26 @@ export default function PaymentStep({
         alignItems: "start",
       }}
     >
+      <style>{`
+        @media (max-width: 900px) {
+          .payment-step-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .payment-sidebar {
+            position: static !important;
+            order: -1;
+          }
+        }
+        @media (max-width: 480px) {
+          .payment-method-label {
+            padding: 12px 12px !important;
+            gap: 10px !important;
+          }
+          .payment-method-label p {
+            font-size: 13px !important;
+          }
+        }
+      `}</style>
       <div
         style={{
           background: THEME.surface,
@@ -287,6 +308,7 @@ export default function PaymentStep({
           {PAYMENT_METHODS.map((pm) => (
             <label
               key={pm.key}
+              className="payment-method-label"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -390,6 +412,7 @@ export default function PaymentStep({
       </div>
 
       <div
+        className="payment-sidebar"
         style={{
           position: "sticky",
           top: 20,

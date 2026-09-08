@@ -138,6 +138,7 @@ export default function OrderSummaryStep({
 
   return (
     <div
+      className="order-summary-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 300px",
@@ -145,8 +146,51 @@ export default function OrderSummaryStep({
         alignItems: "start",
       }}
     >
+      <style>{`
+        @media (max-width: 900px) {
+          .order-summary-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .order-summary-sidebar {
+            position: static !important;
+            order: -1;
+          }
+        }
+        @media (max-width: 600px) {
+          .deliver-to-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px;
+          }
+          .deliver-to-row button {
+            align-self: flex-end;
+          }
+          .order-item-row {
+            flex-wrap: wrap;
+            gap: 10px !important;
+          }
+          .order-item-img {
+            width: 52px !important;
+            height: 52px !important;
+          }
+          .order-item-price {
+            margin-left: auto;
+          }
+        }
+        @media (max-width: 420px) {
+          .order-item-row {
+            position: relative;
+          }
+          .order-item-price {
+            width: 100%;
+            text-align: left !important;
+            margin-left: 66px;
+          }
+        }
+      `}</style>
       <div>
         <div
+          className="deliver-to-row"
           style={{
             background: THEME.surface,
             border: `1px solid ${THEME.border}`,
@@ -237,6 +281,7 @@ export default function OrderSummaryStep({
                 return (
                   <div
                     key={item._id || i}
+                    className="order-item-row"
                     style={{
                       display: "flex",
                       gap: 14,
@@ -249,6 +294,7 @@ export default function OrderSummaryStep({
                     }}
                   >
                     <img
+                      className="order-item-img"
                       src={getImageUrl(item.product?.images?.[0])}
                       alt={item.product?.brandname}
                       style={{
@@ -374,7 +420,10 @@ export default function OrderSummaryStep({
                         </p>
                       )}
                     </div>
-                    <div style={{ textAlign: "right" }}>
+                    <div
+                      className="order-item-price"
+                      style={{ textAlign: "right" }}
+                    >
                       {item.product?.oldPrice > item.price / item.qty && (
                         <p
                           style={{
@@ -528,6 +577,7 @@ export default function OrderSummaryStep({
       </div>
 
       <div
+        className="order-summary-sidebar"
         style={{
           position: "sticky",
           top: 20,

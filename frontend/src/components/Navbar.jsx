@@ -6,6 +6,7 @@ import logo from "../assets/identee-logo.png"; // adjust path
 import { THEME } from "../theme/theme";
 import { getActiveOffer } from "../redux/slices/bannerSlice";
 import { fetchFavorites, fetchCart } from "../redux/slices/cartWishlistSlice";
+import { fetchPublicSettings } from "../redux/slices/publicSettingsSlice";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -51,6 +52,9 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
   const { favorites, cartItems } = useSelector((s) => s.cartWishlist);
   const wishlistCount = favorites.length;
   const cartCount = cartItems.length;
+  const { values: publicSettings, isLoaded: settingsLoaded } = useSelector(
+    (s) => s.publicSettings,
+  );
 
   useEffect(() => {
     const handleStorage = () => setUser(getUserInfo());
@@ -69,6 +73,12 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
       dispatch(fetchCart(user.token));
     }
   }, [dispatch, user]);
+
+  useEffect(() => {
+    if (!settingsLoaded) dispatch(fetchPublicSettings());
+  }, [dispatch, settingsLoaded]);
+
+  const displayPhone = publicSettings["general.phoneNumber"] || phone;
 
   // ── Fetch live categories from the backend — updates whenever an admin
   // creates a new category/product, no code changes needed on the frontend.
@@ -176,7 +186,7 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
             }}
           >
             <a
-              href={`tel:${phone.split(" ").join("")}`}
+              href={`tel:${displayPhone.split(" ").join("")}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -195,7 +205,7 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
               >
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
               </svg>
-              {phone}
+              {displayPhone}
             </a>
             <span style={{ color: THEME.border }}>|</span>
             <Link
@@ -233,6 +243,7 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
             }}
           >
             <img
+              className="navbar-logo"
               src={logo}
               alt="IDENTEE"
               style={{ height: 100, width: 150, objectFit: "contain" }}
@@ -411,12 +422,32 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
             </Link>
 
             {user ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                className="navbar-auth-block"
+                style={{ display: "flex", alignItems: "center", gap: 10 }}
+              >
                 <div
                   className="avatar-initial"
-                  style={{ width: 32, height: 32, fontSize: 14 }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    fontSize: 14,
+                    overflow: "hidden",
+                  }}
                 >
-                  {initial}
+                  {user?.profilePicture ? (
+                    <img
+                      src={`${BACKEND_URL}${user.profilePicture}`}
+                      alt="avatar"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    initial
+                  )}
                 </div>
                 <button
                   onClick={handleLogout}
@@ -435,6 +466,7 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
             ) : (
               <Link
                 to="/login"
+                className="navbar-auth-block"
                 style={{
                   color: THEME.ink,
                   textDecoration: "none",
@@ -1003,14 +1035,42 @@ export default function Navbar({ phone = "+91 636 652 6449" }) {
           border-color: ${THEME.ink};
         }
 
+              /* ==================== TABLET/MOBILE (≤900px) ==================== */
         @media (max-width: 900px) {
           .nav-desktop { display: none !important; }
           .navbar-burger { display: flex !important; }
           .navbar-left { display: none !important; }
+
+          .navbar-row1 {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            padding: 12px 20px !important;
+            gap: 12px !important;
+          }
+                  .navbar-logo { height: 56px !important; width: auto !important; }
+          .navbar-right { gap: 16px !important; font-size: 13px !important; }
+          .navbar-auth-block { display: none !important; }
         }
+
         @media (min-width: 901px) {
           .nav-mobile-menu { display: none !important; }
           .navbar-burger { display: none !important; }
+        }
+
+        /* ==================== MOBILE (≤600px) ==================== */
+        @media (max-width: 600px) {
+          .navbar-row1 { padding: 10px 14px !important; gap: 8px !important; }
+          .navbar-logo { height: 44px !important; }
+          .navbar-right { gap: 12px !important; font-size: 12px !important; }
+          .nav-mobile-menu { padding: 12px 18px 20px !important; }
+        }
+
+        /* ==================== SMALL MOBILE (≤380px) ==================== */
+        @media (max-width: 380px) {
+          .navbar-right { gap: 8px !important; }
+          .navbar-icon svg { width: 18px !important; height: 18px !important; }
+          .navbar-logo { height: 38px !important; }
         }
       `}</style>
     </>
