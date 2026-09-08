@@ -14,6 +14,7 @@ import artDesignReducer from "./slices/artDesignSlice";
 import shippingReducer from "./slices/shippingSlice";
 import settingReducer from "./slices/settingSlice";
 import notificationReducer from "./slices/notificationSlice";
+import publicSettingsReducer from "./slices/publicSettingsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     garmentType: garmentTypeReducer,
     settings: settingReducer,
     notifications: notificationReducer,
+    publicSettings: publicSettingsReducer,
   },
   devTools: process.env.NODE_ENV !== "production",
 });

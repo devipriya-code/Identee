@@ -8,10 +8,7 @@ import {
 
 const MASK = "********";
 
-// Ensures the General Settings defaults exist in the DB. Cheap
-// (findOneAndUpdate with upsert per key) and safe to call on every
-// request to the admin settings endpoints — only inserts keys that
-// don't already exist, never overwrites a saved value.
+
 const ensureGeneralDefaults = async () => {
   await Promise.all(
     GENERAL_SETTINGS_DEFAULTS.map((def) =>
@@ -24,10 +21,7 @@ const ensureGeneralDefaults = async () => {
   );
 };
 
-// @desc    Public, unauthenticated settings — safe for the storefront
-//          (store name, logo, socials, currency, etc.)
-// @route   GET /api/settings/public
-// @access  Public
+
 export const getPublicSettings = asyncHandler(async (req, res) => {
   await ensureGeneralDefaults();
 
@@ -45,11 +39,6 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
   res.json(map);
 });
 
-// @desc    Full settings for the admin panel, optionally filtered by
-//          category. Secret-typed values are masked, never returned
-//          in full, even to admins — they can only be replaced, not read back.
-// @route   GET /api/settings?category=general
-// @access  Private/Admin (or Seller, view-only)
 export const getSettings = asyncHandler(async (req, res) => {
   await ensureGeneralDefaults();
 
@@ -70,19 +59,16 @@ export const getSettings = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
-// @desc    Bulk update every setting in one category (one "Save
-//          Changes" click on a settings tab). Skips any key sent as
-//          the mask placeholder, so re-saving a form that displays
-//          "********" for a secret never overwrites the real value
-//          with the mask itself.
-// @route   PUT /api/settings/bulk
-// @access  Private/Admin only (security-sensitive — never seller)
 export const updateSettingsBulk = asyncHandler(async (req, res) => {
   const { category, values } = req.body;
 
-  if (!category || typeof values !== "object" || values === null) {
+  if (!category || typeof category !== "string") {
     res.status(400);
-    throw new Error("category and values are required");
+    throw new Error("category is required and must be a string");
+  }
+  if (typeof values !== "object" || values === null || Array.isArray(values)) {
+    res.status(400);
+    throw new Error("values must be a plain object of key: value pairs");
   }
 
   const keys = Object.keys(values);
@@ -91,18 +77,51 @@ export const updateSettingsBulk = asyncHandler(async (req, res) => {
     throw new Error("No settings provided to update");
   }
 
+  if (category === CATEGORY) {
+    await ensureGeneralDefaults();
+  }
+
   const existing = await Setting.find({ category, key: { $in: keys } });
   const existingMap = Object.fromEntries(existing.map((s) => [s.key, s]));
 
+  if (existing.length === 0) {
+    console.warn(
+      `[settings/bulk] No existing settings matched category="${category}" for keys: ${keys.join(", ")}. ` +
+        `Check that this matches the CATEGORY constant in utils/settingsDefaults.js exactly.`,
+    );
+  }
+
+  const failedKeys = [];
+  const unknownKeys = []; 
   const updates = [];
   for (const key of keys) {
     const doc = existingMap[key];
-    if (!doc) continue; // unknown key for this category — ignore, don't create arbitrary settings via bulk save
+    if (!doc) {
+      unknownKeys.push(key);
+      continue; // still never create arbitrary settings via bulk save — just report it now
+    }
     if (doc.type === "secret" && values[key] === MASK) continue; // untouched secret — skip
 
     doc.value = values[key];
-    doc.updatedBy = req.user._id;
-    updates.push(doc.save());
+    doc.updatedBy = req.user?._id;
+
+    
+    updates.push(
+      doc.save().catch((err) => {
+        console.error(
+          `[settings/bulk] Failed to save key "${key}":`,
+          err.message,
+        );
+        failedKeys.push(key);
+      }),
+    );
+  }
+
+  if (unknownKeys.length > 0) {
+    console.warn(
+      `[settings/bulk] Ignored unknown keys for category="${category}": ${unknownKeys.join(", ")}. ` +
+        `Add them to GENERAL_SETTINGS_DEFAULTS in utils/settingsDefaults.js if they should be saveable.`,
+    );
   }
 
   await Promise.all(updates);
@@ -113,13 +132,18 @@ export const updateSettingsBulk = asyncHandler(async (req, res) => {
     responseMap[s.key] = s.type === "secret" && s.value ? MASK : s.value;
   });
 
-  res.json({ message: "Settings updated", category, values: responseMap });
+  res.json({
+    message:
+      failedKeys.length > 0 || unknownKeys.length > 0
+        ? "Settings updated with some fields skipped"
+        : "Settings updated",
+    category,
+    values: responseMap,
+    ...(failedKeys.length > 0 && { failedKeys }),
+    ...(unknownKeys.length > 0 && { unknownKeys }),
+  });
 });
 
-// @desc    Update a single setting by key (used for quick toggles,
-//          e.g. flipping maintenance mode from a dashboard shortcut).
-// @route   PUT /api/settings/:key
-// @access  Private/Admin only
 export const updateSetting = asyncHandler(async (req, res) => {
   const { key } = req.params;
   const { value } = req.body;
@@ -143,11 +167,7 @@ export const updateSetting = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Store the uploaded settings asset's relative path (logo,
-//          favicon). Uses the shared multer/multer.js pipeline
-//          (uploadSettingsAsset), same as every other upload in the app.
-// @route   PUT /api/settings/upload-asset
-// @access  Private/Admin only
+
 export const uploadSettingAsset = asyncHandler(async (req, res) => {
   if (!req.file) {
     res.status(400);

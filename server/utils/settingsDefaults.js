@@ -38,7 +38,7 @@ export const GENERAL_SETTINGS_DEFAULTS = [
     key: "general.storeEmail",
     value: "",
     type: "string",
-    isPublic: false,
+    isPublic: true,
     description: "Primary store email",
   },
   {

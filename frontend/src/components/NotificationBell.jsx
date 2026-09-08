@@ -29,6 +29,12 @@ const TYPE_ICON = {
   PAYMENT_FAILED: "❌",
 };
 
+// How often to poll for unread count while the tab is visible. 15s was
+// firing ~4x/minute continuously even when the admin had switched away
+// to another tab — bumped to 45s and gated on document visibility so
+// idle/background tabs stop hitting the endpoint entirely.
+const POLL_INTERVAL_MS = 45000;
+
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return "just now";
@@ -44,12 +50,35 @@ export default function NotificationBell() {
   const { items, unreadCount, isOpen } = useSelector((s) => s.notifications);
   const panelRef = useRef(null);
 
-  // Poll unread count every 15s regardless of panel state.
+  // Poll unread count every POLL_INTERVAL_MS, but only while the tab
+  // is actually visible — no reason to hit the DB while the admin has
+  // switched away to another tab or app. Also re-fetches immediately
+  // the moment the tab becomes visible again, so the badge doesn't sit
+  // stale for up to 45s after switching back.
   useEffect(() => {
     if (!user?.token) return;
-    dispatch(fetchUnreadCount());
-    const interval = setInterval(() => dispatch(fetchUnreadCount()), 15000);
-    return () => clearInterval(interval);
+
+    const poll = () => {
+      if (document.visibilityState === "visible") {
+        dispatch(fetchUnreadCount());
+      }
+    };
+
+    poll(); // initial fetch on mount
+
+    const interval = setInterval(poll, POLL_INTERVAL_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        dispatch(fetchUnreadCount());
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [dispatch, user?.token]);
 
   // Fetch the full list only when the panel opens.
