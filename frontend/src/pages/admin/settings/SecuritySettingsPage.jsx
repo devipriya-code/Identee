@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { THEME, inputStyle, labelStyle } from "../../../theme/theme";
+import { THEME, getInputStyle, getLabelStyle } from "../../../theme/theme";
 import profileService from "../../../services/profileService";
 
 function EyeIcon({ open }) {
@@ -32,7 +32,14 @@ function EyeIcon({ open }) {
   );
 }
 
-function PasswordField({ label, value, onChange }) {
+function PasswordField({
+  label,
+  value,
+  onChange,
+  theme,
+  inputStyle,
+  labelStyle,
+}) {
   const [visible, setVisible] = useState(false);
   return (
     <div>
@@ -62,7 +69,7 @@ function PasswordField({ label, value, onChange }) {
             border: "none",
             padding: 0,
             cursor: "pointer",
-            color: THEME.textMuted,
+            color: theme.textMuted,
             display: "flex",
           }}
         >
@@ -75,6 +82,10 @@ function PasswordField({ label, value, onChange }) {
 
 export default function SecuritySettingsPage() {
   const { user } = useSelector((s) => s.auth);
+  const theme = THEME;
+  const inputStyle = getInputStyle(theme);
+  const labelStyle = getLabelStyle(theme);
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -112,7 +123,7 @@ export default function SecuritySettingsPage() {
           fontWeight: 600,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: THEME.gold,
+          color: theme.gold,
         }}
       >
         Settings
@@ -123,20 +134,21 @@ export default function SecuritySettingsPage() {
           fontSize: 24,
           fontWeight: 600,
           fontFamily: "'Cormorant Garamond', serif",
+          color: theme.text,
         }}
       >
         Security
       </h1>
-      <p style={{ margin: "0 0 24px", fontSize: 13, color: THEME.textMuted }}>
+      <p style={{ margin: "0 0 24px", fontSize: 13, color: theme.textMuted }}>
         Change your admin account password.
       </p>
 
       <div
         style={{
-          border: `1px solid ${THEME.border}`,
+          border: `1px solid ${theme.border}`,
           borderRadius: 12,
           padding: 20,
-          background: THEME.surface,
+          background: theme.surface,
           display: "flex",
           flexDirection: "column",
           gap: 14,
@@ -146,11 +158,17 @@ export default function SecuritySettingsPage() {
           label="New Password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
+          theme={theme}
+          inputStyle={inputStyle}
+          labelStyle={labelStyle}
         />
         <PasswordField
           label="Confirm New Password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
+          theme={theme}
+          inputStyle={inputStyle}
+          labelStyle={labelStyle}
         />
       </div>
 
@@ -162,8 +180,8 @@ export default function SecuritySettingsPage() {
           padding: "10px 28px",
           borderRadius: 8,
           border: "none",
-          background: `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
-          color: "#0B0B0C",
+          background: `linear-gradient(135deg, ${theme.gold}, ${theme.goldBright})`,
+          color: theme.ink,
           fontWeight: 700,
           fontSize: 13,
           cursor: saving ? "not-allowed" : "pointer",

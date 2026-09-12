@@ -7,11 +7,10 @@ import {
   deleteVideoBanner,
   reset,
 } from "../../redux/slices/bannerSlice";
-import { THEME, inputStyle, labelStyle } from "../../theme/theme";
+import { THEME, getInputStyle, getLabelStyle } from "../../theme/theme";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-// Fixed sections — must match the enum in videoBannerModel.js
 const SECTIONS = [
   {
     key: "hero",
@@ -40,7 +39,16 @@ const SECTIONS = [
   },
 ];
 
-function SectionVideoCard({ section, title, desc, existing, isLoading }) {
+function SectionVideoCard({
+  section,
+  title,
+  desc,
+  existing,
+  isLoading,
+  theme,
+  inputStyle,
+  labelStyle,
+}) {
   const dispatch = useDispatch();
   const [file, setFile] = useState(null);
 
@@ -59,8 +67,6 @@ function SectionVideoCard({ section, title, desc, existing, isLoading }) {
         setFile(null);
       })
       .catch((err) => {
-        // err here is the exact message the backend sent back
-        // (or a network-level message if the request never reached it)
         console.error("Upload failed:", err);
         toast.error(err || "Upload failed — check console for details");
       });
@@ -78,16 +84,23 @@ function SectionVideoCard({ section, title, desc, existing, isLoading }) {
   return (
     <div
       style={{
-        border: `1px solid ${THEME.border}`,
+        border: `1px solid ${theme.border}`,
         borderRadius: 14,
         padding: 22,
         marginBottom: 22,
       }}
     >
-      <h3 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 600 }}>
+      <h3
+        style={{
+          margin: "0 0 4px",
+          fontSize: 17,
+          fontWeight: 600,
+          color: theme.text,
+        }}
+      >
         {title}
       </h3>
-      <p style={{ margin: "0 0 16px", fontSize: 13, color: THEME.textMuted }}>
+      <p style={{ margin: "0 0 16px", fontSize: 13, color: theme.textMuted }}>
         {desc}
       </p>
 
@@ -100,7 +113,7 @@ function SectionVideoCard({ section, title, desc, existing, isLoading }) {
               width: "100%",
               maxWidth: 420,
               borderRadius: 10,
-              border: `1px solid ${THEME.border}`,
+              border: `1px solid ${theme.border}`,
             }}
           />
           <div>
@@ -108,9 +121,9 @@ function SectionVideoCard({ section, title, desc, existing, isLoading }) {
               onClick={handleDelete}
               style={{
                 marginTop: 12,
-                background: THEME.dangerBg,
-                border: `1px solid ${THEME.dangerBorder}`,
-                color: THEME.danger,
+                background: theme.dangerBg,
+                border: `1px solid ${theme.dangerBorder}`,
+                color: theme.danger,
                 borderRadius: 8,
                 padding: "8px 16px",
                 cursor: "pointer",
@@ -149,8 +162,8 @@ function SectionVideoCard({ section, title, desc, existing, isLoading }) {
               border: "none",
               background: isLoading
                 ? "#8A6F2E"
-                : `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
-              color: "#0B0B0C",
+                : `linear-gradient(135deg, ${theme.gold}, ${theme.goldBright})`,
+              color: theme.ink,
               fontWeight: 700,
               cursor: isLoading ? "not-allowed" : "pointer",
               alignSelf: "flex-start",
@@ -169,6 +182,9 @@ export default function VideoBannerPage() {
   const { videoBanners, isLoading, isError, isSuccess, message } = useSelector(
     (s) => s.banner,
   );
+  const theme = THEME;
+  const inputStyle = getInputStyle(theme);
+  const labelStyle = getLabelStyle(theme);
 
   useEffect(() => {
     dispatch(getVideoBanner());
@@ -193,13 +209,13 @@ export default function VideoBannerPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: THEME.bg,
-        color: THEME.text,
+        background: theme.bg,
+        color: theme.text,
         padding: "32px 40px",
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>
+      <p style={{ ...labelStyle, margin: 0, color: theme.gold }}>
         Admin · Content
       </p>
       <h1
@@ -212,7 +228,7 @@ export default function VideoBannerPage() {
       >
         Home Page Videos
       </h1>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: THEME.textMuted }}>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: theme.textMuted }}>
         Controls the 3 videos on the Home page — Hero, Style Outlook, and Design
         Your Own. Each section holds one video; upload a new one after removing
         the current one.
@@ -227,10 +243,12 @@ export default function VideoBannerPage() {
             desc={s.desc}
             existing={findBySection(s.key)}
             isLoading={isLoading}
+            theme={theme}
+            inputStyle={inputStyle}
+            labelStyle={labelStyle}
           />
         ))}
       </div>
     </div>
   );
 }
-   

@@ -1,4 +1,3 @@
-// pages/admin/AdminDashboard.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -135,7 +134,6 @@ export default function AdminDashboard() {
         padding: "32px 40px",
       }}
     >
-      {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <p
           style={{
@@ -165,7 +163,6 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      {/* Stats */}
       <div
         style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 36 }}
       >
@@ -192,7 +189,6 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Quick links */}
       <p
         style={{
           fontSize: 12,

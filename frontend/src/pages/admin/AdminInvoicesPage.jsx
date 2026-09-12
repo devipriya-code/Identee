@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import invoiceService from "../../services/invoiceService";
-import { THEME, labelStyle } from "../../theme/theme";
+import { getLabelStyle } from "../../theme/theme";
 
 export default function AdminInvoicesPage() {
   const { user } = useSelector((s) => s.auth);
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { theme } = useTheme();
+  const labelStyle = getLabelStyle(theme);
 
   useEffect(() => {
     invoiceService
@@ -21,13 +23,13 @@ export default function AdminInvoicesPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: THEME.bg,
-        color: THEME.text,
+        background: theme.bg,
+        color: theme.text,
         padding: "32px 40px",
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>
+      <p style={{ ...labelStyle, margin: 0, color: theme.gold }}>
         Admin · Commerce
       </p>
       <h1
@@ -42,16 +44,16 @@ export default function AdminInvoicesPage() {
       </h1>
 
       {loading ? (
-        <p style={{ color: THEME.textMuted }}>Loading invoices…</p>
+        <p style={{ color: theme.textMuted }}>Loading invoices…</p>
       ) : invoices.length === 0 ? (
-        <p style={{ color: THEME.textMuted }}>
+        <p style={{ color: theme.textMuted }}>
           No invoices generated yet. Open an order's details and click "Generate
           Invoice".
         </p>
       ) : (
         <div
           style={{
-            border: `1px solid ${THEME.border}`,
+            border: `1px solid ${theme.border}`,
             borderRadius: 12,
             overflow: "hidden",
           }}
@@ -60,7 +62,7 @@ export default function AdminInvoicesPage() {
             style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
           >
             <thead>
-              <tr style={{ background: THEME.surface2, textAlign: "left" }}>
+              <tr style={{ background: theme.surface2, textAlign: "left" }}>
                 {[
                   "Invoice #",
                   "Date",
@@ -74,7 +76,7 @@ export default function AdminInvoicesPage() {
                     key={h}
                     style={{
                       padding: "10px 16px",
-                      color: THEME.textMuted,
+                      color: theme.textMuted,
                       fontWeight: 600,
                     }}
                   >
@@ -87,7 +89,7 @@ export default function AdminInvoicesPage() {
               {invoices.map((inv) => (
                 <tr
                   key={inv.orderId}
-                  style={{ borderTop: `1px solid ${THEME.border}` }}
+                  style={{ borderTop: `1px solid ${theme.border}` }}
                 >
                   <td
                     style={{
@@ -106,7 +108,7 @@ export default function AdminInvoicesPage() {
                     style={{
                       padding: "12px 16px",
                       fontWeight: 700,
-                      color: THEME.goldDeep,
+                      color: theme.goldDeep,
                     }}
                   >
                     ₹{inv.totalPrice}
@@ -120,8 +122,8 @@ export default function AdminInvoicesPage() {
                       onClick={() => navigate(`/admin/invoices/${inv.orderId}`)}
                       style={{
                         background: "none",
-                        border: `1px solid ${THEME.gold}`,
-                        color: THEME.goldDeep,
+                        border: `1px solid ${theme.gold}`,
+                        color: theme.goldDeep,
                         borderRadius: 6,
                         padding: "5px 12px",
                         cursor: "pointer",

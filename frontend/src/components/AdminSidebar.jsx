@@ -3,9 +3,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../redux/slices/authSlice";
 import logo from "../assets/logo.png";
-import { THEME } from "../theme/theme";
 
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const logoPath = logo;
+
 const NAV_GROUPS = [
   {
     label: "Overview",
@@ -338,7 +339,6 @@ const NAV_GROUPS = [
   },
 ];
 
-// ── Color tokens — IDENTEE gold on black ────────────────────────────────────
 const C = {
   bg: "#0B0B0C",
   bgHover: "#1F1F24",
@@ -354,7 +354,6 @@ const C = {
 export default function AdminSidebar({ collapsed, onToggle }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  // NOTE: authSlice's initialState key is `user`, not `userInfo`.
   const { user } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
@@ -391,13 +390,25 @@ export default function AdminSidebar({ collapsed, onToggle }) {
           minHeight: 60,
         }}
       >
-        {!collapsed && (
-          <img
-            src={logoPath}
-            alt="IDENTEE"
-            style={{ height: 44, width: "auto", objectFit: "contain" }}
-          />
-        )}
+        {!collapsed &&
+          (user?.profilePicture ? (
+            <img
+              src={`${BACKEND_URL}/${user.profilePicture.replace(/^\//, "")}`}
+              alt=""
+              style={{
+                height: 44,
+                width: 44,
+                borderRadius: "50%",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            <img
+              src={logoPath}
+              alt="IDENTEE"
+              style={{ height: 44, width: "auto", objectFit: "contain" }}
+            />
+          ))}
         <button
           onClick={onToggle}
           style={{
@@ -503,25 +514,40 @@ export default function AdminSidebar({ collapsed, onToggle }) {
           justifyContent: collapsed ? "center" : "flex-start",
         }}
       >
-        <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            background: "#C9A24B20",
-            border: "1px solid #C9A24B55",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            fontSize: 12,
-            fontWeight: 700,
-            color: C.activeText,
-            fontFamily: "'Inter', sans-serif",
-          }}
-        >
-          {user?.name?.[0]?.toUpperCase() || "A"}
-        </div>
+        {user?.profilePicture ? (
+          <img
+            src={`${BACKEND_URL}/${user.profilePicture.replace(/^\//, "")}`}
+            alt=""
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "1px solid #C9A24B55",
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: "#C9A24B20",
+              border: "1px solid #C9A24B55",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              fontSize: 12,
+              fontWeight: 700,
+              color: C.activeText,
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            {user?.name?.[0]?.toUpperCase() || "A"}
+          </div>
+        )}
         {!collapsed ? (
           <div style={{ flex: 1, minWidth: 0 }}>
             <p
@@ -582,10 +608,7 @@ export default function AdminSidebar({ collapsed, onToggle }) {
       </div>
 
       <style>{`
-        .sidebar-nav {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
+        .sidebar-nav { scrollbar-width: none; -ms-overflow-style: none; }
         .sidebar-nav::-webkit-scrollbar { display: none; }
         .sidebar-nav a:hover { background: #1F1F2480 !important; color: #D9D5C9 !important; }
       `}</style>
