@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { THEME, inputStyle, labelStyle } from "../../../theme/theme";
+import { THEME, getInputStyle, getLabelStyle } from "../../../theme/theme";
 import { updateProfile } from "../../../redux/slices/authSlice";
 import profileService from "../../../services/profileService";
 
@@ -10,6 +10,10 @@ const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 export default function ProfileSettingsPage() {
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
+  const theme = THEME;
+  const inputStyle = getInputStyle(theme);
+  const labelStyle = getLabelStyle(theme);
+
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
@@ -51,19 +55,11 @@ export default function ProfileSettingsPage() {
       if (form.dateOfBirth) fd.append("dateOfBirth", form.dateOfBirth);
       if (photoFile) fd.append("profilePicture", photoFile);
 
-      // Dispatch the Redux thunk (uses authService.updateProfile under the
-      // hood) instead of calling profileService directly. This updates
-      // state.auth.user — what AdminSidebar/AdminTopbar actually read —
-      // so the name/avatar update everywhere immediately, no reload needed.
-      // authService.updateProfile already writes the full response
-      // (including the fresh token) to localStorage, so nothing else to do.
       const updated = await dispatch(updateProfile(fd)).unwrap();
 
       toast.success("Profile updated");
       setPhotoFile(null);
 
-      // Reflect the server's authoritative profilePicture path back into
-      // the local form so "currentPhoto" shows the just-saved image.
       setForm((f) => ({
         ...f,
         profilePicture: updated.profilePicture || f.profilePicture,
@@ -76,7 +72,7 @@ export default function ProfileSettingsPage() {
     }
   };
 
-  if (!form) return <p style={{ color: THEME.textMuted }}>Loading profile…</p>;
+  if (!form) return <p style={{ color: theme.textMuted }}>Loading profile…</p>;
 
   const currentPhoto =
     photoPreview ||
@@ -93,7 +89,7 @@ export default function ProfileSettingsPage() {
           fontWeight: 600,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: THEME.gold,
+          color: theme.gold,
         }}
       >
         Settings
@@ -104,20 +100,21 @@ export default function ProfileSettingsPage() {
           fontSize: 24,
           fontWeight: 600,
           fontFamily: "'Cormorant Garamond', serif",
+          color: theme.text,
         }}
       >
         Profile
       </h1>
-      <p style={{ margin: "0 0 24px", fontSize: 13, color: THEME.textMuted }}>
+      <p style={{ margin: "0 0 24px", fontSize: 13, color: theme.textMuted }}>
         Your admin account details.
       </p>
 
       <div
         style={{
-          border: `1px solid ${THEME.border}`,
+          border: `1px solid ${theme.border}`,
           borderRadius: 12,
           padding: 20,
-          background: THEME.surface,
+          background: theme.surface,
           display: "flex",
           flexDirection: "column",
           gap: 16,
@@ -133,7 +130,7 @@ export default function ProfileSettingsPage() {
                 height: 64,
                 borderRadius: "50%",
                 objectFit: "cover",
-                border: `1px solid ${THEME.border}`,
+                border: `1px solid ${theme.border}`,
               }}
             />
           ) : (
@@ -142,13 +139,13 @@ export default function ProfileSettingsPage() {
                 width: 64,
                 height: 64,
                 borderRadius: "50%",
-                background: THEME.goldBg,
+                background: theme.goldBg,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 22,
                 fontWeight: 700,
-                color: THEME.goldBright,
+                color: theme.goldBright,
               }}
             >
               {form.name?.[0]?.toUpperCase() || "A"}
@@ -158,10 +155,10 @@ export default function ProfileSettingsPage() {
             style={{
               padding: "8px 14px",
               borderRadius: 8,
-              border: `1px solid ${THEME.border}`,
+              border: `1px solid ${theme.border}`,
               fontSize: 12,
               cursor: "pointer",
-              color: THEME.textMuted,
+              color: theme.textMuted,
             }}
           >
             Change photo
@@ -239,8 +236,8 @@ export default function ProfileSettingsPage() {
           padding: "10px 28px",
           borderRadius: 8,
           border: "none",
-          background: `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
-          color: "#0B0B0C",
+          background: `linear-gradient(135deg, ${theme.gold}, ${theme.goldBright})`,
+          color: theme.ink,
           fontWeight: 700,
           fontSize: 13,
           cursor: saving ? "not-allowed" : "pointer",

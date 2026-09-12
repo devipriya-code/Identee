@@ -1,45 +1,55 @@
 // theme.js — IDENTEE design tokens (bold editorial: white + gold blocks + ink)
 
 export const THEME = {
-  // ── Backgrounds ──────────────────────────────────────────────
-  bg: "#FFFFFF", // clean white page background
+  bg: "#FFFFFF",
   surface: "#FFFFFF",
-  surface2: "#F7F4EC", // soft warm-neutral for inputs/recessed panels
+  surface2: "#F7F4EC",
   border: "#EAE3CF",
   borderLight: "#DED2AC",
-
-  // ── Gold — the hero color, used as bold full-bleed blocks ───
   gold: "#C9A24B",
   goldBright: "#E8B94D",
-  goldBlock: "#F0C24C", // vivid golden-yellow for large color-block sections
+  goldBlock: "#F0C24C",
   goldDeep: "#9C7A2E",
   goldBg: "#C9A24B18",
   goldBorder: "#C9A24B4D",
-
-  // ── Ink — near-black, used for text and bold CTA buttons ────
   ink: "#141110",
   inkSoft: "#241B14",
-
-  // ── Small accent for tags/badges (sale flash, etc.) ─────────
   accent: "#C0392B",
   accentBg: "#C0392B14",
   accentBorder: "#C0392B44",
-
-  // ── Text ─────────────────────────────────────────────────────
   text: "#141110",
   textMuted: "#6B6559",
   textFaint: "#A39C8C",
-
-  // ── Status ───────────────────────────────────────────────────
   danger: "#C0392B",
   dangerBg: "#C0392B14",
   dangerBorder: "#C0392B44",
-
   fontDisplay: "'Cormorant Garamond', serif",
   fontBody: "'Inter', sans-serif",
-
   shadow: "0 4px 20px rgba(20,17,16,0.08)",
 };
+
+export const getLabelStyle = (theme = THEME) => ({
+  fontSize: 11,
+  fontWeight: 600,
+  color: theme.textMuted,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  fontFamily: theme.fontBody,
+});
+
+export const getInputStyle = (theme = THEME) => ({
+  width: "100%",
+  background: theme.surface2,
+  border: `1px solid ${theme.border}`,
+  borderRadius: 7,
+  padding: "8px 11px",
+  color: theme.text,
+  fontSize: 13,
+  fontFamily: theme.fontBody,
+  outline: "none",
+  boxSizing: "border-box",
+  transition: "border-color 0.15s, box-shadow 0.15s",
+});
 
 export const labelStyle = {
   fontSize: 11,
@@ -79,7 +89,6 @@ export const sectionHeading = {
   gap: 8,
 };
 
-// Dynamic size charts by product style
 export const SIZE_CHARTS = {
   "Round Neck": [
     "4-6",

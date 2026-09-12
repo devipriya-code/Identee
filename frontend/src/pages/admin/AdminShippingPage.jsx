@@ -10,7 +10,7 @@ import {
   resetShippingError,
 } from "../../redux/slices/shippingSlice";
 import { fetchAllOrders } from "../../redux/slices/orderSlice";
-import { THEME, labelStyle, inputStyle } from "../../theme/theme";
+import { getLabelStyle, getInputStyle } from "../../theme/theme";
 
 const STATUS_COLORS = {
   CREATED: { bg: "#2B2B3020", text: "#8A877F" },
@@ -22,7 +22,7 @@ const STATUS_COLORS = {
   RETURN_COMPLETED: { bg: "#EF444420", text: "#FCA5A5" },
 };
 
-function EditableCostCell({ rule, onSave, disabled }) {
+function EditableCostCell({ rule, onSave, disabled, theme, inputStyle }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(rule.cost);
 
@@ -43,8 +43,8 @@ function EditableCostCell({ rule, onSave, disabled }) {
         <span
           style={{
             fontWeight: 700,
-            color: THEME.goldDeep,
-            fontFamily: THEME.fontBody,
+            color: theme.goldDeep,
+            fontFamily: theme.fontBody,
           }}
         >
           ₹{rule.cost}
@@ -55,7 +55,7 @@ function EditableCostCell({ rule, onSave, disabled }) {
           style={{
             background: "none",
             border: "none",
-            color: THEME.gold,
+            color: theme.gold,
             cursor: "pointer",
             fontSize: 12,
             fontWeight: 600,
@@ -98,13 +98,13 @@ function EditableCostCell({ rule, onSave, disabled }) {
           setEditing(false);
         }}
         style={{
-          background: THEME.gold,
+          background: theme.gold,
           border: "none",
           borderRadius: 6,
           padding: "6px 10px",
           fontSize: 12,
           fontWeight: 700,
-          color: "#0B0B0C",
+          color: theme.ink,
           cursor: disabled ? "not-allowed" : "pointer",
         }}
       >
@@ -118,11 +118,11 @@ function EditableCostCell({ rule, onSave, disabled }) {
         }}
         style={{
           background: "none",
-          border: `1px solid ${THEME.border}`,
+          border: `1px solid ${theme.border}`,
           borderRadius: 6,
           padding: "6px 10px",
           fontSize: 12,
-          color: THEME.textMuted,
+          color: theme.textMuted,
           cursor: "pointer",
         }}
       >
@@ -132,7 +132,7 @@ function EditableCostCell({ rule, onSave, disabled }) {
   );
 }
 
-function AlwaysChargeToggle({ rule, onToggle, disabled }) {
+function AlwaysChargeToggle({ rule, onToggle, disabled, theme }) {
   const active = Boolean(rule.alwaysCharge);
   return (
     <button
@@ -148,13 +148,13 @@ function AlwaysChargeToggle({ rule, onToggle, disabled }) {
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        background: active ? THEME.goldBg : THEME.surface2,
-        border: `1px solid ${active ? THEME.goldBorder : THEME.border}`,
+        background: active ? theme.goldBg : theme.surface2,
+        border: `1px solid ${active ? theme.goldBorder : theme.border}`,
         borderRadius: 999,
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 700,
-        color: active ? THEME.goldDeep : THEME.textMuted,
+        color: active ? theme.goldDeep : theme.textMuted,
         cursor: disabled ? "not-allowed" : "pointer",
         whiteSpace: "nowrap",
       }}
@@ -164,7 +164,7 @@ function AlwaysChargeToggle({ rule, onToggle, disabled }) {
           width: 6,
           height: 6,
           borderRadius: "50%",
-          background: active ? THEME.gold : THEME.border,
+          background: active ? theme.gold : theme.border,
         }}
       />
       {active ? "Always charged" : "Free above threshold"}
@@ -197,6 +197,9 @@ export default function AdminShippingPage() {
   const { freeShippingAbove, shippingRules, isLoading, isError, message } =
     useSelector((state) => state.shipping);
   const { allOrders, allOrdersLoading } = useSelector((state) => state.orders);
+  const { theme } = useTheme();
+  const labelStyle = getLabelStyle(theme);
+  const inputStyle = getInputStyle(theme);
 
   const [newState, setNewState] = useState("");
   const [newCost, setNewCost] = useState("");
@@ -207,6 +210,14 @@ export default function AdminShippingPage() {
   const [savingFreeShip, setSavingFreeShip] = useState(false);
 
   const [stateFilter, setStateFilter] = useState("");
+
+  const thStyle = {
+    padding: "10px 16px",
+    color: theme.textMuted,
+    fontWeight: 600,
+    fontSize: 12,
+  };
+  const tdStyle = { padding: "12px 16px", color: theme.text };
 
   useEffect(() => {
     dispatch(getShippingCost());
@@ -326,14 +337,14 @@ export default function AdminShippingPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: THEME.bg,
-        color: THEME.text,
+        background: theme.bg,
+        color: theme.text,
         padding: "32px 40px",
         fontFamily: "'Inter', sans-serif",
       }}
       className="shipping-page"
     >
-      <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>
+      <p style={{ ...labelStyle, margin: 0, color: theme.gold }}>
         Admin · Logistics
       </p>
       <h1
@@ -350,7 +361,7 @@ export default function AdminShippingPage() {
         style={{
           margin: "0 0 28px",
           fontSize: 14,
-          color: THEME.textMuted,
+          color: theme.textMuted,
           maxWidth: 720,
         }}
       >
@@ -363,13 +374,13 @@ export default function AdminShippingPage() {
       {isError && (
         <div
           style={{
-            background: THEME.dangerBg,
-            border: `1px solid ${THEME.dangerBorder}`,
+            background: theme.dangerBg,
+            border: `1px solid ${theme.dangerBorder}`,
             borderRadius: 8,
             padding: "10px 14px",
             marginBottom: 20,
             fontSize: 13,
-            color: THEME.danger,
+            color: theme.danger,
           }}
         >
           {message}
@@ -379,11 +390,11 @@ export default function AdminShippingPage() {
       <div className="shipping-top-grid">
         <div
           style={{
-            border: `1px solid ${THEME.border}`,
+            border: `1px solid ${theme.border}`,
             borderRadius: 12,
             padding: 20,
-            background: THEME.surface,
-            boxShadow: THEME.shadow,
+            background: theme.surface,
+            boxShadow: theme.shadow,
           }}
         >
           <p
@@ -391,13 +402,13 @@ export default function AdminShippingPage() {
               margin: "0 0 4px",
               fontSize: 14,
               fontWeight: 700,
-              color: THEME.text,
+              color: theme.text,
             }}
           >
             Free Shipping Threshold
           </p>
           <p
-            style={{ margin: "0 0 14px", fontSize: 12, color: THEME.textMuted }}
+            style={{ margin: "0 0 14px", fontSize: 12, color: theme.textMuted }}
           >
             Orders with a subtotal at or above this amount ship free, unless the
             destination state is marked "Always charged" below. Set to 0 to
@@ -411,7 +422,7 @@ export default function AdminShippingPage() {
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 600, color: THEME.text }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: theme.text }}>
               ₹
             </span>
             <input
@@ -428,13 +439,13 @@ export default function AdminShippingPage() {
               style={{
                 background: savingFreeShip
                   ? "#8A6F2E"
-                  : `linear-gradient(135deg, ${THEME.gold}, ${THEME.goldBright})`,
+                  : `linear-gradient(135deg, ${theme.gold}, ${theme.goldBright})`,
                 border: "none",
                 borderRadius: 8,
                 padding: "9px 18px",
                 fontSize: 13,
                 fontWeight: 700,
-                color: "#0B0B0C",
+                color: theme.ink,
                 cursor: savingFreeShip ? "not-allowed" : "pointer",
               }}
             >
@@ -445,11 +456,11 @@ export default function AdminShippingPage() {
 
         <div
           style={{
-            border: `1px solid ${THEME.border}`,
+            border: `1px solid ${theme.border}`,
             borderRadius: 12,
             padding: 20,
-            background: THEME.surface,
-            boxShadow: THEME.shadow,
+            background: theme.surface,
+            boxShadow: theme.shadow,
           }}
         >
           <p
@@ -457,13 +468,13 @@ export default function AdminShippingPage() {
               margin: "0 0 4px",
               fontSize: 14,
               fontWeight: 700,
-              color: THEME.text,
+              color: theme.text,
             }}
           >
             Add a State
           </p>
           <p
-            style={{ margin: "0 0 14px", fontSize: 12, color: THEME.textMuted }}
+            style={{ margin: "0 0 14px", fontSize: 12, color: theme.textMuted }}
           >
             Only states listed below are deliverable — checkout rejects any
             other state.
@@ -497,9 +508,9 @@ export default function AdminShippingPage() {
                 height: 38,
                 marginTop: 21,
                 borderRadius: 8,
-                border: `1px dashed ${THEME.gold}`,
+                border: `1px dashed ${theme.gold}`,
                 background: "transparent",
-                color: THEME.goldBright,
+                color: theme.goldBright,
                 fontWeight: 600,
                 cursor: adding ? "not-allowed" : "pointer",
                 fontSize: 13,
@@ -516,7 +527,7 @@ export default function AdminShippingPage() {
                 gap: 8,
                 fontSize: 12,
                 fontWeight: 600,
-                color: THEME.text,
+                color: theme.text,
                 cursor: "pointer",
                 width: "100%",
                 marginTop: 4,
@@ -526,7 +537,7 @@ export default function AdminShippingPage() {
                 type="checkbox"
                 checked={newAlwaysCharge}
                 onChange={(e) => setNewAlwaysCharge(e.target.checked)}
-                style={{ accentColor: THEME.gold }}
+                style={{ accentColor: theme.gold }}
               />
               Always charge this state's shipping fee (skip free-shipping
               threshold)
@@ -538,17 +549,17 @@ export default function AdminShippingPage() {
       <div className="shipping-mid-grid">
         <div
           style={{
-            border: `1px solid ${THEME.border}`,
+            border: `1px solid ${theme.border}`,
             borderRadius: 12,
             overflow: "hidden",
           }}
         >
           {isLoading ? (
-            <p style={{ color: THEME.textMuted, padding: 20 }}>
+            <p style={{ color: theme.textMuted, padding: 20 }}>
               Loading shipping rules…
             </p>
           ) : shippingRules.length === 0 ? (
-            <p style={{ color: THEME.textMuted, padding: 20 }}>
+            <p style={{ color: theme.textMuted, padding: 20 }}>
               No states configured yet — add one above. Checkout will reject
               orders for any state without a rule here.
             </p>
@@ -561,7 +572,7 @@ export default function AdminShippingPage() {
               }}
             >
               <thead>
-                <tr style={{ background: THEME.surface2, textAlign: "left" }}>
+                <tr style={{ background: theme.surface2, textAlign: "left" }}>
                   <th style={thStyle}>State</th>
                   <th style={thStyle}>Shipping Cost</th>
                   <th style={thStyle}>Free Shipping Rule</th>
@@ -572,7 +583,7 @@ export default function AdminShippingPage() {
                 {shippingRules.map((rule) => (
                   <tr
                     key={rule._id}
-                    style={{ borderTop: `1px solid ${THEME.border}` }}
+                    style={{ borderTop: `1px solid ${theme.border}` }}
                   >
                     <td style={tdStyle}>{rule.state}</td>
                     <td style={tdStyle}>
@@ -580,6 +591,8 @@ export default function AdminShippingPage() {
                         rule={rule}
                         onSave={handleUpdateCost}
                         disabled={isLoading}
+                        theme={theme}
+                        inputStyle={inputStyle}
                       />
                     </td>
                     <td style={tdStyle}>
@@ -587,15 +600,16 @@ export default function AdminShippingPage() {
                         rule={rule}
                         onToggle={handleToggleAlwaysCharge}
                         disabled={isLoading}
+                        theme={theme}
                       />
                     </td>
                     <td style={{ ...tdStyle, textAlign: "right" }}>
                       <button
                         onClick={() => handleDelete(rule._id, rule.state)}
                         style={{
-                          background: THEME.dangerBg,
-                          border: `1px solid ${THEME.dangerBorder}`,
-                          color: THEME.danger,
+                          background: theme.dangerBg,
+                          border: `1px solid ${theme.dangerBorder}`,
+                          color: theme.danger,
                           borderRadius: 6,
                           padding: "5px 12px",
                           cursor: "pointer",
@@ -619,7 +633,7 @@ export default function AdminShippingPage() {
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: THEME.goldDeep,
+                color: theme.goldDeep,
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
                 margin: "0 0 12px",
@@ -634,17 +648,17 @@ export default function AdminShippingPage() {
                   <div
                     key={state}
                     style={{
-                      border: `1px solid ${THEME.border}`,
+                      border: `1px solid ${theme.border}`,
                       borderRadius: 10,
                       padding: "10px 16px",
-                      background: THEME.surface,
+                      background: theme.surface,
                     }}
                   >
                     <p
                       style={{
                         margin: 0,
                         fontSize: 12,
-                        color: THEME.textMuted,
+                        color: theme.textMuted,
                       }}
                     >
                       {state}
@@ -654,7 +668,7 @@ export default function AdminShippingPage() {
                         margin: "2px 0 0",
                         fontSize: 16,
                         fontWeight: 700,
-                        color: THEME.goldDeep,
+                        color: theme.goldDeep,
                       }}
                     >
                       ₹{total}
@@ -681,7 +695,7 @@ export default function AdminShippingPage() {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: THEME.goldDeep,
+              color: theme.goldDeep,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               margin: 0,
@@ -709,9 +723,9 @@ export default function AdminShippingPage() {
         </div>
 
         {allOrdersLoading ? (
-          <p style={{ color: THEME.textMuted }}>Loading orders…</p>
+          <p style={{ color: theme.textMuted }}>Loading orders…</p>
         ) : filteredOrders.length === 0 ? (
-          <p style={{ color: THEME.textMuted }}>
+          <p style={{ color: theme.textMuted }}>
             {stateFilter
               ? `No orders yet for ${stateFilter}.`
               : "No orders yet."}
@@ -719,7 +733,7 @@ export default function AdminShippingPage() {
         ) : (
           <div
             style={{
-              border: `1px solid ${THEME.border}`,
+              border: `1px solid ${theme.border}`,
               borderRadius: 12,
               overflow: "auto",
               maxHeight: 480,
@@ -733,7 +747,7 @@ export default function AdminShippingPage() {
               }}
             >
               <thead>
-                <tr style={{ background: THEME.surface2, textAlign: "left" }}>
+                <tr style={{ background: theme.surface2, textAlign: "left" }}>
                   <th style={thStyle}>Order</th>
                   <th style={thStyle}>Customer</th>
                   <th style={thStyle}>Ship To (State)</th>
@@ -748,14 +762,14 @@ export default function AdminShippingPage() {
                 {filteredOrders.map((order) => (
                   <tr
                     key={order._id}
-                    style={{ borderTop: `1px solid ${THEME.border}` }}
+                    style={{ borderTop: `1px solid ${theme.border}` }}
                   >
                     <td
                       style={{
                         ...tdStyle,
                         fontFamily: "monospace",
                         fontSize: 11,
-                        color: THEME.textMuted,
+                        color: theme.textMuted,
                       }}
                     >
                       {order.invoiceNumber || order._id.slice(-8)}
@@ -773,7 +787,7 @@ export default function AdminShippingPage() {
                       style={{
                         ...tdStyle,
                         fontWeight: 700,
-                        color: THEME.goldDeep,
+                        color: theme.goldDeep,
                       }}
                     >
                       {order.shippingPrice === 0
@@ -788,7 +802,7 @@ export default function AdminShippingPage() {
                       style={{
                         ...tdStyle,
                         fontSize: 12,
-                        color: THEME.textMuted,
+                        color: theme.textMuted,
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -807,51 +821,13 @@ export default function AdminShippingPage() {
       </div>
 
       <style>{`
-        .shipping-top-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-          gap: 20px;
-          margin-bottom: 28px;
-        }
-        .shipping-mid-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-          gap: 24px;
-          align-items: start;
-        }
-        .add-state-form {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-        .revenue-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-          gap: 10px;
-        }
-        @media (max-width: 1000px) {
-          .shipping-mid-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        @media (max-width: 720px) {
-          .shipping-top-grid {
-            grid-template-columns: 1fr;
-          }
-        }
+        .shipping-top-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-bottom: 28px; }
+        .shipping-mid-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+        .add-state-form { display: flex; gap: 10px; flex-wrap: wrap; }
+        .revenue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+        @media (max-width: 1000px) { .shipping-mid-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 720px) { .shipping-top-grid { grid-template-columns: 1fr; } }
       `}</style>
     </div>
   );
 }
-
-const thStyle = {
-  padding: "10px 16px",
-  color: THEME.textMuted,
-  fontWeight: 600,
-  fontSize: 12,
-};
-
-const tdStyle = {
-  padding: "12px 16px",
-  color: THEME.text,
-};

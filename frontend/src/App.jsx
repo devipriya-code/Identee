@@ -57,6 +57,8 @@ import ArtBulkUploadPage from "./pages/admin/ArtBulkUploadPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 // ✅ NEW: Settings module
 import SettingsLayout from "./pages/admin/settings/SettingsLayout";
+import AboutUs from "./pages/AboutUs";
+import ContactUs from "./pages/ContactUs";
 
 const OrdersPage = () => (
   <PlaceholderAdminPage
@@ -219,6 +221,8 @@ export default function App() {
         {/* Everything with the Navbar — Home is PUBLIC (no login required) */}
         <Route element={<CustomerLayout />}>
           <Route path="/" element={<Home />} />
+          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/contact-us" element={<ContactUs />} />
           <Route
             path="/category/:categoryName"
             element={<CategoryProductsPage />}

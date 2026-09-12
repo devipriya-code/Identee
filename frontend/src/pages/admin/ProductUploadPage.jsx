@@ -63,7 +63,6 @@ const emptyForm = () => ({
   variants: [emptyVariant()],
 });
 
-// sectionHeading isn't in theme.js's exported set used elsewhere, define locally from THEME
 const sectionHeading = {
   fontSize: 12,
   fontWeight: 700,
@@ -245,7 +244,6 @@ function VariantCard({
     onChange(index, { ...variant, [field]: value });
 
   const changeStyle = (style) => {
-    // garment style changed — sizes are manual now, so just update the style
     onChange(index, { ...variant, garmentStyle: style });
   };
 
@@ -392,7 +390,6 @@ function VariantCard({
         </Field>
       </div>
 
-      {/* Garment style → drives the size chart */}
       <div style={{ marginBottom: 16 }}>
         <Field label="Garment Style *">
           <select
@@ -408,7 +405,6 @@ function VariantCard({
         </Field>
       </div>
 
-      {/* Sizes — admin types and adds each size manually */}
       <div style={{ marginBottom: 16 }}>
         <label style={labelStyle}>Sizes *</label>
         <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
@@ -484,8 +480,7 @@ function VariantCard({
           </div>
         )}
       </div>
-      
-      {/* Stock by size */}
+
       {variant.sizes.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>Stock per Size *</label>
@@ -528,7 +523,6 @@ function VariantCard({
         </div>
       )}
 
-      {/* Images */}
       <div>
         <label style={{ ...labelStyle, marginBottom: 8, display: "block" }}>
           Product Images{" "}
@@ -728,7 +722,6 @@ export default function ProductUploadPage() {
         padding: "32px 40px",
       }}
     >
-      {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <p style={{ ...labelStyle, margin: 0, color: THEME.gold }}>
           Admin · Catalogue
@@ -767,7 +760,6 @@ export default function ProductUploadPage() {
       )}
 
       <form onSubmit={handleSubmit} noValidate>
-        {/* ── Section 1: Basic Info ── */}
         <p style={sectionHeading}>Basic Information</p>
 
         <div
@@ -870,7 +862,6 @@ export default function ProductUploadPage() {
           </label>
         </div>
 
-        {/* ── Section 2: Product Details ── */}
         <p style={sectionHeading}>Product Details</p>
 
         <div
@@ -951,7 +942,6 @@ export default function ProductUploadPage() {
           </Field>
         </div>
 
-        {/* Wash Care */}
         <div style={{ marginBottom: 8 }}>
           <label style={labelStyle}>Wash Care</label>
           <div
@@ -983,7 +973,6 @@ export default function ProductUploadPage() {
           </div>
         </div>
 
-        {/* ── Section 3: Shipping ── */}
         <p style={sectionHeading}>Shipping Details</p>
 
         <div
@@ -1075,7 +1064,6 @@ export default function ProductUploadPage() {
           </Field>
         </div>
 
-        {/* ── Section 4: Variants ── */}
         <p style={sectionHeading}>Colour Variants</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1123,7 +1111,6 @@ export default function ProductUploadPage() {
           Add Another Colour Variant
         </button>
 
-        {/* Submit */}
         <div
           style={{
             marginTop: 32,

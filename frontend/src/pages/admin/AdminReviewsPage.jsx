@@ -1,24 +1,20 @@
 // pages/admin/AdminReviewsPage.jsx
-//
-// Route this at /admin/reviews inside your existing AdminLayout.
-
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { THEME } from "../../theme/theme";
-import reviewService from "../../services/reviewServices"; // ✅ FIXED — was "reviewServices" (typo, no such file)
+import reviewService from "../../services/reviewServices";
 import ReviewDetailModal from "./ReviewDetailModal";
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, theme }) {
   return (
     <div
       style={{
-        background: THEME.surface,
-        border: `1px solid ${THEME.border}`,
+        background: theme.surface,
+        border: `1px solid ${theme.border}`,
         borderRadius: 12,
         padding: "16px 20px",
         flex: 1,
         minWidth: 140,
-        boxShadow: THEME.shadow,
+        boxShadow: theme.shadow,
       }}
     >
       <p
@@ -28,7 +24,7 @@ function StatCard({ label, value }) {
           fontWeight: 600,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: THEME.textMuted,
+          color: theme.textMuted,
         }}
       >
         {label}
@@ -38,8 +34,8 @@ function StatCard({ label, value }) {
           margin: "6px 0 0",
           fontSize: 26,
           fontWeight: 600,
-          color: THEME.goldDeep,
-          fontFamily: THEME.fontDisplay,
+          color: theme.goldDeep,
+          fontFamily: theme.fontDisplay,
         }}
       >
         {value}
@@ -75,6 +71,7 @@ function StatusPill({ status }) {
 
 export default function AdminReviewsPage() {
   const { user } = useSelector((state) => state.auth);
+  const { theme } = useTheme();
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -120,16 +117,16 @@ export default function AdminReviewsPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: THEME.bg,
+        background: theme.bg,
         padding: "32px 40px",
-        fontFamily: THEME.fontBody,
+        fontFamily: theme.fontBody,
       }}
     >
       <h1
         style={{
-          fontFamily: THEME.fontDisplay,
+          fontFamily: theme.fontDisplay,
           fontSize: 26,
-          color: THEME.text,
+          color: theme.text,
           marginBottom: 20,
         }}
       >
@@ -139,10 +136,10 @@ export default function AdminReviewsPage() {
       <div
         style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28 }}
       >
-        <StatCard label="Total Reviews" value={stats.total} />
-        <StatCard label="Pending" value={stats.pending} />
-        <StatCard label="Approved" value={stats.approved} />
-        <StatCard label="Rejected" value={stats.rejected} />
+        <StatCard label="Total Reviews" value={stats.total} theme={theme} />
+        <StatCard label="Pending" value={stats.pending} theme={theme} />
+        <StatCard label="Approved" value={stats.approved} theme={theme} />
+        <StatCard label="Rejected" value={stats.rejected} theme={theme} />
       </div>
 
       <div
@@ -161,9 +158,9 @@ export default function AdminReviewsPage() {
             style={{
               padding: "6px 14px",
               borderRadius: 20,
-              border: `1px solid ${statusFilter === s ? THEME.goldDeep : THEME.border}`,
-              background: statusFilter === s ? THEME.goldBg : "transparent",
-              color: statusFilter === s ? THEME.goldDeep : THEME.text,
+              border: `1px solid ${statusFilter === s ? theme.goldDeep : theme.border}`,
+              background: statusFilter === s ? theme.goldBg : "transparent",
+              color: statusFilter === s ? theme.goldDeep : theme.text,
               fontSize: 12,
               fontWeight: 600,
               cursor: "pointer",
@@ -180,7 +177,7 @@ export default function AdminReviewsPage() {
           style={{
             padding: "6px 10px",
             borderRadius: 8,
-            border: `1px solid ${THEME.border}`,
+            border: `1px solid ${theme.border}`,
           }}
         >
           <option value="">All ratings</option>
@@ -202,7 +199,7 @@ export default function AdminReviewsPage() {
             style={{
               padding: "6px 12px",
               borderRadius: 8,
-              border: `1px solid ${THEME.border}`,
+              border: `1px solid ${theme.border}`,
               minWidth: 240,
             }}
           />
@@ -212,7 +209,7 @@ export default function AdminReviewsPage() {
               padding: "6px 16px",
               borderRadius: 8,
               border: "none",
-              background: THEME.goldDeep,
+              background: theme.goldDeep,
               color: "#fff",
               cursor: "pointer",
             }}
@@ -224,8 +221,8 @@ export default function AdminReviewsPage() {
 
       <div
         style={{
-          background: THEME.surface,
-          border: `1px solid ${THEME.border}`,
+          background: theme.surface,
+          border: `1px solid ${theme.border}`,
           borderRadius: 12,
           overflow: "hidden",
         }}
@@ -234,7 +231,7 @@ export default function AdminReviewsPage() {
           style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
         >
           <thead>
-            <tr style={{ background: THEME.goldBg, textAlign: "left" }}>
+            <tr style={{ background: theme.goldBg, textAlign: "left" }}>
               {[
                 "Customer",
                 "Product",
@@ -248,7 +245,7 @@ export default function AdminReviewsPage() {
                   key={h}
                   style={{
                     padding: "10px 14px",
-                    color: THEME.goldDeep,
+                    color: theme.goldDeep,
                     fontWeight: 700,
                   }}
                 >
@@ -265,7 +262,7 @@ export default function AdminReviewsPage() {
                   style={{
                     padding: 20,
                     textAlign: "center",
-                    color: THEME.textMuted,
+                    color: theme.textMuted,
                   }}
                 >
                   Loading...
@@ -278,7 +275,7 @@ export default function AdminReviewsPage() {
                   style={{
                     padding: 20,
                     textAlign: "center",
-                    color: THEME.textMuted,
+                    color: theme.textMuted,
                   }}
                 >
                   No reviews found
@@ -288,11 +285,11 @@ export default function AdminReviewsPage() {
               reviews.map((r) => (
                 <tr
                   key={r._id}
-                  style={{ borderTop: `1px solid ${THEME.border}` }}
+                  style={{ borderTop: `1px solid ${theme.border}` }}
                 >
                   <td style={{ padding: "10px 14px" }}>{r.user?.name}</td>
                   <td style={{ padding: "10px 14px" }}>{r.product?.name}</td>
-                  <td style={{ padding: "10px 14px", color: THEME.gold }}>
+                  <td style={{ padding: "10px 14px", color: theme.gold }}>
                     {"★".repeat(r.rating)}
                   </td>
                   <td
@@ -309,7 +306,7 @@ export default function AdminReviewsPage() {
                   <td style={{ padding: "10px 14px" }}>
                     <StatusPill status={r.status} />
                   </td>
-                  <td style={{ padding: "10px 14px", color: THEME.textMuted }}>
+                  <td style={{ padding: "10px 14px", color: theme.textMuted }}>
                     {new Date(r.createdAt).toLocaleDateString()}
                   </td>
                   <td style={{ padding: "10px 14px" }}>
@@ -318,9 +315,9 @@ export default function AdminReviewsPage() {
                       style={{
                         padding: "5px 12px",
                         borderRadius: 6,
-                        border: `1px solid ${THEME.goldBorder}`,
+                        border: `1px solid ${theme.goldBorder}`,
                         background: "transparent",
-                        color: THEME.goldDeep,
+                        color: theme.goldDeep,
                         cursor: "pointer",
                         fontSize: 12,
                       }}
